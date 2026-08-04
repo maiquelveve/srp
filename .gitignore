@@ -1,0 +1,41 @@
+# Node
+node_modules/
+dist/
+build/
+coverage/
+*.log
+npm-debug.log*
+
+# Env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# Expo / React Native
+mobile/.expo/
+mobile/.expo-shared/
+mobile/android/
+mobile/ios/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# TypeORM
+backend/dist/
+
+# tsc -b project-reference build output (vite.config.ts -> vite.config.js)
+frontend/vite.config.js
+frontend/vite.config.d.ts
+*.tsbuildinfo

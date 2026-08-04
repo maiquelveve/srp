@@ -1,0 +1,27 @@
+{
+  "name": "srp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SRP - Sistema de Rotinas Penitenciárias - monorepo (backend/, frontend/, mobile/)",
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.4",
+    "lint-staged": "^15.2.7"
+  },
+  "lint-staged": {
+    "backend/**/*.ts": [
+      "bash -c 'cd backend && npx eslint --fix --max-warnings=0'",
+      "bash -c 'cd backend && npx prettier --write'"
+    ],
+    "frontend/**/*.{ts,tsx}": [
+      "bash -c 'cd frontend && npx eslint --fix --max-warnings=0'",
+      "bash -c 'cd frontend && npx prettier --write'"
+    ],
+    "mobile/**/*.{ts,tsx}": [
+      "bash -c 'cd mobile && npx eslint --fix --max-warnings=0'",
+      "bash -c 'cd mobile && npx prettier --write'"
+    ]
+  }
+}

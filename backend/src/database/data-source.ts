@@ -1,0 +1,53 @@
+import 'reflect-metadata';
+import 'dotenv/config';
+import { DataSource, DataSourceOptions } from 'typeorm';
+import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
+import { Role } from '../roles/entities/role.entity';
+import { User } from '../users/entities/user.entity';
+import { RefreshToken } from '../users/entities/refresh-token.entity';
+import { InviteToken } from '../users/entities/invite-token.entity';
+import { Unit } from '../units/entities/unit.entity';
+import { Gallery } from '../galleries/entities/gallery.entity';
+import { Cell } from '../cells/entities/cell.entity';
+import { Inmate } from '../inmates/entities/inmate.entity';
+import { InmateCellHistory } from '../inmates/entities/inmate-cell-history.entity';
+import { MovementType } from '../movements/entities/movement-type.entity';
+import { Movement } from '../movements/entities/movement.entity';
+import { Routine } from '../routines/entities/routine.entity';
+import { RoutineSchedule } from '../routines/entities/routine-schedule.entity';
+import { StaffSchedule } from '../staff/entities/staff-schedule.entity';
+import { MinimumStaffingConfig } from '../staff/entities/minimum-staffing-config.entity';
+import { AuditLog } from '../audit/entities/audit-log.entity';
+
+/**
+ * Single source of truth for TypeORM entities and migrations (Constitution IV/VIII).
+ * `synchronize` MUST stay false in every environment — schema changes only via
+ * migrations under `./migrations` (research.md #8).
+ */
+export const dataSourceOptions: DataSourceOptions = {
+  type: 'postgres',
+  url: process.env.DATABASE_URL,
+  entities: [
+    Role,
+    User,
+    RefreshToken,
+    InviteToken,
+    Unit,
+    Gallery,
+    Cell,
+    Inmate,
+    InmateCellHistory,
+    MovementType,
+    Movement,
+    Routine,
+    RoutineSchedule,
+    StaffSchedule,
+    MinimumStaffingConfig,
+    AuditLog,
+  ],
+  migrations: [__dirname + '/migrations/*{.ts,.js}'],
+  namingStrategy: new SnakeNamingStrategy(),
+  synchronize: false,
+};
+
+export const AppDataSource = new DataSource(dataSourceOptions);

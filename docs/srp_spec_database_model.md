@@ -58,6 +58,22 @@ CREATE TABLE refresh_tokens (
 );
 ```
 
+## Tabela `invite_tokens`
+
+Token de uso único para o novo usuário definir a própria senha inicial fora de banda
+(research.md #10, `POST /api/v1/auth/set-initial-password`).
+
+```sql
+CREATE TABLE invite_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    token_hash VARCHAR(255) NOT NULL UNIQUE,
+    expires_at TIMESTAMP NOT NULL,
+    used_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+```
+
 ## Tabela `units`
 
 ```sql
@@ -262,6 +278,7 @@ CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
 - `user_units.user_id` → `users.id`
 - `user_units.unit_id` → `units.id`
 - `refresh_tokens.user_id` → `users.id`
+- `invite_tokens.user_id` → `users.id`
 - `galleries.unit_id` → `units.id`
 - `cells.gallery_id` → `galleries.id`
 - `inmates.current_cell_id` → `cells.id`

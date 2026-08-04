@@ -31,15 +31,15 @@ Per `plan.md` Project Structure — three apps sharing one backend/API:
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create monorepo structure (`backend/`, `frontend/`, `mobile/`) per `plan.md` Project Structure
-- [ ] T002 [P] Initialize `backend/` NestJS + TypeScript (strict) project with module folders: `src/auth`, `src/users`, `src/roles`, `src/units`, `src/galleries`, `src/cells`, `src/inmates`, `src/movements`, `src/routines`, `src/staff`, `src/reports`, `src/audit`, `src/common`, `src/config`
-- [ ] T003 [P] Initialize `frontend/` React + Vite + TypeScript project with TailwindCSS, shadcn/ui, TanStack Query, React Hook Form, Zod
-- [ ] T004 [P] Initialize `mobile/` React Native + Expo + TypeScript project
-- [ ] T005 [P] Configure ESLint + Prettier + Husky + lint-staged for `backend/`, `frontend/`, `mobile/` (Constitution IX — no `any`, no `@ts-ignore`)
-- [ ] T006 [P] Create `.env.example` files for `backend/`, `frontend/`, `mobile/` (DATABASE_URL, JWT_SECRET, JWT_REFRESH_SECRET, API base URL)
-- [ ] T007 [P] Configure `docker-compose.yml` at repo root for local PostgreSQL
-- [ ] T008 Configure TypeORM in `backend/` (`@nestjs/typeorm` + `pg`, `backend/src/database/data-source.ts`, wire `DATABASE_URL`, `synchronize: false`)
-- [ ] T009 [P] Configure Swagger/OpenAPI bootstrap under `/api/v1` prefix in `backend/src/main.ts`
+- [X] T001 Create monorepo structure (`backend/`, `frontend/`, `mobile/`) per `plan.md` Project Structure
+- [X] T002 [P] Initialize `backend/` NestJS + TypeScript (strict) project with module folders: `src/auth`, `src/users`, `src/roles`, `src/units`, `src/galleries`, `src/cells`, `src/inmates`, `src/movements`, `src/routines`, `src/staff`, `src/reports`, `src/audit`, `src/common`, `src/config`
+- [X] T003 [P] Initialize `frontend/` React + Vite + TypeScript project with TailwindCSS, shadcn/ui, TanStack Query, React Hook Form, Zod
+- [X] T004 [P] Initialize `mobile/` React Native + Expo + TypeScript project
+- [X] T005 [P] Configure ESLint + Prettier + Husky + lint-staged for `backend/`, `frontend/`, `mobile/` (Constitution IX — no `any`, no `@ts-ignore`)
+- [X] T006 [P] Create `.env.example` files for `backend/`, `frontend/`, `mobile/` (DATABASE_URL, JWT_SECRET, JWT_REFRESH_SECRET, API base URL)
+- [X] T007 [P] Configure `docker-compose.yml` at repo root for local PostgreSQL
+- [X] T008 Configure TypeORM in `backend/` (`@nestjs/typeorm` + `pg`, `backend/src/database/data-source.ts`, wire `DATABASE_URL`, `synchronize: false`)
+- [X] T009 [P] Configure Swagger/OpenAPI bootstrap under `/api/v1` prefix in `backend/src/main.ts`
 
 ---
 
@@ -49,24 +49,24 @@ Per `plan.md` Project Structure — three apps sharing one backend/API:
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T010 Define all TypeORM entities across their owning modules (`<module>/entities/*.entity.ts`) mirroring `docs/srp_spec_database_model.md` (all identifiers in English per Constitution XI) — `Role`, `User`, `UserUnit` (join entity for FR-004a), `RefreshToken` (FR-030…FR-032 auth revocation, research.md #11), `Unit`, `Gallery`, `Cell`, `Inmate`, `InmateCellHistory`, `MovementType`, `Movement`, `Routine`, `RoutineSchedule`, `StaffSchedule`, `MinimumStaffingConfig` (FR-024, research.md #12), `AuditLog`; register all entities on the `DataSource` in `backend/src/database/data-source.ts` (depends on T008)
-- [ ] T011 Generate and run the initial TypeORM migration (`typeorm migration:generate` + `migration:run`) in `backend/src/database/migrations/` (depends on T010)
-- [ ] T012 [P] Create TypeORM seed script `backend/src/database/seeds/seed.ts` with the 3 roles and one sample user per role, unit, gallery and cell (depends on T011)
-- [ ] T013 [P] Implement global `ValidationPipe` + shared DTO base conventions in `backend/src/common/pipes/`
-- [ ] T014 [P] Implement global exception filter (consistent error shape) in `backend/src/common/filters/`
-- [ ] T015 [P] Implement request logging middleware in `backend/src/common/logging/`
-- [ ] T016 Implement `AuditService` + global `AuditInterceptor` writing to `audit_logs` on every state-changing request in `backend/src/audit/`, including a `REDACTED_FIELDS` redaction step (`passwordHash`, `tokenHash`, `@Sensitive()`-marked fields) applied to `oldData`/`newData` before persisting — Constitution II, research.md #6, `/speckit-analyze` finding C1 (depends on T011)
-- [ ] T017 [P] Implement Argon2 password hashing utility in `backend/src/auth/hashing/` (depends on T011)
-- [ ] T018 Implement JWT access + refresh token strategy in `backend/src/auth/`, persisting refresh tokens as SHA-256 hash in `refresh_tokens` (`userId`, `tokenHash`, `expiresAt`, `revokedAt`) with rotation on `/auth/refresh` — research.md #11, `/speckit-analyze` finding G3 (depends on T017)
-- [ ] T019 Implement RBAC + unit-scope guards reading `role` and `units` claims in `backend/src/auth/guards/` (research.md #5; depends on T018)
-- [ ] T020 Implement `POST /api/v1/auth/login`, `/refresh`, `/logout` per `contracts/auth.md` in `backend/src/auth/`, rejecting unknown/expired/revoked refresh tokens against `refresh_tokens` and revoking on logout (depends on T018, T016)
-- [ ] T020a [P] Implement Users module — `POST /api/v1/users`, `GET /api/v1/users`, `PATCH /api/v1/users/:id/deactivate` per `contracts/structure.md`, restricted to `WARDEN` only — in `backend/src/users/` (FR-030…FR-032, `/speckit-analyze` finding G1; depends on T016, T018, T019)
-- [ ] T020b [P] Implement `POST /api/v1/auth/set-initial-password` per `contracts/auth.md` — out-of-band initial-password flow for users created via `POST /api/v1/users` (single-use, short-expiry invite token; password never returned in plaintext by the API) — research.md #10 — in `backend/src/auth/` (depends on T020a)
-- [ ] T021 [P] Apply Helmet, CORS allow-list, and `@nestjs/throttler` rate limiting on `/auth/login` in `backend/src/main.ts` (depends on T020)
-- [ ] T022 [P] Implement `GET /api/v1/health` health check endpoint in `backend/src/common/health/`
-- [ ] T023 [P] Configure `frontend/` API client with token storage/refresh handling in `frontend/src/services/api-client.ts` (depends on T020)
-- [ ] T024 [P] Configure `mobile/` API client with token storage/refresh handling in `mobile/src/services/api-client.ts` (depends on T020)
-- [ ] T025 [P] Scaffold mobile offline queue infrastructure (SQLite via `expo-sqlite`, idempotency-key generation) in `mobile/src/offline/` (research.md #4)
+- [X] T010 Define all TypeORM entities across their owning modules (`<module>/entities/*.entity.ts`) mirroring `docs/srp_spec_database_model.md` (all identifiers in English per Constitution XI) — `Role`, `User`, `UserUnit` (join entity for FR-004a), `RefreshToken` (FR-030…FR-032 auth revocation, research.md #11), `Unit`, `Gallery`, `Cell`, `Inmate`, `InmateCellHistory`, `MovementType`, `Movement`, `Routine`, `RoutineSchedule`, `StaffSchedule`, `MinimumStaffingConfig` (FR-024, research.md #12), `AuditLog`; register all entities on the `DataSource` in `backend/src/database/data-source.ts` (depends on T008)
+- [X] T011 Generate and run the initial TypeORM migration (`typeorm migration:generate` + `migration:run`) in `backend/src/database/migrations/` (depends on T010)
+- [X] T012 [P] Create TypeORM seed script `backend/src/database/seeds/seed.ts` with the 3 roles and one sample user per role, unit, gallery and cell (depends on T011)
+- [X] T013 [P] Implement global `ValidationPipe` + shared DTO base conventions in `backend/src/common/pipes/`
+- [X] T014 [P] Implement global exception filter (consistent error shape) in `backend/src/common/filters/`
+- [X] T015 [P] Implement request logging middleware in `backend/src/common/logging/`
+- [X] T016 Implement `AuditService` + global `AuditInterceptor` writing to `audit_logs` on every state-changing request in `backend/src/audit/`, including a `REDACTED_FIELDS` redaction step (`passwordHash`, `tokenHash`, `@Sensitive()`-marked fields) applied to `oldData`/`newData` before persisting — Constitution II, research.md #6, `/speckit-analyze` finding C1 (depends on T011)
+- [X] T017 [P] Implement Argon2 password hashing utility in `backend/src/auth/hashing/` (depends on T011)
+- [X] T018 Implement JWT access + refresh token strategy in `backend/src/auth/`, persisting refresh tokens as SHA-256 hash in `refresh_tokens` (`userId`, `tokenHash`, `expiresAt`, `revokedAt`) with rotation on `/auth/refresh` — research.md #11, `/speckit-analyze` finding G3 (depends on T017)
+- [X] T019 Implement RBAC + unit-scope guards reading `role` and `units` claims in `backend/src/auth/guards/` (research.md #5; depends on T018)
+- [X] T020 Implement `POST /api/v1/auth/login`, `/refresh`, `/logout` per `contracts/auth.md` in `backend/src/auth/`, rejecting unknown/expired/revoked refresh tokens against `refresh_tokens` and revoking on logout (depends on T018, T016)
+- [X] T020a [P] Implement Users module — `POST /api/v1/users`, `GET /api/v1/users`, `PATCH /api/v1/users/:id/deactivate` per `contracts/structure.md`, restricted to `WARDEN` only — in `backend/src/users/` (FR-030…FR-032, `/speckit-analyze` finding G1; depends on T016, T018, T019)
+- [X] T020b [P] Implement `POST /api/v1/auth/set-initial-password` per `contracts/auth.md` — out-of-band initial-password flow for users created via `POST /api/v1/users` (single-use, short-expiry invite token; password never returned in plaintext by the API) — research.md #10 — in `backend/src/auth/` (depends on T020a)
+- [X] T021 [P] Apply Helmet, CORS allow-list, and `@nestjs/throttler` rate limiting on `/auth/login` in `backend/src/main.ts` (depends on T020)
+- [X] T022 [P] Implement `GET /api/v1/health` health check endpoint in `backend/src/common/health/`
+- [X] T023 [P] Configure `frontend/` API client with token storage/refresh handling in `frontend/src/services/api-client.ts` (depends on T020)
+- [X] T024 [P] Configure `mobile/` API client with token storage/refresh handling in `mobile/src/services/api-client.ts` (depends on T020)
+- [X] T025 [P] Scaffold mobile offline queue infrastructure (SQLite via `expo-sqlite`, idempotency-key generation) in `mobile/src/offline/` (research.md #4)
 
 **Checkpoint**: Foundation ready — user story implementation can now begin (includes user provisioning via T020a/T020b, so subsequent stories are no longer limited to seeded accounts)
 

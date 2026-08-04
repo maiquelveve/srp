@@ -79,6 +79,18 @@ Sessão de refresh persistida para permitir revogação real no logout (research
   novo (rotação); `POST /auth/logout` MUST revogar o token atual. Um token com `tokenHash`
   desconhecido, expirado ou revogado MUST ser rejeitado com `401`.
 
+### InviteToken (`invite_tokens`)
+
+Token de uso único para o usuário criado via `POST /api/v1/users` definir a própria senha
+inicial fora de banda (research.md #10).
+
+| Campo | Tipo/Regra |
+|---|---|
+| `user` | referência obrigatória a User |
+| `tokenHash` | obrigatório, SHA-256 do token de convite (nunca o token em claro) |
+| `expiresAt` | obrigatório, expiração curta (ex.: 24h) |
+| `usedAt` | nulo até o primeiro uso; `POST /auth/set-initial-password` MUST rejeitar (`409`) token já usado, expirado ou desconhecido |
+
 ### Unit (`units`)
 
 | Campo | Tipo/Regra |
