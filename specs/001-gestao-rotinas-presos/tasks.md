@@ -49,24 +49,26 @@ Per `plan.md` Project Structure — three apps sharing one backend/API:
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T010 Define full Prisma schema in `backend/prisma/schema.prisma` mirroring `docs/srp_spec_database_model.md` — `perfis`, `usuarios`, `usuario_unidades` (join table for FR-004a), `unidades`, `galerias`, `celas`, `presos`, `preso_cela_historico`, `tipos_movimentacao`, `movimentacoes`, `rotinas`, `rotina_horarios`, `escalas`, `auditoria_logs`
+- [ ] T010 Define full Prisma schema in `backend/prisma/schema.prisma` mirroring `docs/srp_spec_database_model.md` (all identifiers in English per Constitution XI) — `roles`, `users`, `user_units` (join table for FR-004a), `refresh_tokens` (FR-030…FR-032 auth revocation, research.md #11), `units`, `galleries`, `cells`, `inmates`, `inmate_cell_history`, `movement_types`, `movements`, `routines`, `routine_schedules`, `staff_schedules`, `minimum_staffing_config` (FR-024, research.md #12), `audit_logs`
 - [ ] T011 Generate and apply the initial Prisma migration in `backend/prisma/migrations/` (depends on T010)
-- [ ] T012 [P] Create Prisma seed script `backend/prisma/seed.ts` with the 3 perfis and one sample usuário per perfil, unidade, galeria and cela (depends on T011)
+- [ ] T012 [P] Create Prisma seed script `backend/prisma/seed.ts` with the 3 roles and one sample user per role, unit, gallery and cell (depends on T011)
 - [ ] T013 [P] Implement global `ValidationPipe` + shared DTO base conventions in `backend/src/common/pipes/`
 - [ ] T014 [P] Implement global exception filter (consistent error shape) in `backend/src/common/filters/`
 - [ ] T015 [P] Implement request logging middleware in `backend/src/common/logging/`
-- [ ] T016 Implement `AuditService` + global `AuditInterceptor` writing to `auditoria_logs` on every state-changing request in `backend/src/audit/` (research.md #6; depends on T011)
+- [ ] T016 Implement `AuditService` + global `AuditInterceptor` writing to `audit_logs` on every state-changing request in `backend/src/audit/`, including a `REDACTED_FIELDS` redaction step (`passwordHash`, `tokenHash`, `@Sensitive()`-marked fields) applied to `oldData`/`newData` before persisting — Constitution II, research.md #6, `/speckit-analyze` finding C1 (depends on T011)
 - [ ] T017 [P] Implement Argon2 password hashing utility in `backend/src/auth/hashing/` (depends on T011)
-- [ ] T018 Implement JWT access + refresh token strategy in `backend/src/auth/` (depends on T017)
-- [ ] T019 Implement RBAC + unit-scope guards reading `perfil` and `unidades` claims in `backend/src/auth/guards/` (research.md #5; depends on T018)
-- [ ] T020 Implement `POST /api/v1/auth/login`, `/refresh`, `/logout` per `contracts/auth.md` in `backend/src/auth/` (depends on T018, T016)
+- [ ] T018 Implement JWT access + refresh token strategy in `backend/src/auth/`, persisting refresh tokens as SHA-256 hash in `refresh_tokens` (`userId`, `tokenHash`, `expiresAt`, `revokedAt`) with rotation on `/auth/refresh` — research.md #11, `/speckit-analyze` finding G3 (depends on T017)
+- [ ] T019 Implement RBAC + unit-scope guards reading `role` and `units` claims in `backend/src/auth/guards/` (research.md #5; depends on T018)
+- [ ] T020 Implement `POST /api/v1/auth/login`, `/refresh`, `/logout` per `contracts/auth.md` in `backend/src/auth/`, rejecting unknown/expired/revoked refresh tokens against `refresh_tokens` and revoking on logout (depends on T018, T016)
+- [ ] T020a [P] Implement Users module — `POST /api/v1/users`, `GET /api/v1/users`, `PATCH /api/v1/users/:id/deactivate` per `contracts/structure.md`, restricted to `WARDEN` only — in `backend/src/users/` (FR-030…FR-032, `/speckit-analyze` finding G1; depends on T016, T018, T019)
+- [ ] T020b [P] Implement `POST /api/v1/auth/set-initial-password` per `contracts/auth.md` — out-of-band initial-password flow for users created via `POST /api/v1/users` (single-use, short-expiry invite token; password never returned in plaintext by the API) — research.md #10 — in `backend/src/auth/` (depends on T020a)
 - [ ] T021 [P] Apply Helmet, CORS allow-list, and `@nestjs/throttler` rate limiting on `/auth/login` in `backend/src/main.ts` (depends on T020)
 - [ ] T022 [P] Implement `GET /api/v1/health` health check endpoint in `backend/src/common/health/`
 - [ ] T023 [P] Configure `frontend/` API client with token storage/refresh handling in `frontend/src/services/api-client.ts` (depends on T020)
 - [ ] T024 [P] Configure `mobile/` API client with token storage/refresh handling in `mobile/src/services/api-client.ts` (depends on T020)
 - [ ] T025 [P] Scaffold mobile offline queue infrastructure (SQLite via `expo-sqlite`, idempotency-key generation) in `mobile/src/offline/` (research.md #4)
 
-**Checkpoint**: Foundation ready — user story implementation can now begin
+**Checkpoint**: Foundation ready — user story implementation can now begin (includes user provisioning via T020a/T020b, so subsequent stories are no longer limited to seeded accounts)
 
 ---
 
@@ -78,7 +80,7 @@ Per `plan.md` Project Structure — three apps sharing one backend/API:
 
 ### Tests for User Story 1
 
-- [ ] T026 [P] [US1] Backend integration tests for `contracts/structure.md` endpoints (incl. 403 for `POLICIAL_PENAL` writes, unit-scope filtering) in `backend/test/integration/structure.spec.ts`
+- [ ] T026 [P] [US1] Backend integration tests for `contracts/structure.md` endpoints (incl. 403 for `PRISON_OFFICER` writes, unit-scope filtering) in `backend/test/integration/structure.spec.ts`
 - [ ] T027 [P] [US1] Backend unit tests for Cells capacity validation in `backend/test/unit/cells.service.spec.ts`
 
 ### Implementation for User Story 1
@@ -87,7 +89,7 @@ Per `plan.md` Project Structure — three apps sharing one backend/API:
 - [ ] T029 [P] [US1] Implement Galleries module in `backend/src/galleries/`
 - [ ] T030 [US1] Implement Cells module with capacity validation in `backend/src/cells/` (depends on T029)
 - [ ] T031 [US1] Implement Inmates module — create/update/get/list scoped by cela/galeria/unidade in `backend/src/inmates/` (depends on T030)
-- [ ] T032 [US1] Apply RBAC (CHEFIA_DIRETOR-only writes) + unit-scope guard to Units/Galleries/Cells/Inmates endpoints (depends on T019, T028–T031)
+- [ ] T032 [US1] Apply RBAC (WARDEN-only writes) + unit-scope guard to Units/Galleries/Cells/Inmates endpoints (depends on T019, T028–T031)
 - [ ] T033 [P] [US1] Build web frontend Units/Galleries/Cells/Inmates management screens in `frontend/src/features/structure/` (depends on T023, T031)
 - [ ] T034 [P] [US1] Build mobile read-only "consultar presos por cela/galeria" screen in `mobile/src/screens/InmatesLookup.tsx` (depends on T024, T031)
 
@@ -108,11 +110,11 @@ Per `plan.md` Project Structure — three apps sharing one backend/API:
 
 ### Implementation for User Story 2
 
-- [ ] T037 [P] [US2] Seed/reference-data access for Tipos de Movimentação in `backend/src/movements/tipos-movimentacao.service.ts` (depends on T011)
+- [ ] T037 [P] [US2] Seed/reference-data access for Movement Types in `backend/src/movements/movement-types.service.ts` (depends on T011)
 - [ ] T038 [US2] Implement `POST /api/v1/movements` with open-movement conflict check in `backend/src/movements/` (depends on T031, T037)
 - [ ] T039 [US2] Implement `PATCH /api/v1/movements/:id/return` with duplicate-return rejection in `backend/src/movements/` (depends on T038)
 - [ ] T040 [US2] Implement `Idempotency-Key` handling for offline-submitted movements in `backend/src/movements/` (depends on T038, T039)
-- [ ] T041 [US2] Extend Inmates status projection (FR-011, data-model.md `presos.status`) updated transactionally on movement create/return in `backend/src/inmates/` (depends on T038, T039)
+- [ ] T041 [US2] Extend Inmates status projection (FR-011, data-model.md `inmates.status`) updated transactionally on movement create/return in `backend/src/inmates/` (depends on T038, T039)
 - [ ] T042 [US2] Implement real-time status listing/filtering by unit/gallery/cell in `backend/src/inmates/inmates.controller.ts` (depends on T041)
 - [ ] T043 [P] [US2] Build mobile "registrar movimentação" + status screens using the offline queue in `mobile/src/screens/MovementRegister.tsx` (depends on T025, T040)
 - [ ] T044 [P] [US2] Build web frontend real-time status/map view in `frontend/src/features/movements/StatusMap.tsx` (depends on T042)
@@ -134,7 +136,7 @@ Per `plan.md` Project Structure — three apps sharing one backend/API:
 
 ### Implementation for User Story 3
 
-- [ ] T047 [US3] Implement Histórico de Cela open/close tracking on cell change in `backend/src/inmates/historico-cela.service.ts` (depends on T031)
+- [ ] T047 [US3] Implement Cell History open/close tracking on cell change in `backend/src/inmates/cell-history.service.ts` (depends on T031)
 - [ ] T048 [US3] Implement `POST /api/v1/movements/final/release` in `backend/src/movements/` (depends on T047)
 - [ ] T049 [P] [US3] Implement `POST /api/v1/movements/final/ankle-monitor` in `backend/src/movements/` (depends on T047)
 - [ ] T050 [P] [US3] Implement `POST /api/v1/movements/final/transfer` in `backend/src/movements/` (depends on T047)
@@ -154,13 +156,13 @@ Per `plan.md` Project Structure — three apps sharing one backend/API:
 
 ### Tests for User Story 4
 
-- [ ] T054 [P] [US4] Backend integration tests for `contracts/routines.md` (incl. 403 on `bloqueada` routine edited by Supervisor) in `backend/test/integration/routines.spec.ts`
+- [ ] T054 [P] [US4] Backend integration tests for `contracts/routines.md` (incl. 403 on `locked` routine edited by Supervisor) in `backend/test/integration/routines.spec.ts`
 
 ### Implementation for User Story 4
 
 - [ ] T055 [P] [US4] Implement Routines module (Controller/Service/Repository/DTOs) in `backend/src/routines/`
 - [ ] T056 [US4] Implement Rotina Horários sub-resource (multiple schedules per day/routine) in `backend/src/routines/` (depends on T055)
-- [ ] T057 [US4] Implement `POST /api/v1/routines` (CHEFIA_DIRETOR only, `bloqueada` flag) in `backend/src/routines/` (depends on T056)
+- [ ] T057 [US4] Implement `POST /api/v1/routines` (WARDEN only, `locked` flag) in `backend/src/routines/` (depends on T056)
 - [ ] T058 [US4] Implement `PATCH /routines/:id/schedule` and `/activation` with blocked-routine guard in `backend/src/routines/` (depends on T057)
 - [ ] T059 [US4] Implement `GET /api/v1/routines` with shift/gallery filter in `backend/src/routines/` (depends on T056)
 - [ ] T060 [P] [US4] Build web frontend Rotinas management screens in `frontend/src/features/routines/` (depends on T057, T058)
@@ -178,15 +180,17 @@ Per `plan.md` Project Structure — three apps sharing one backend/API:
 
 ### Tests for User Story 5
 
-- [ ] T062 [P] [US5] Backend integration tests for `contracts/staff.md` (incl. schedule uniqueness conflict) in `backend/test/integration/staff.spec.ts`
+- [ ] T062 [P] [US5] Backend integration tests for `contracts/staff.md` (incl. schedule uniqueness conflict, and `PATCH /staff/minimum-staffing-config` 403-for-non-WARDEN + persistence, `/speckit-analyze` finding G1-round2) in `backend/test/integration/staff.spec.ts`
 
 ### Implementation for User Story 5
 
-- [ ] T063 [P] [US5] Implement Staff module (cadastro de policiais penais) in `backend/src/staff/`
-- [ ] T064 [US5] Implement Schedules (escalas) with `(usuario, data, turno)` uniqueness constraint in `backend/src/staff/` (depends on T063)
+- ~~T063~~ **Removed** (`/speckit-analyze` finding D2, round 3) — redundant with T020a: `GET /api/v1/users?role=&unitId=` (used for the `PRISON_OFFICER` roster, FR-021) is already part of T020a's own contract in `contracts/structure.md`, not a separate increment. No separate Staff entity/module exists (research.md #15).
+- [ ] T064 [US5] Implement Schedules (escalas) with `(user, date, shift)` uniqueness constraint, referencing `User` directly, in `backend/src/staff/` (depends on T020a)
 - [ ] T065 [US5] Implement `PATCH /schedules/:id/attendance` (presença/falta/abono/horas extras) in `backend/src/staff/` (depends on T064)
-- [ ] T066 [US5] Implement `GET /schedules/minimum-staffing` report in `backend/src/staff/` (depends on T064)
-- [ ] T067 [P] [US5] Build web frontend Efetivo/Escalas screens in `frontend/src/features/staff/` (depends on T065, T066)
+- [ ] T065a [P] [US5] Implement `MinimumStaffingConfig` repository/service backed by `minimum_staffing_config` table in `backend/src/staff/` (FR-024, research.md #12, `/speckit-analyze` finding G2; depends on T011)
+- [ ] T065b [US5] Implement `PATCH /api/v1/staff/minimum-staffing-config` per `contracts/staff.md`, restricted to `WARDEN` only, in `backend/src/staff/` (depends on T065a, T019)
+- [ ] T066 [US5] Implement `GET /schedules/minimum-staffing` report reading configured minimums from `minimum_staffing_config` (no hardcoded default) in `backend/src/staff/` (depends on T064, T065a)
+- [ ] T067 [P] [US5] Build web frontend Efetivo/Escalas screens, including minimum-staffing configuration form for `WARDEN`, in `frontend/src/features/staff/` (depends on T065, T065b, T066)
 
 **Checkpoint**: User Stories 1–5 all work independently
 
@@ -196,17 +200,17 @@ Per `plan.md` Project Structure — three apps sharing one backend/API:
 
 **Goal**: Supervisor e Chefia consultam relatórios operacionais e a trilha de auditoria completa.
 
-**Independent Test**: A partir de dados gerados pelas demais stories, confirmar que `GET /reports/movements-by-inmate/:id` e `GET /audit` retornam os registros esperados, e que `POLICIAL_PENAL` recebe 403.
+**Independent Test**: A partir de dados gerados pelas demais stories, confirmar que `GET /reports/movements-by-inmate/:id` e `GET /audit` retornam os registros esperados, e que `PRISON_OFFICER` recebe 403.
 
 ### Tests for User Story 6
 
-- [ ] T068 [P] [US6] Backend integration tests for `contracts/reports-audit.md` (incl. 403 for `POLICIAL_PENAL`, unit-scope filtering) in `backend/test/integration/reports-audit.spec.ts`
+- [ ] T068 [P] [US6] Backend integration tests for `contracts/reports-audit.md` (incl. 403 for `PRISON_OFFICER`, unit-scope filtering) in `backend/test/integration/reports-audit.spec.ts`
 
 ### Implementation for User Story 6
 
 - [ ] T069 [P] [US6] Implement Reports module queries — movements-by-inmate, longest-out-of-cell, inconsistencies, routine-execution, staff-vs-movements, cell-occupancy-history — in `backend/src/reports/` (depends on T042, T052, T059, T066)
 - [ ] T070 [US6] Implement `GET /api/v1/audit` read-only endpoint with filters in `backend/src/audit/` (depends on T016)
-- [ ] T071 [US6] Apply SUPERVISOR/CHEFIA_DIRETOR-only + unit-scope guard to all reports/audit endpoints (depends on T019, T069, T070)
+- [ ] T071 [US6] Apply SUPERVISOR/WARDEN-only + unit-scope guard to all reports/audit endpoints (depends on T019, T069, T070)
 - [ ] T072 [P] [US6] Build web frontend Relatórios + Auditoria screens in `frontend/src/features/reports/` (depends on T069, T070)
 
 **Checkpoint**: All user stories independently functional
@@ -217,9 +221,10 @@ Per `plan.md` Project Structure — three apps sharing one backend/API:
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T073 [P] Run full `quickstart.md` validation (Cenários 1–7) end-to-end against a seeded environment
-- [ ] T074 [P] Audit codebase for Constitution V/IX violations — no `any`/`@ts-ignore`, no business logic in controllers, no direct DB access outside repositories
-- [ ] T075 [P] Verify performance targets SC-001/SC-003/SC-004 (movement registration <30s, status lookup <5s, 200 concurrent users without degradation)
+- [ ] T073 [P] Run full `quickstart.md` validation (Cenários 0–8) end-to-end against a seeded environment
+- [ ] T074 [P] Audit codebase for Constitution V/IX/XI violations — no `any`/`@ts-ignore`, no business logic in controllers, no direct DB access outside repositories, no Portuguese identifiers in code/schema
+- [ ] T074a [P] Set up k6 load-test tooling and script `backend/test/load/shift-change.js` simulating 200 concurrent virtual users against login/inmate-lookup/movement flows, with a `p(95)<500` threshold — research.md #14, `/speckit-analyze` finding G4 (depends on T042, T038, T039)
+- [ ] T075 [P] Verify performance targets SC-001/SC-003/SC-004 (movement registration <30s, status lookup <5s, p95 <500ms with 200 concurrent users and no 5xx under load per T074a's k6 script)
 - [ ] T076 [P] Complete Swagger/OpenAPI documentation for every `/api/v1` endpoint in `backend/src/`
 - [ ] T077 [P] Update project documentation (`README.md`, module docs) to match implemented behavior (Constitution X)
 - [ ] T078 Verify production build passes lint + build with zero errors for `backend/`, `frontend/`, `mobile/`

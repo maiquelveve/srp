@@ -3,7 +3,10 @@
     "allow": [
       "Bash(git -C /home/maiquel/projetos/spr log --oneline -5)",
       "Bash(.specify/scripts/bash/setup-plan.sh *)",
-      "Bash(.specify/scripts/bash/setup-tasks.sh --json)"
+      "Bash(.specify/scripts/bash/setup-tasks.sh --json)",
+      "Bash(.specify/scripts/bash/check-prerequisites.sh *)",
+      "Bash(grep -noE '`[a-z_]*\\(preso|cela|galeria|unidade|rotina|movimenta|escala|auditoria|usuario|perfil\\)[a-z_]*`' specs/001-gestao-rotinas-presos/data-model.md)",
+      "Bash(/home/maiquel/projetos/spr/.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks)"
     ]
   }
 }

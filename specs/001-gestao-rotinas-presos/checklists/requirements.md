@@ -33,3 +33,4 @@
 
 - All 3 [NEEDS CLARIFICATION] markers were resolved with the user and incorporated into the spec: FR-004a (Chefia/Diretor access scoped per unidade), FR-011a (mobile app offline with sync queue), FR-029 (indefinite data retention).
 - Checklist fully passes; specification is ready for `/speckit-clarify` (optional deeper pass) or `/speckit-plan`.
+- **2026-08-04 addendum** (post `/speckit-analyze` remediation): added FR-030…FR-032 (gestão de usuários restrita a Chefia/Diretor, closing finding G1) and one new acceptance scenario to User Story 1; revised SC-004 from a subjective phrase to a measurable p95 latency threshold (closing finding A1). Both additions independently satisfy every item of this checklist (testable, unambiguous, no implementation leakage) — re-run not required.

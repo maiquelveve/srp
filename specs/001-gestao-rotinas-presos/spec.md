@@ -24,6 +24,8 @@ Chefia/Diretor e Supervisor cadastram e mantêm atualizados os dados estruturais
 2. **Given** uma cela cadastrada, **When** a chefia cadastra um preso e o associa a essa cela, **Then** o preso aparece na listagem de presos da cela/galeria com status "ativo".
 3. **Given** um preso cadastrado, **When** um policial penal consulta a lista de presos por cela/galeria, **Then** o sistema exibe o preso com seus dados básicos e status atual.
 4. **Given** um policial penal autenticado, **When** ele tenta cadastrar ou alterar um preso, uma cela ou uma unidade, **Then** o sistema nega a operação por falta de permissão.
+5. **Given** a Chefia/Diretor autenticada, **When** ela cadastra um novo usuário (policial penal ou supervisor) informando perfil e unidade(s) vinculada(s), **Then** o novo usuário passa a existir e consegue se autenticar de acordo com as permissões do perfil atribuído.
+6. **Given** um Supervisor ou Policial Penal autenticado, **When** ele tenta cadastrar, alterar ou desativar um usuário, **Then** o sistema nega a operação por falta de permissão.
 
 ---
 
@@ -130,8 +132,14 @@ Supervisor e chefia/diretor consultam relatórios operacionais (movimentações 
 - **FR-001**: O sistema MUST suportar três perfis de usuário — Policial Penal, Supervisor e Chefia/Diretor — cada um com um conjunto de permissões distinto conforme descrito nas User Stories 1–6.
 - **FR-002**: O sistema MUST impedir que Policiais Penais criem, alterem ou excluam rotinas, horários de rotina ou escalas de efetivo.
 - **FR-003**: O sistema MUST impedir que Supervisores criem novos tipos de rotina ou alterem a estrutura de permissões dos perfis.
-- **FR-004**: Somente o perfil Chefia/Diretor MUST poder criar novas rotinas, definir rotinas padrão versus específicas de unidade, e alterar quaisquer configurações de rotinas e escalas.
+- **FR-004**: Somente o perfil Chefia/Diretor MUST poder criar novas rotinas e alterar quaisquer configurações de rotinas e escalas (ver FR-017–FR-020 para o detalhamento de rotinas padrão versus específicas de unidade).
 - **FR-004a**: O acesso de um usuário Chefia/Diretor a presos, rotinas, escalas, relatórios e auditoria MUST ser restrito à(s) unidade(s) prisional(is) a que esse usuário está formalmente vinculado; usuários de uma unidade não podem visualizar ou alterar dados de outra unidade a menos que estejam vinculados a ela também.
+
+**Gestão de Usuários**
+
+- **FR-030**: Somente o perfil Chefia/Diretor MUST poder cadastrar novos usuários (policiais penais, supervisores ou outra chefia/diretor), definindo nome, e-mail, matrícula, perfil e a(s) unidade(s) vinculada(s) (FR-004a).
+- **FR-031**: Somente o perfil Chefia/Diretor MUST poder desativar um usuário existente; um usuário desativado MUST perder a capacidade de se autenticar imediatamente, sem excluir seu histórico de ações já registrado em auditoria.
+- **FR-032**: O sistema MUST impedir que Policiais Penais e Supervisores criem, alterem ou desativem usuários.
 
 **Cadastro e Mapa da Unidade**
 
@@ -203,7 +211,7 @@ Supervisor e chefia/diretor consultam relatórios operacionais (movimentações 
 - **SC-001**: Um policial penal consegue registrar a saída ou o retorno de um preso em até 30 segundos a partir da tela de consulta de presos por cela/galeria.
 - **SC-002**: 100% das operações de criação, alteração ou remoção de dados relevantes (presos, movimentações, rotinas, escalas) geram um registro de auditoria correspondente.
 - **SC-003**: Um supervisor consegue localizar o status atual de qualquer preso da unidade em até 5 segundos após aplicar um filtro por unidade, galeria ou cela.
-- **SC-004**: O sistema permanece responsivo (sem degradação perceptível) com pelo menos 200 usuários realizando consultas e registros simultaneamente durante a troca de turno.
+- **SC-004**: Com pelo menos 200 usuários realizando consultas e registros simultaneamente durante a troca de turno, 95% das requisições (p95) MUST responder em menos de 500ms, e nenhuma requisição válida MUST falhar por sobrecarga (sem erros 5xx atribuíveis a carga). *(Valor de referência sugerido — ajustável pela Chefia/Diretor/equipe técnica antes do início da Fase 2 se um SLA diferente for definido.)*
 - **SC-005**: 95% das movimentações temporárias sem retorno registrado além do prazo esperado são identificadas automaticamente pelo relatório de inconsistências, sem necessidade de conferência manual em papel.
 - **SC-006**: O tempo médio para reconstruir o histórico completo de localização de um preso (celas, unidades, regimes) cai de um processo manual em papel para menos de 1 minuto de consulta no sistema.
 

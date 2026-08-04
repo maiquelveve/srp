@@ -8,6 +8,10 @@ Context ficou marcado como `NEEDS CLARIFICATION`. As pesquisas abaixo resolvem a
 melhores práticas necessárias para implementar essa stack em conformidade com a Constituição do
 projeto.
 
+**Convenção de nomenclatura**: a partir da versão 1.1.0 da Constituição (Princípio XI), todo
+identificador de código e de schema de banco citado neste documento usa o nome em inglês que será
+efetivamente usado no `schema.prisma` e no código (ex.: `inmates.status`, não `presos.status`).
+
 ## 1. Framework de testes — Backend
 
 - **Decision**: Jest para testes unitários de services/controllers, Supertest para testes de
@@ -58,10 +62,10 @@ projeto.
 
 ## 5. RBAC com escopo por unidade (FR-004a)
 
-- **Decision**: O JWT emitido no login carrega `perfil` e a lista de `unidade_id` a que o usuário
-  está vinculado. Guards do NestJS validam tanto o perfil (RBAC) quanto o escopo de unidade em
-  todo endpoint que manipula presos, rotinas, escalas ou auditoria, filtrando/validando o
-  `unidade_id` do recurso acessado contra o token.
+- **Decision**: O JWT emitido no login carrega `role` e a lista de `unitId` a que o usuário está
+  vinculado. Guards do NestJS validam tanto o perfil (RBAC) quanto o escopo de unidade em todo
+  endpoint que manipula presos, rotinas, escalas ou auditoria, filtrando/validando o `unitId` do
+  recurso acessado contra o token.
 - **Rationale**: Implementa diretamente a decisão tomada em `/speckit-specify` (FR-004a) e mantém
   a validação de autorização inteiramente no backend, conforme Constituição II (Security First) —
   o frontend/mobile nunca é a única barreira de controle de acesso.
@@ -70,20 +74,31 @@ projeto.
   totalmente dinâmica por usuário (rejeitada — spec não pede granularidade além de
   perfil × unidade, adicionaria complexidade não requisitada, contra a Constituição IX).
 
-## 6. Auditoria automática e imutável (Constituição III, FR-026/FR-027)
+## 6. Auditoria automática e imutável, com redação de dados sensíveis (Constituição II/III, FR-026/FR-027)
 
 - **Decision**: Um `AuditInterceptor` global captura toda requisição de escrita bem-sucedida
   (POST/PATCH/PUT/DELETE) nos módulos de negócio e delega a um `AuditService` central, que grava
   usuário responsável, ação, entidade afetada, valores antigos/novos e data/hora na tabela
-  `auditoria_logs`. Nenhum controller ou repository expõe rota de update/delete para essa tabela.
+  `audit_logs`. Nenhum controller ou repository expõe rota de update/delete para essa tabela.
+  Antes de persistir `oldData`/`newData`, o `AuditService` MUST aplicar uma lista de redação
+  (`REDACTED_FIELDS`) que substitui o valor de campos sensíveis por `"[REDACTED]"` — no mínimo:
+  `passwordHash`, `refreshTokenHash`, e qualquer outro campo futuramente marcado como sensível via
+  decorator (`@Sensitive()`) na entidade Prisma. Isso vale tanto para o módulo de usuários quanto
+  para qualquer módulo futuro que grave dado sensível.
 - **Rationale**: Centralizar a captura evita depender de cada desenvolvedor lembrar de logar
   manualmente em cada novo endpoint (fonte comum de lacunas de auditoria), atendendo à exigência
-  de que auditoria seja total (Constituição III).
+  de que auditoria seja total (Constituição III). A redação de campos sensíveis evita que o hash
+  de senha ou tokens de sessão fiquem expostos em `audit_logs` — que é lido por Supervisor/Chefia
+  via `/api/v1/audit` — violando a Constituição II ("Nenhuma informação sensível pode ser exposta
+  por APIs, logs ou interfaces"). Esse gap foi identificado em `/speckit-analyze` (achado C1) e
+  fechado aqui antes da implementação de T016.
 - **Alternatives considered**: Chamadas manuais de log em cada service (rejeitada — frágil, fácil
   esquecer em endpoints novos); triggers de banco (`pg_audit`/triggers SQL) isoladamente
   (rejeitada como única solução — não tem acesso direto ao "usuário responsável" da requisição
   HTTP sem contexto de aplicação; pode ser avaliada futuramente como camada extra de defesa, fora
-  do escopo desta fase).
+  do escopo desta fase); não redigir e restringir apenas o acesso de leitura à auditoria
+  (rejeitada — viola defesa em profundidade; um supervisor com acesso legítimo à auditoria não
+  deveria conseguir ver hash de senha de outro usuário).
 
 ## 7. Segurança de transporte e da API
 
@@ -102,17 +117,17 @@ projeto.
 - **Decision**: Todo o schema é definido em `prisma/schema.prisma`, espelhando tabela a tabela o
   modelo de `docs/srp_spec_database_model.md`; toda mudança de schema passa exclusivamente por
   `prisma migrate`. Nenhuma alteração manual (`ALTER TABLE` direto) é permitida em nenhum
-  ambiente.
+  ambiente. Todos os nomes de tabela/coluna são em inglês (Constituição XI).
 - **Rationale**: Requisito explícito de `docs/srp_plan.md` ("Nenhuma alteração manual no banco é
   permitida") e da Constituição IV (Data Integrity / nunca estados inconsistentes).
 - **Alternatives considered**: Ferramenta de migration separada (Flyway/Knex) — rejeitada, pois o
   plano exige uso exclusivo do Prisma como ORM e ferramenta de migration.
 
-## 9. `presos.status` como projeção derivada (Constituição VI)
+## 9. `inmates.status` como projeção derivada (Constituição VI)
 
-- **Decision**: A coluna `presos.status` é atualizada transacionalmente pelo mesmo
+- **Decision**: A coluna `inmates.status` é atualizada transacionalmente pelo mesmo
   service/transaction que grava a movimentação, a situação definitiva ou a troca de cela em
-  `preso_cela_historico`/`movimentacoes` — nunca editada isoladamente por outro fluxo.
+  `inmate_cell_history`/`movements` — nunca editada isoladamente por outro fluxo.
 - **Rationale**: SC-003 exige consulta de status em até 5s; recalcular o status a partir do
   histórico completo a cada consulta não escalaria para 200+ usuários simultâneos (SC-004). Manter
   uma projeção sempre escrita na mesma transação que sua fonte evita duplicação de fonte de
@@ -122,3 +137,96 @@ projeto.
   histórico (rejeitada nesta fase — custo de performance incompatível com SC-003 em escala);
   view materializada com refresh assíncrono (rejeitada — introduziria janela de inconsistência
   entre o evento real e o status exibido, inaceitável para um sistema de segurança).
+
+## 10. Gestão de usuários restrita à Chefia/Diretor (FR-030…FR-032)
+
+- **Decision**: `POST /api/v1/users` e `PATCH /api/v1/users/:id/deactivate` exigem perfil
+  `WARDEN` (Chefia/Diretor). A senha inicial é gerada pelo backend (nunca escolhida/transmitida
+  em texto claro pelo criador) e comunicada fora da API via `POST /api/v1/auth/set-initial-password`
+  (`contracts/auth.md`), com token de convite de uso único e expiração curta, evitando que a senha
+  em texto claro trafegue em qualquer payload capturado por logs/auditoria.
+- **Rationale**: Fecha o achado G1 do `/speckit-analyze` — sem isso, não havia forma de
+  provisionar contas além do seed inicial. Restringir a `WARDEN` está alinhado a FR-004
+  (somente Chefia/Diretor administra configurações estruturais) e ao pedido explícito do usuário
+  do projeto de que a criação de usuários seja exclusiva desse perfil.
+- **Alternatives considered**: Autocadastro com aprovação (rejeitado — spec não descreve fluxo de
+  aprovação e adicionaria superfície de ataque não requisitada); Supervisor também podendo criar
+  usuários (rejeitado — fora do que foi solicitado; FR-003 já restringe Supervisor de alterar
+  estrutura de permissões).
+
+## 11. Revogação de refresh token (contracts/auth.md — logout)
+
+- **Decision**: Tokens de refresh são persistidos como hash (SHA-256) na tabela `refresh_tokens`,
+  vinculados ao `userId`, com `expiresAt` e `revokedAt` (nulo enquanto válido). `POST /auth/login`
+  cria uma linha; `POST /auth/refresh` roda rotação (revoga o token antigo, cria um novo);
+  `POST /auth/logout` marca `revokedAt = now()`. O guard de autenticação por refresh token rejeita
+  qualquer token cujo hash não exista ou esteja revogado/expirado.
+- **Rationale**: Fecha o achado G3 — o contrato de auth já prometia "revoga o refresh_token atual"
+  no logout, mas nenhuma entidade persistia tokens para tornar isso possível com JWT stateless.
+  Hash (não o token em claro) evita que um vazamento da tabela permita reuso direto dos tokens
+  (mesma lógica do Argon2 para senha, Constituição II).
+- **Alternatives considered**: Blocklist apenas em memória/Redis (rejeitada nesta fase — adiciona
+  dependência de infraestrutura não listada em `docs/srp_plan.md`; pode ser avaliada depois como
+  otimização de performance, mantendo `refresh_tokens` como fonte de verdade); refresh token
+  puramente stateless sem revogação (rejeitada — impossibilita logout real, violando a expectativa
+  de segurança de um sistema prisional).
+
+## 12. Configuração de efetivo mínimo (FR-024)
+
+- **Decision**: Nova entidade `minimum_staffing_config` (setor, turno, unidade, valor mínimo),
+  editável apenas por `WARDEN` via `PATCH /api/v1/staff/minimum-staffing-config`.
+  `GET /schedules/minimum-staffing` passa a ler o valor configurado nesta tabela em vez de um
+  número fixo no código.
+- **Rationale**: Fecha o achado G2 — `docs/srp_spec.md` e a spec já mencionavam um "efetivo
+  mínimo configurável", mas nenhuma entidade/endpoint definia onde esse valor vive. Sem isso,
+  `abaixoDoMinimo`/`belowMinimum` não teria como ser calculado de forma real.
+- **Alternatives considered**: Valor fixo via variável de ambiente (rejeitada — spec diz
+  explicitamente que é definido "pela Chefia/Diretor", implicando configuração em tempo de
+  execução, não em deploy).
+
+## 13. Armazenamento de foto do preso (FR-006) — decisão explicitamente adiada
+
+- **Decision**: **Não resolvida nesta fase, de forma intencional.** `inmates.photoUrl` permanece
+  como campo de texto (URL) no schema. O provedor de armazenamento de arquivo (AWS S3, Google
+  Cloud Storage, servidor próprio, ou outro) ainda não foi escolhido pelo dono do produto — a
+  escolha depende de decisão de infraestrutura/custo fora do escopo desta fase de planejamento.
+- **Rationale**: Definido explicitamente pelo usuário do projeto (2026-08-04): a coluna já reflete
+  a decisão correta (guardar uma URL, não o binário), e a implementação do endpoint de upload e do
+  provedor concreto fica bloqueada até essa escolha ser feita. Isso substitui o achado U1 do
+  `/speckit-analyze` — deixa de ser um gap silencioso e passa a ser uma decisão rastreada aqui.
+- **Follow-up necessário antes da Fase 3 (US1) poder implementar upload real**: escolher provedor,
+  então voltar a este item e substituir esta seção por uma decisão concreta (bucket, política de
+  acesso, geração de URL assinada, limite de tamanho/formato).
+- **Enquanto isso**: `POST/PATCH /api/v1/inmates` aceita `photoUrl` como string opcional já
+  hospedada externamente; nenhuma task de upload de arquivo é criada em `tasks.md` até esta
+  decisão ser tomada.
+
+## 14. Ferramenta de teste de carga (SC-004)
+
+- **Decision**: k6 (script versionado em `backend/test/load/shift-change.js`) simulando 200
+  usuários virtuais executando o mix de leitura/escrita típico da troca de turno (login, consulta
+  de presos por cela/galeria, registro de movimentação de saída/retorno), medindo p95 de latência
+  e taxa de erro.
+- **Rationale**: Fecha o achado G4 — havia uma task de "verificar" SC-004 sem nenhuma ferramenta
+  definida para produzir a carga. k6 roda via CLI/CI sem dependência de infraestrutura adicional
+  além do binário, e tem suporte nativo a definir thresholds (ex.: `p(95)<500`) que falham o build
+  automaticamente se SC-004 não for atendido — torna o critério verificável de forma repetível,
+  não apenas "verificado manualmente uma vez".
+- **Alternatives considered**: Artillery (também viável, mas k6 tem melhor suporte nativo a
+  thresholds declarativos que mapeiam 1:1 para SC-004); teste de carga manual/ad-hoc (rejeitado —
+  não é repetível, viola Constituição VIII).
+
+## 15. Policial Penal = User (sem entidade Staff separada) (FR-021)
+
+- **Decision**: Não existe entidade/tabela "Staff" própria. Um policial penal é um `User` com
+  `role=PRISON_OFFICER`; o campo `jobTitle` (cargo) foi adicionado a `User` para atender FR-021.
+  Cadastro via `POST /api/v1/users`; roster via `GET /api/v1/users?role=PRISON_OFFICER`
+  (`SUPERVISOR` e `WARDEN`, contracts/structure.md). `POST/GET /api/v1/staff` foram removidos de
+  `contracts/staff.md` — essa seção cobre apenas escalas (`schedules`) e config de efetivo mínimo.
+- **Rationale**: Decisão explícita do usuário do projeto (2026-08-04): manter simples, evitar duas
+  fontes de cadastro para a mesma pessoa física. Fecha o achado I1 do `/speckit-analyze`, que
+  identificou risco de dois registros divergentes (Constituição VI — Single Source of Truth) entre
+  `POST /users` e `POST /staff`.
+- **Alternatives considered**: entidade `Staff` separada vinculada 1:1 a `User` (rejeitada pelo
+  usuário do projeto — "não faz sentido" ter cadastro funcional sem login associado nesse
+  domínio).

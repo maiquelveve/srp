@@ -1,209 +1,256 @@
 # Phase 1 Data Model: Gestão de Rotinas Penitenciárias (SRP)
 
-**Input**: Key Entities em [spec.md](./spec.md), requisitos funcionais FR-001…FR-029, schema de
+**Input**: Key Entities em [spec.md](./spec.md), requisitos funcionais FR-001…FR-032, schema de
 referência em `docs/srp_spec_database_model.md` (autoritativo para tipos/colunas exatos do
 Prisma schema — este documento descreve o modelo em nível de domínio e as regras de negócio que o
 schema deve impor).
 
+**Convenção de nomenclatura**: por decisão do usuário do projeto (2026-08-04) e Princípio XI da
+Constituição (v1.1.0), todo nome de entidade/campo/enum abaixo é o nome em inglês que será usado
+literalmente no `schema.prisma` e no código do backend — não são apenas rótulos de domínio. O
+texto explicativo permanece em português (documentação técnica interna); os nomes entre crases
+são os identificadores reais.
+
 ## Visão geral das relações
 
 ```
-Perfil 1───* Usuário *───* Unidade (vínculo, FR-004a)
-Unidade 1───* Galeria 1───* Cela 1───* Preso
-Preso 1───* HistóricoDeCela
-Preso 1───* Movimentação *───1 TipoDeMovimentação
-Galeria 1───* Rotina 1───* HorárioDeRotina
-Usuário(Policial) 1───* EscalaDeEfetivo
-(qualquer entidade) 1───* LogDeAuditoria
+Role 1───* User *───* Unit (vínculo, FR-004a)
+User 1───* RefreshToken
+Unit 1───* Gallery 1───* Cell 1───* Inmate
+Inmate 1───* CellHistory
+Inmate 1───* Movement *───1 MovementType
+Gallery 1───* Routine 1───* RoutineSchedule
+User(PRISON_OFFICER) 1───* StaffSchedule
+Unit/Gallery/Sector/Shift 1───* MinimumStaffingConfig
+(qualquer entidade) 1───* AuditLog
 ```
 
 ## Entidades
 
-### Perfil
+### Role (`roles`)
 
-Papel de acesso que determina as permissões de um Usuário.
+Papel de acesso que determina as permissões de um User.
 
 | Campo | Tipo/Regra |
 |---|---|
-| nome | `POLICIAL_PENAL` \| `SUPERVISOR` \| `CHEFIA_DIRETOR`, único |
-| descricao | texto livre opcional |
+| `name` | `PRISON_OFFICER` \| `SUPERVISOR` \| `WARDEN`, único |
+| `description` | texto livre opcional |
 
 - **Regras**: valor fixo entre os três perfis definidos na spec (FR-001); não é editável por
   usuários finais nesta fase (sem UI de criação de novos perfis).
 
-### Usuário
+### User (`users`)
 
 Pessoa com acesso ao sistema.
 
 | Campo | Tipo/Regra |
 |---|---|
-| nome, email (único) | obrigatórios |
-| senha_hash | obrigatório, Argon2 |
-| matricula | único quando presente |
-| perfil | referência a Perfil, obrigatório |
-| unidades vinculadas | 1..N Unidades (FR-004a) |
-| ativo | boolean, default true |
+| `name`, `email` (único) | obrigatórios |
+| `passwordHash` | obrigatório, Argon2 — **nunca** retornado por nenhuma API nem gravado sem redação em `audit_logs` (research.md #6) |
+| `badgeNumber` | único quando presente (matrícula) |
+| `jobTitle` | opcional (cargo — relevante sobretudo para `role=PRISON_OFFICER`, FR-021) |
+| `role` | referência a Role, obrigatório |
+| `units` | 1..N Units, via tabela de junção `user_units` (FR-004a) |
+| `active` | boolean, default `true` |
 
-- **Regras**: um Usuário Chefia/Diretor ou Supervisor só acessa dados das Unidades a que está
-  vinculado (FR-004a); um Usuário inativo não autentica.
-- **Validação**: email deve ser único e válido; senha nunca é exposta/retornada por nenhuma API
-  (Constituição II).
+- **Regra (FR-021, research.md #15)**: não existe entidade "Staff"/"Policial" separada — um policial penal **é** um `User` com `role=PRISON_OFFICER`. `StaffSchedule.user` referencia esta mesma entidade diretamente.
 
-### Unidade Prisional
+- **Regras**: um User Chefia/Diretor (`WARDEN`) ou Supervisor só acessa dados das Units a que está
+  vinculado (FR-004a); um User inativo (`active=false`) não autentica.
+- **Regra (FR-030…FR-032)**: só `WARDEN` MUST poder criar (`POST /api/v1/users`) ou desativar
+  (`PATCH /api/v1/users/:id/deactivate`) outro User; `PRISON_OFFICER` e `SUPERVISOR` MUST receber
+  `403` nessas rotas.
+- **Validação**: `email` deve ser único e válido; `passwordHash` nunca é exposto/retornado por
+  nenhuma API (Constituição II).
 
-| Campo | Tipo/Regra |
-|---|---|
-| nome, codigo (único) | obrigatórios |
-| endereco, telefone | opcionais |
-| ativo | boolean, default true |
+### RefreshToken (`refresh_tokens`)
 
-### Galeria
-
-| Campo | Tipo/Regra |
-|---|---|
-| unidade | referência obrigatória a Unidade |
-| codigo | obrigatório, único dentro da unidade |
-| tipo | ex.: masculino/feminino |
-| ativo | boolean, default true |
-
-### Cela
+Sessão de refresh persistida para permitir revogação real no logout (research.md #11).
 
 | Campo | Tipo/Regra |
 |---|---|
-| galeria | referência obrigatória a Galeria |
-| codigo | obrigatório, único dentro da galeria |
-| capacidade | inteiro ≥ 0 |
-| tipo | coletiva/individual |
-| ativo | boolean, default true |
+| `user` | referência obrigatória a User |
+| `tokenHash` | obrigatório, SHA-256 do refresh token emitido (nunca o token em claro) |
+| `expiresAt` | obrigatório |
+| `revokedAt` | nulo enquanto válido |
+
+- **Regra**: `POST /auth/refresh` MUST revogar (`revokedAt = now()`) o token usado e emitir um
+  novo (rotação); `POST /auth/logout` MUST revogar o token atual. Um token com `tokenHash`
+  desconhecido, expirado ou revogado MUST ser rejeitado com `401`.
+
+### Unit (`units`)
+
+| Campo | Tipo/Regra |
+|---|---|
+| `name`, `code` (único) | obrigatórios |
+| `address`, `phone` | opcionais |
+| `active` | boolean, default `true` |
+
+### Gallery (`galleries`)
+
+| Campo | Tipo/Regra |
+|---|---|
+| `unit` | referência obrigatória a Unit |
+| `code` | obrigatório, único dentro da unit |
+| `type` | ex.: `MALE`/`FEMALE` |
+| `active` | boolean, default `true` |
+
+### Cell (`cells`)
+
+| Campo | Tipo/Regra |
+|---|---|
+| `gallery` | referência obrigatória a Gallery |
+| `code` | obrigatório, único dentro da gallery |
+| `capacity` | inteiro ≥ 0 |
+| `type` | `SHARED`/`INDIVIDUAL` |
+| `active` | boolean, default `true` |
 
 - **Regra de capacidade**: uma nova alocação de preso (troca de cela, retorno de movimentação
-  definitiva) MUST ser rejeitada se a ocupação atual da cela já atingiu `capacidade` (ver Edge
+  definitiva) MUST ser rejeitada se a ocupação atual da cela já atingiu `capacity` (ver Edge
   Cases em spec.md).
 
-### Preso
+### Inmate (`inmates`)
 
 | Campo | Tipo/Regra |
 |---|---|
-| nome | obrigatório |
-| rgi | único quando presente |
-| data_nascimento, regime, foto_url | opcionais |
-| status | `ATIVO` \| `LIBERDADE` \| `TORNOZELEIRA` \| `TRANSFERIDO` \| `OBITO`, default `ATIVO` |
-| cela_atual | referência obrigatória a Cela enquanto `status = ATIVO` |
+| `name` | obrigatório |
+| `registrationId` (RGI) | único quando presente |
+| `birthDate`, `custodyRegime`, `photoUrl` | opcionais — `photoUrl` é texto simples (URL); mecanismo/provedor de upload ainda não decidido, ver research.md #13 |
+| `status` | `ACTIVE` \| `RELEASED` \| `ANKLE_MONITOR` \| `TRANSFERRED` \| `DECEASED`, default `ACTIVE` |
+| `currentCell` | referência obrigatória a Cell enquanto `status = ACTIVE` |
 
 - **Regra (Constituição VI / research.md #9)**: `status` é uma projeção mantida
-  transacionalmente junto com cada Movimentação/Situação Definitiva — nunca escrita por um fluxo
+  transacionalmente junto com cada Movement/situação definitiva — nunca escrita por um fluxo
   independente.
 - **State transitions**:
-  - `ATIVO → ATIVO` (movimentação temporária de saída/retorno, não altera status, apenas o
-    "em trânsito" observável via Movimentação em aberto).
-  - `ATIVO → LIBERDADE | TORNOZELEIRA | TRANSFERIDO` (situação definitiva, FR-012/013/014) — libera
-    a cela atual.
-  - `ATIVO → ATIVO` com troca de `cela_atual` (troca de cela definitiva, FR-015).
-  - Estados terminais (`LIBERDADE`, `TORNOZELEIRA`, `TRANSFERIDO`, `OBITO`) não retornam
-    automaticamente a `ATIVO`; qualquer correção exige novo registro auditado (ver Edge Cases em
+  - `ACTIVE → ACTIVE` (movimentação temporária de saída/retorno, não altera `status`, apenas o
+    "em trânsito" observável via Movement em aberto).
+  - `ACTIVE → RELEASED | ANKLE_MONITOR | TRANSFERRED` (situação definitiva, FR-012/013/014) —
+    libera a cela atual.
+  - `ACTIVE → ACTIVE` com troca de `currentCell` (troca de cela definitiva, FR-015).
+  - Estados terminais (`RELEASED`, `ANKLE_MONITOR`, `TRANSFERRED`, `DECEASED`) não retornam
+    automaticamente a `ACTIVE`; qualquer correção exige novo registro auditado (ver Edge Cases em
     spec.md), não uma edição direta do status.
 
-### Histórico de Cela
+### CellHistory (`inmate_cell_history`)
 
-Linha do tempo de ocupação de celas por um Preso, usada para reconstruir localização histórica
+Linha do tempo de ocupação de celas por um Inmate, usada para reconstruir localização histórica
 (FR-016).
 
 | Campo | Tipo/Regra |
 |---|---|
-| preso, cela | referências obrigatórias |
-| data_entrada | obrigatório |
-| data_saida | nulo enquanto ocupação corrente |
-| motivo | `TROCA_CELA` \| `LIBERDADE` \| `TORNOZELEIRA` \| `TRANSFERENCIA` |
-| usuario | responsável pelo registro |
+| `inmate`, `cell` | referências obrigatórias |
+| `entryDate` | obrigatório |
+| `exitDate` | nulo enquanto ocupação corrente |
+| `reason` | `CELL_CHANGE` \| `RELEASE` \| `ANKLE_MONITOR` \| `TRANSFER` |
+| `user` | responsável pelo registro |
 
-- **Regra**: toda mudança de `cela_atual` de um Preso MUST gerar exatamente um novo registro aqui
-  e fechar (`data_saida`) o registro anterior em aberto, na mesma transação.
+- **Regra**: toda mudança de `currentCell` de um Inmate MUST gerar exatamente um novo registro
+  aqui e fechar (`exitDate`) o registro anterior em aberto, na mesma transação.
 
-### Tipo de Movimentação
-
-| Campo | Tipo/Regra |
-|---|---|
-| nome | único (pátio, corre, faxina, atendimento médico interno/externo, visita, transferência,
-  liberdade, tornozeleira, troca de cela, ...) |
-| categoria | `TEMPORARIA` \| `DEFINITIVA` |
-
-### Movimentação
+### MovementType (`movement_types`)
 
 | Campo | Tipo/Regra |
 |---|---|
-| preso, tipo_movimentacao | referências obrigatórias |
-| cela_origem | obrigatória |
-| cela_destino | apenas para troca de cela |
-| local_destino, motivo, observacoes | texto livre opcional |
-| data_hora_saida | obrigatória |
-| data_hora_retorno | obrigatória apenas para `categoria = TEMPORARIA`, nula até o retorno |
-| usuario | responsável pelo registro |
+| `name` | único (pátio, corre, faxina, atendimento médico interno/externo, visita, transferência, liberdade, tornozeleira, troca de cela, ...) |
+| `category` | `TEMPORARY` \| `PERMANENT` |
 
-- **Regra (FR-010)**: não pode existir mais de uma Movimentação `TEMPORARIA` em aberto
-  (`data_hora_retorno IS NULL`) simultaneamente para o mesmo Preso.
-- **Regra (FR-009)**: registrar retorno de uma movimentação já retornada MUST ser rejeitado
+### Movement (`movements`)
+
+| Campo | Tipo/Regra |
+|---|---|
+| `inmate`, `movementType` | referências obrigatórias |
+| `originCell` | obrigatória |
+| `destinationCell` | apenas para troca de cela |
+| `destinationLocation`, `reason`, `notes` | texto livre opcional |
+| `exitDateTime` | obrigatória |
+| `returnDateTime` | obrigatória apenas para `category = TEMPORARY`, nula até o retorno |
+| `user` | responsável pelo registro |
+| `idempotencyKey` | UUID gerado pelo cliente (app móvel), único — ver regra offline |
+
+- **Regra (FR-010)**: não pode existir mais de um Movement `TEMPORARY` em aberto
+  (`returnDateTime IS NULL`) simultaneamente para o mesmo Inmate.
+- **Regra (FR-009)**: registrar retorno de um Movement já retornado MUST ser rejeitado
   (idempotência/edge case).
-- **Regra (offline, FR-011a)**: cada Movimentação criada pelo app móvel carrega um identificador
-  idempotente gerado no cliente; o backend rejeita silenciosamente reenvios com o mesmo
-  identificador (sem gerar duplicata nem erro visível ao usuário após reconexão).
+- **Regra (offline, FR-011a)**: cada Movement criado pelo app móvel carrega `idempotencyKey`
+  gerado no cliente; o backend rejeita silenciosamente reenvios com a mesma chave (sem gerar
+  duplicata nem erro visível ao usuário após reconexão).
 
-### Rotina
-
-| Campo | Tipo/Regra |
-|---|---|
-| nome | obrigatório |
-| tipo | `DIARIA` \| `DIA_SEMANA` \| `DIA_VISITA` \| `FINAL_SEMANA` \| `FERIADO` |
-| galeria(s)/unidade(s) | escopo obrigatório (FR-017) |
-| bloqueada | boolean — `true` quando definida como padrão pela Chefia/Diretor (FR-018) |
-| ativa | boolean, default true |
-| criada_por | Usuário (Chefia/Diretor) |
-
-- **Regra (FR-019)**: Supervisor pode alterar horários e `ativa` por dia, mas nunca `bloqueada`
-  nem criar novas Rotinas.
-
-### Horário de Rotina
+### Routine (`routines`)
 
 | Campo | Tipo/Regra |
 |---|---|
-| rotina | referência obrigatória |
-| dia_semana | 0–6 ou nulo (todos os dias) |
-| horario | obrigatório |
-| ativo | boolean, default true |
+| `name` | obrigatório |
+| `type` | `DAILY` \| `WEEKDAY` \| `VISIT_DAY` \| `WEEKEND` \| `HOLIDAY` |
+| `gallery`/`unit` (escopo) | obrigatório (FR-017) |
+| `locked` | boolean — `true` quando definida como padrão pela Chefia/Diretor (FR-018) |
+| `active` | boolean, default `true` |
+| `createdBy` | User (`WARDEN`) |
 
-- **Regra**: combinação (`rotina`, `dia_semana`, `horario`) é única.
+- **Regra (FR-019)**: Supervisor pode alterar horários e `active` por dia, mas nunca `locked`
+  nem criar novas Routines.
 
-### Escala de Efetivo
+### RoutineSchedule (`routine_schedules`)
 
 | Campo | Tipo/Regra |
 |---|---|
-| usuario (policial) | referência obrigatória |
-| unidade, galeria/setor | obrigatório/opcional |
-| data, turno | `MANHA` \| `TARDE` \| `NOITE`, obrigatórios |
-| presença/falta/abono/horas extras | registrados por escala |
+| `routine` | referência obrigatória |
+| `weekday` | 0–6 ou nulo (todos os dias) |
+| `time` | obrigatório |
+| `active` | boolean, default `true` |
 
-- **Regra**: combinação (`usuario`, `data`, `turno`) é única — um policial não pode ter duas
+- **Regra**: combinação (`routine`, `weekday`, `time`) é única.
+
+### StaffSchedule (`staff_schedules`)
+
+| Campo | Tipo/Regra |
+|---|---|
+| `user` (policial) | referência obrigatória |
+| `unit`, `sector` | obrigatório/opcional |
+| `date`, `shift` | `MORNING` \| `AFTERNOON` \| `NIGHT`, obrigatórios |
+| `attendanceStatus`, `absenceReason`, `overtimeHours` | registrados por escala |
+
+- **Regra**: combinação (`user`, `date`, `shift`) é única — um policial não pode ter duas
   escalas conflitantes no mesmo turno/dia.
 
-### Log de Auditoria
+### MinimumStaffingConfig (`minimum_staffing_config`)
+
+Valor mínimo de efetivo configurável por setor/turno/unidade (FR-024, research.md #12).
 
 | Campo | Tipo/Regra |
 |---|---|
-| usuario | quem executou a ação |
-| tabela_afetada, registro_id | entidade afetada |
-| acao | `INSERT` \| `UPDATE` \| `DELETE` |
-| dados_antigos, dados_novos | JSON, conforme aplicável |
-| data_hora | obrigatório |
+| `unit`, `sector`, `shift` | obrigatórios; combinação única |
+| `minimumHeadcount` | inteiro > 0 |
+| `updatedBy` | User (`WARDEN`) |
+
+- **Regra**: só `WARDEN` MUST poder criar/alterar (`PATCH /api/v1/staff/minimum-staffing-config`);
+  `GET /schedules/minimum-staffing` MUST usar este valor em vez de uma constante fixa.
+
+### AuditLog (`audit_logs`)
+
+| Campo | Tipo/Regra |
+|---|---|
+| `user` | quem executou a ação |
+| `affectedTable`, `recordId` | entidade afetada |
+| `action` | `INSERT` \| `UPDATE` \| `DELETE` |
+| `oldData`, `newData` | JSON, com campos sensíveis redigidos (research.md #6) |
+| `timestamp` | obrigatório |
 
 - **Regra (Constituição III / FR-026/FR-027)**: imutável após criado — nenhuma API expõe
   update/delete para esta entidade; gerado automaticamente pelo `AuditInterceptor`
   (research.md #6) para toda operação de escrita relevante.
+- **Regra (Constituição II / research.md #6)**: `oldData`/`newData` MUST substituir o valor de
+  campos sensíveis (`passwordHash`, `tokenHash`, e demais marcados `@Sensitive()`) por
+  `"[REDACTED]"` antes de persistir.
 
 ## Validações cross-entity relevantes ao plano (resumo)
 
 | Regra | Origem |
 |---|---|
-| Uma Movimentação temporária em aberto bloqueia nova saída para o mesmo Preso | FR-010 |
-| Capacidade da Cela não pode ser excedida em nova alocação | Edge Cases (spec.md) |
-| Rotina `bloqueada=true` não pode ser excluída/ter tipo alterado por Supervisor | FR-019, Assumptions (spec.md) |
-| Usuário só acessa dados de Unidades a que está vinculado | FR-004a |
-| Toda escrita relevante gera Log de Auditoria imutável | FR-026, FR-027 |
+| Um Movement temporário em aberto bloqueia nova saída para o mesmo Inmate | FR-010 |
+| Capacidade da Cell não pode ser excedida em nova alocação | Edge Cases (spec.md) |
+| Routine `locked=true` não pode ser excluída/ter tipo alterado por Supervisor | FR-019, Assumptions (spec.md) |
+| User só acessa dados de Units a que está vinculado | FR-004a |
+| Somente `WARDEN` cria/desativa User | FR-030…FR-032 |
+| RefreshToken revogado/expirado/desconhecido é rejeitado | research.md #11 |
+| Toda escrita relevante gera AuditLog imutável, com campos sensíveis redigidos | FR-026, FR-027, research.md #6 |

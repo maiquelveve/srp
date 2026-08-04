@@ -41,20 +41,36 @@ Substituir o controle em papel das rotinas operacionais do sistema prisional do 
 | III | Auditability | PASS — `AuditService` centralizado via interceptor cobre toda operação de escrita; tabela `auditoria_logs` sem endpoints de update/delete (ver research.md). |
 | IV | Data Integrity | PASS — validação de DTOs no backend (independente do cliente), migrations Prisma exclusivas, nenhuma alteração manual no banco. |
 | V | Clean Architecture | PASS — cada módulo backend segue Controller → Service → Repository conforme `docs/srp_plan.md`; regra de negócio nunca em controller. |
-| VI | Single Source of Truth | PASS com nota — `presos.status` é uma projeção mantida transacionalmente a partir de `movimentacoes`/`preso_cela_historico` (não uma segunda fonte independente), necessária para atender SC-003 (consulta de status em até 5s); ver research.md. |
+| VI | Single Source of Truth | PASS com nota — `inmates.status` é uma projeção mantida transacionalmente a partir de `movements`/`inmate_cell_history` (não uma segunda fonte independente), necessária para atender SC-003 (consulta de status em até 5s); ver research.md. |
 | VII | Consistency | PASS — API REST versionada `/api/v1/`, DTOs padronizados, Swagger/OpenAPI, tratamento de erros consistente. |
 | VIII | Testability | PASS — testes unitários e de integração obrigatórios no backend; testes de componente/fluxo no frontend; nenhuma redução de cobertura permitida. |
 | IX | Maintainability | PASS — ESLint/Prettier/Husky/lint-staged, TypeScript strict, proibição explícita de `any`/`@ts-ignore`/lógica de negócio em controller/acesso direto ao banco. |
 | X | Documentation | PASS — Swagger obrigatório por endpoint; critérios de conclusão do plano exigem documentação atualizada por funcionalidade. |
+| XI | Language Convention | PASS — `data-model.md`, `docs/srp_spec_database_model.md` e todos os `contracts/*.md` foram alinhados a identificadores em inglês (`inmates`, `movements`, `routines`, `users`, ...); Project Structure abaixo já usa nomes de módulo em inglês desde a primeira versão do plano. |
 
 Nenhuma violação identificada — Complexity Tracking não é necessário.
 
 **Re-check pós-Phase 1**: `research.md`, `data-model.md`, `contracts/` e `quickstart.md` foram
 revisados contra a tabela acima após o design detalhado. Nenhuma decisão de design introduziu
-violação nova: a projeção `presos.status` (nota do princípio VI) está documentada e justificada em
+violação nova: a projeção `inmates.status` (nota do princípio VI) está documentada e justificada em
 `research.md` §9; a auditoria centralizada via interceptor (princípio III) está refletida em todos
-os contratos de escrita em `contracts/`; o escopo por unidade (FR-004a, princípio II) está
-presente em todo endpoint de leitura/escrita listado. Gate mantém-se **PASS**.
+os contratos de escrita em `contracts/`, agora com redação explícita de campos sensíveis
+(`research.md` §6, achado C1 do `/speckit-analyze`); o escopo por unidade (FR-004a, princípio II)
+está presente em todo endpoint de leitura/escrita listado; a gestão de usuários (FR-030…FR-032,
+achado G1) foi adicionada restrita ao perfil `WARDEN`. Gate mantém-se **PASS**.
+
+**Re-check pós-`/speckit-analyze` (2026-08-04, 1ª rodada)**: achados G1 (gestão de usuários), C1
+(redação de dados sensíveis em auditoria), G2 (config de efetivo mínimo), G3 (revogação de
+refresh token) e A1 (SC-004 sem métrica objetiva) foram resolvidos em `spec.md`, `research.md`,
+`data-model.md`, `docs/srp_spec_database_model.md` e `contracts/`. G4 (ferramenta de load test)
+resolvido via research.md §14 (k6). Gate mantém-se **PASS**.
+
+**Re-check pós-`/speckit-analyze` (2026-08-04, 2ª rodada)**: a 1ª remediação deixou resíduo em
+`tasks.md` (identificadores antigos `CHEFIA_DIRETOR`/`POLICIAL_PENAL`/`bloqueada` sobrevivendo em
+7 linhas — achado C1-round2, violação do Princípio XI) e uma ambiguidade de modelagem entre
+`POST /users` e `POST /staff` (achado I1 — risco ao Princípio VI). Ambos corrigidos: `tasks.md`
+alinhado a `WARDEN`/`PRISON_OFFICER`/`locked`; decisão "Policial Penal = User" registrada em
+research.md §15, removendo a entidade/endpoint `Staff` duplicado. Gate mantém-se **PASS**.
 
 ## Project Structure
 
@@ -84,7 +100,7 @@ backend/
 │   ├── inmates/                   # presos, status, histórico de cela, situações definitivas
 │   ├── movements/                    # movimentações temporárias e definitivas
 │   ├── routines/                       # rotinas e horários
-│   ├── staff/                            # policiais penais, escalas, presença/faltas
+│   ├── staff/                            # escalas, presença/faltas, efetivo mínimo (cadastro de policial = users/, research.md #15)
 │   ├── reports/                            # relatórios (movimentações, inconsistências, efetivo, ocupação)
 │   ├── audit/                                # AuditService + interceptor, leitura de auditoria
 │   └── common/, config/                        # DTOs/pipes/filters compartilhados, configuração

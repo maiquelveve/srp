@@ -1,12 +1,37 @@
 <!--
 Sync Impact Report
 ==================
+Version change: 1.0.0 → 1.1.0
+Rationale for MINOR bump: Addition of a new principle (XI. Language Convention). No existing
+principle was redefined or removed; this is a material expansion of guidance per the versioning
+policy below.
+
+Modified principles: N/A
+
+Principles added:
+  - XI. Language Convention
+
+Sections added: N/A (existing sections amended in place — see below)
+
+Sections removed: N/A
+
+Amendments to existing sections:
+  - Development Standards: added explicit cross-reference to Principle XI for identifier/schema
+    naming.
+
+Follow-up TODOs:
+  - Rename existing Portuguese identifiers in data-model.md, docs/srp_spec_database_model.md and
+    specs/001-gestao-rotinas-presos/contracts/*.md to English, applied retroactively per project
+    decision (2026-08-04) before /speckit-implement generates backend/prisma code from them.
+
+---
+
+Sync Impact Report (previous)
+==============================
 Version change: [TEMPLATE - unratified] → 1.0.0
 Rationale for MAJOR bump: Initial ratification of the project constitution. The file previously
 held only unfilled template placeholders; this is the first concrete set of governing principles,
 so it is treated as a foundational (MAJOR) version.
-
-Modified principles: N/A (initial adoption)
 
 Principles added:
   - I. Domain First
@@ -24,14 +49,6 @@ Sections added:
   - Development Standards
   - Decision Priority
   - Governance (amendment procedure, versioning policy, compliance review)
-
-Sections removed: N/A
-
-Templates requiring updates (not modified by this command per scope guard):
-  - .specify/templates/plan-template.md — ⚠ pending manual review against new principles
-  - .specify/templates/spec-template.md — ⚠ pending manual review against new principles
-  - .specify/templates/tasks-template.md — ⚠ pending manual review against new principles
-  - .specify/templates/checklist-template.md — ⚠ pending manual review against new principles
 
 Follow-up TODOs: none — all placeholders resolved using docs/srp_constitution.md as source.
 -->
@@ -102,6 +119,17 @@ Mudanças que alterem regras de negócio DEVEM atualizar a documentação corres
 implementação DEVE permanecer sincronizada com a especificação. Nenhuma funcionalidade é
 considerada concluída se a documentação estiver desatualizada.
 
+### XI. Language Convention
+
+Todo código-fonte (variáveis, funções, classes, módulos) e todo o schema de banco de dados
+(nomes de tabelas, colunas, constraints, enums) DEVEM ser escritos em inglês, sem exceção. Textos
+exibidos ao usuário final na interface (rótulos, mensagens de tela, conteúdo do front-end web e do
+aplicativo móvel) DEVEM ser escritos em português. Documentação de negócio voltada a stakeholders
+não-técnicos (especificações funcionais, este documento) permanece em português; documentação
+técnica que espelha identificadores de código ou banco (modelos de dados, contratos de API,
+schemas) DEVE usar os mesmos identificadores em inglês definidos no código, para que spec e
+implementação nunca divirjam em nomenclatura (reforça o Princípio I — Domain First).
+
 ## Development Standards
 
 Toda implementação DEVE:
@@ -111,7 +139,9 @@ Toda implementação DEVE:
 - evitar código morto;
 - evitar duplicação de lógica;
 - manter baixo acoplamento entre módulos;
-- preservar compatibilidade com funcionalidades existentes sempre que possível.
+- preservar compatibilidade com funcionalidades existentes sempre que possível;
+- nomear identificadores de código e schema de banco em inglês, e todo texto voltado ao usuário
+  final em português, conforme o Princípio XI.
 
 ## Decision Priority
 
@@ -147,4 +177,4 @@ existentes; (3) atualização de versão conforme a política de versionamento s
 conformidade com os princípios desta Constituição. Complexidade adicional DEVE ser justificada
 frente aos princípios de Manutenibilidade (IX) e Consistency (VII).
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-02 | **Last Amended**: 2026-08-02
+**Version**: 1.1.0 | **Ratified**: 2026-08-02 | **Last Amended**: 2026-08-04

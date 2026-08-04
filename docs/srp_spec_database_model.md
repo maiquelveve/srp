@@ -1,226 +1,284 @@
 # Modelo do Banco de Dados
 
-## Tabela `perfis`
+> Convenção (Constituição v1.1.0, Princípio XI): todo nome de tabela/coluna é em inglês. Este
+> documento é a referência autoritativa para tipos/colunas exatos do `schema.prisma`
+> (ver `specs/001-gestao-rotinas-presos/data-model.md` para as regras de negócio associadas).
+
+## Tabela `roles`
 
 ```sql
-CREATE TABLE perfis (
+CREATE TABLE roles (
     id SERIAL PRIMARY KEY,
-    nome VARCHAR(50) NOT NULL UNIQUE, -- 'POLICIAL', 'SUPERVISOR', 'DIRETOR'
-    descricao TEXT
+    name VARCHAR(50) NOT NULL UNIQUE, -- 'PRISON_OFFICER', 'SUPERVISOR', 'WARDEN'
+    description TEXT
 );
 ```
 
-## Tabela `usuarios`
+## Tabela `users`
 
 ```sql
-CREATE TABLE usuarios (
+CREATE TABLE users (
     id SERIAL PRIMARY KEY,
-    nome VARCHAR(150) NOT NULL,
+    name VARCHAR(150) NOT NULL,
     email VARCHAR(150) NOT NULL UNIQUE,
-    senha_hash VARCHAR(255) NOT NULL,
-    matricula VARCHAR(50) UNIQUE,
-    perfil_id INTEGER NOT NULL REFERENCES perfis(id),
-    ativo BOOLEAN DEFAULT TRUE,
+    password_hash VARCHAR(255) NOT NULL,
+    badge_number VARCHAR(50) UNIQUE,
+    job_title VARCHAR(100), -- cargo, FR-021 (relevante sobretudo para role=PRISON_OFFICER)
+    role_id INTEGER NOT NULL REFERENCES roles(id),
+    active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-## Tabela `unidades`
+## Tabela `user_units`
+
+Vínculo N:N entre `users` e `units` (FR-004a — escopo de acesso por unidade).
 
 ```sql
-CREATE TABLE unidades (
+CREATE TABLE user_units (
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    unit_id INTEGER NOT NULL REFERENCES units(id),
+    PRIMARY KEY (user_id, unit_id)
+);
+```
+
+## Tabela `refresh_tokens`
+
+Persistência de refresh tokens para permitir revogação real no logout (research.md #11).
+
+```sql
+CREATE TABLE refresh_tokens (
     id SERIAL PRIMARY KEY,
-    nome VARCHAR(150) NOT NULL,
-    codigo VARCHAR(20) UNIQUE,
-    endereco TEXT,
-    telefone VARCHAR(50),
-    ativo BOOLEAN DEFAULT TRUE,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    token_hash VARCHAR(255) NOT NULL UNIQUE, -- SHA-256 do refresh token, nunca o token em claro
+    expires_at TIMESTAMP NOT NULL,
+    revoked_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-## Tabela `galerias`
+## Tabela `units`
 
 ```sql
-CREATE TABLE galerias (
+CREATE TABLE units (
     id SERIAL PRIMARY KEY,
-    unidade_id INTEGER NOT NULL REFERENCES unidades(id),
-    codigo VARCHAR(50) NOT NULL, -- ex: 'A', 'B', 'TRABALHADORES', 'BRETE', 'TRIAGEM'
-    descricao TEXT,
-    tipo VARCHAR(50), -- 'MASCULINO', 'FEMININO', etc.
-    ativo BOOLEAN DEFAULT TRUE,
-    UNIQUE(unidade_id, codigo)
-);
-```
-
-## Tabela `celas`
-
-```sql
-CREATE TABLE celas (
-    id SERIAL PRIMARY KEY,
-    galeria_id INTEGER NOT NULL REFERENCES galerias(id),
-    codigo VARCHAR(20) NOT NULL, -- ex: '01', '02', '03'
-    capacidade INTEGER NOT NULL DEFAULT 0,
-    tipo VARCHAR(50), -- 'COLETIVA', 'INDIVIDUAL', etc.
-    ativo BOOLEAN DEFAULT TRUE,
-    UNIQUE(galeria_id, codigo)
-);
-```
-
-## Tabela `presos`
-
-```sql
-CREATE TABLE presos (
-    id SERIAL PRIMARY KEY,
-    nome VARCHAR(200) NOT NULL,
-    rgi VARCHAR(50) UNIQUE,
-    data_nascimento DATE,
-    regime VARCHAR(50), -- 'FECHADO', 'SEMIABERTO', 'ABERTO'
-    foto_url TEXT,
-    status VARCHAR(50) NOT NULL DEFAULT 'ATIVO', -- 'ATIVO', 'LIBERDADE', 'TORNOZELEIRA', 'TRANSFERIDO', 'OBITO'
-    cela_atual_id INTEGER NOT NULL REFERENCES celas(id),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-## Tabela `preso_cela_historico`
-
-```sql
-CREATE TABLE preso_cela_historico (
-    id SERIAL PRIMARY KEY,
-    preso_id INTEGER NOT NULL REFERENCES presos(id),
-    cela_id INTEGER NOT NULL REFERENCES celas(id),
-    data_entrada TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    data_saida TIMESTAMP,
-    motivo VARCHAR(100), -- 'TROCA_CELA', 'LIBERDADE', 'TORNOZELEIRA', 'TRANSFERENCIA'
-    usuario_id INTEGER REFERENCES usuarios(id)
-);
-```
-
-## Tabela `tipos_movimentacao`
-
-```sql
-CREATE TABLE tipos_movimentacao (
-    id SERIAL PRIMARY KEY,
-    nome VARCHAR(100) NOT NULL UNIQUE,
-    categoria VARCHAR(50) NOT NULL, -- 'TEMPORARIA', 'DEFINITIVA'
-    descricao TEXT
-);
-```
-
-## Tabela `rotinas`
-
-```sql
-CREATE TABLE rotinas (
-    id SERIAL PRIMARY KEY,
-    nome VARCHAR(100) NOT NULL,
-    tipo VARCHAR(50) NOT NULL, -- 'DIARIA', 'DIA_SEMANA', 'DIA_VISITA', 'FINAL_SEMANA', 'FERIADO'
-    descricao TEXT,
-    galeria_id INTEGER NOT NULL REFERENCES galerias(id), -- sempre obrigatóº´¬rio
-    ativa BOOLEAN DEFAULT TRUE,
-    bloqueada BOOLEAN DEFAULT FALSE, -- TRUE = rotina padrão, não editáº´vel
-    criada_por INTEGER REFERENCES usuarios(id),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-## Tabela `rotina_horarios`
-
-```sql
-CREATE TABLE rotina_horarios (
-    id SERIAL PRIMARY KEY,
-    rotina_id INTEGER NOT NULL REFERENCES rotinas(id),
-    dia_semana INTEGER, -- 0=DOM, 1=SEG, ..., 6=SAB, NULL = todos os dias
-    horario TIME NOT NULL,
-    ativo BOOLEAN DEFAULT TRUE,
-    UNIQUE(rotina_id, dia_semana, horario)
-);
-```
-
-## Tabela `movimentacoes`
-
-```sql
-CREATE TABLE movimentacoes (
-    id SERIAL PRIMARY KEY,
-    preso_id INTEGER NOT NULL REFERENCES presos(id),
-    tipo_movimentacao_id INTEGER NOT NULL REFERENCES tipos_movimentacao(id),
-    cela_origem_id INTEGER NOT NULL REFERENCES celas(id),
-    cela_destino_id INTEGER REFERENCES celas(id), -- para troca de cela
-    local_destino TEXT, -- 'ENFERMARIA', 'FORUM', 'HOSPITAL', etc.
-    motivo TEXT,
-    data_hora_saida TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    data_hora_retorno TIMESTAMP, -- para temporáº´rias
-    observacoes TEXT,
-    usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
+    name VARCHAR(150) NOT NULL,
+    code VARCHAR(20) UNIQUE,
+    address TEXT,
+    phone VARCHAR(50),
+    active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-## Tabela `escalas`
+## Tabela `galleries`
 
 ```sql
-CREATE TABLE escalas (
+CREATE TABLE galleries (
     id SERIAL PRIMARY KEY,
-    usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
-    unidade_id INTEGER NOT NULL REFERENCES unidades(id),
-    galeria_id INTEGER REFERENCES galerias(id),
-    data DATE NOT NULL,
-    turno VARCHAR(20) NOT NULL, -- 'MANHA', 'TARDE', 'NOITE'
-    setor VARCHAR(100), -- 'GALERIA_A', 'PORTARIA', etc.
-    UNIQUE(usuario_id, data, turno)
+    unit_id INTEGER NOT NULL REFERENCES units(id),
+    code VARCHAR(50) NOT NULL, -- ex: 'A', 'B', 'WORKERS', 'HOLDING', 'INTAKE'
+    description TEXT,
+    type VARCHAR(50), -- 'MALE', 'FEMALE', etc.
+    active BOOLEAN DEFAULT TRUE,
+    UNIQUE(unit_id, code)
 );
 ```
 
-## Tabela `auditoria_logs`
+## Tabela `cells`
 
 ```sql
-CREATE TABLE auditoria_logs (
+CREATE TABLE cells (
     id SERIAL PRIMARY KEY,
-    usuario_id INTEGER REFERENCES usuarios(id),
-    tabela_afetada VARCHAR(50),
-    registro_id INTEGER,
-    acao VARCHAR(20) NOT NULL, -- 'INSERT', 'UPDATE', 'DELETE'
-    dados_antigos JSONB,
-    dados_novos JSONB,
-    data_hora TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    gallery_id INTEGER NOT NULL REFERENCES galleries(id),
+    code VARCHAR(20) NOT NULL, -- ex: '01', '02', '03'
+    capacity INTEGER NOT NULL DEFAULT 0,
+    type VARCHAR(50), -- 'SHARED', 'INDIVIDUAL', etc.
+    active BOOLEAN DEFAULT TRUE,
+    UNIQUE(gallery_id, code)
+);
+```
+
+## Tabela `inmates`
+
+```sql
+CREATE TABLE inmates (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    registration_id VARCHAR(50) UNIQUE, -- RGI
+    birth_date DATE,
+    custody_regime VARCHAR(50), -- 'CLOSED', 'SEMI_OPEN', 'OPEN'
+    photo_url TEXT, -- provedor/mecanismo de upload ainda não decidido (research.md #13)
+    status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE', -- 'ACTIVE', 'RELEASED', 'ANKLE_MONITOR', 'TRANSFERRED', 'DECEASED'
+    current_cell_id INTEGER NOT NULL REFERENCES cells(id),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+## Tabela `inmate_cell_history`
+
+```sql
+CREATE TABLE inmate_cell_history (
+    id SERIAL PRIMARY KEY,
+    inmate_id INTEGER NOT NULL REFERENCES inmates(id),
+    cell_id INTEGER NOT NULL REFERENCES cells(id),
+    entry_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    exit_date TIMESTAMP,
+    reason VARCHAR(100), -- 'CELL_CHANGE', 'RELEASE', 'ANKLE_MONITOR', 'TRANSFER'
+    user_id INTEGER REFERENCES users(id)
+);
+```
+
+## Tabela `movement_types`
+
+```sql
+CREATE TABLE movement_types (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    category VARCHAR(50) NOT NULL, -- 'TEMPORARY', 'PERMANENT'
+    description TEXT
+);
+```
+
+## Tabela `routines`
+
+```sql
+CREATE TABLE routines (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    type VARCHAR(50) NOT NULL, -- 'DAILY', 'WEEKDAY', 'VISIT_DAY', 'WEEKEND', 'HOLIDAY'
+    description TEXT,
+    gallery_id INTEGER NOT NULL REFERENCES galleries(id), -- sempre obrigatório
+    active BOOLEAN DEFAULT TRUE,
+    locked BOOLEAN DEFAULT FALSE, -- TRUE = rotina padrão, não editável por Supervisor
+    created_by INTEGER REFERENCES users(id),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+## Tabela `routine_schedules`
+
+```sql
+CREATE TABLE routine_schedules (
+    id SERIAL PRIMARY KEY,
+    routine_id INTEGER NOT NULL REFERENCES routines(id),
+    weekday INTEGER, -- 0=SUN, 1=MON, ..., 6=SAT, NULL = todos os dias
+    time TIME NOT NULL,
+    active BOOLEAN DEFAULT TRUE,
+    UNIQUE(routine_id, weekday, time)
+);
+```
+
+## Tabela `movements`
+
+```sql
+CREATE TABLE movements (
+    id SERIAL PRIMARY KEY,
+    inmate_id INTEGER NOT NULL REFERENCES inmates(id),
+    movement_type_id INTEGER NOT NULL REFERENCES movement_types(id),
+    origin_cell_id INTEGER NOT NULL REFERENCES cells(id),
+    destination_cell_id INTEGER REFERENCES cells(id), -- para troca de cela
+    destination_location TEXT, -- 'INFIRMARY', 'COURT', 'HOSPITAL', etc.
+    reason TEXT,
+    exit_datetime TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    return_datetime TIMESTAMP, -- para movimentações temporárias
+    notes TEXT,
+    idempotency_key UUID UNIQUE, -- gerado pelo app móvel (FR-011a)
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+## Tabela `staff_schedules`
+
+```sql
+CREATE TABLE staff_schedules (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    unit_id INTEGER NOT NULL REFERENCES units(id),
+    gallery_id INTEGER REFERENCES galleries(id),
+    date DATE NOT NULL,
+    shift VARCHAR(20) NOT NULL, -- 'MORNING', 'AFTERNOON', 'NIGHT'
+    sector VARCHAR(100), -- 'GALLERY_A', 'FRONT_DESK', etc.
+    attendance_status VARCHAR(20), -- 'PRESENT', 'ABSENT', 'EXCUSED'
+    overtime_hours NUMERIC(5,2) DEFAULT 0,
+    UNIQUE(user_id, date, shift)
+);
+```
+
+## Tabela `minimum_staffing_config`
+
+Valor mínimo de efetivo configurável por setor/turno/unidade (FR-024, research.md #12).
+
+```sql
+CREATE TABLE minimum_staffing_config (
+    id SERIAL PRIMARY KEY,
+    unit_id INTEGER NOT NULL REFERENCES units(id),
+    sector VARCHAR(100) NOT NULL,
+    shift VARCHAR(20) NOT NULL, -- 'MORNING', 'AFTERNOON', 'NIGHT'
+    minimum_headcount INTEGER NOT NULL,
+    updated_by INTEGER REFERENCES users(id),
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(unit_id, sector, shift)
+);
+```
+
+## Tabela `audit_logs`
+
+```sql
+CREATE TABLE audit_logs (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id),
+    affected_table VARCHAR(50),
+    record_id INTEGER,
+    action VARCHAR(20) NOT NULL, -- 'INSERT', 'UPDATE', 'DELETE'
+    old_data JSONB, -- campos sensíveis (password_hash, token_hash, ...) redigidos antes de gravar
+    new_data JSONB, -- idem
+    timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
 ## Índices
 
 ```sql
-CREATE INDEX idx_presos_cela_atual ON presos(cela_atual_id);
-CREATE INDEX idx_presos_status ON presos(status);
-CREATE INDEX idx_movimentacoes_preso ON movimentacoes(preso_id);
-CREATE INDEX idx_movimentacoes_data ON movimentacoes(data_hora_saida);
-CREATE INDEX idx_movimentacoes_usuario ON movimentacoes(usuario_id);
-CREATE INDEX idx_escala_data ON escalas(data);
-CREATE INDEX idx_auditoria_data ON auditoria_logs(data_hora);
+CREATE INDEX idx_inmates_current_cell ON inmates(current_cell_id);
+CREATE INDEX idx_inmates_status ON inmates(status);
+CREATE INDEX idx_movements_inmate ON movements(inmate_id);
+CREATE INDEX idx_movements_date ON movements(exit_datetime);
+CREATE INDEX idx_movements_user ON movements(user_id);
+CREATE INDEX idx_staff_schedules_date ON staff_schedules(date);
+CREATE INDEX idx_audit_logs_timestamp ON audit_logs(timestamp);
+CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
 ```
 
 ---
 
 ## Relacionamentos
 
-- `usuarios.perfil_id` → `perfis.id`
-- `galerias.unidade_id` → `unidades.id`
-- `celas.galeria_id` → `galerias.id`
-- `presos.cela_atual_id` → `celas.id`
-- `preso_cela_historico.preso_id` → `presos.id`
-- `preso_cela_historico.cela_id` → `celas.id`
-- `preso_cela_historico.usuario_id` → `usuarios.id`
-- `rotinas.galeria_id` → `galerias.id`
-- `rotinas.criada_por` → `usuarios.id`
-- `rotina_horarios.rotina_id` → `rotinas.id`
-- `movimentacoes.preso_id` → `presos.id`
-- `movimentacoes.tipo_movimentacao_id` → `tipos_movimentacao.id`
-- `movimentacoes.cela_origem_id` → `celas.id`
-- `movimentacoes.cela_destino_id` → `celas.id`
-- `movimentacoes.usuario_id` → `usuarios.id`
-- `escalas.usuario_id` → `usuarios.id`
-- `escalas.unidade_id` → `unidades.id`
-- `escalas.galeria_id` → `galerias.id`
-- `auditoria_logs.usuario_id` → `usuarios.id`
+- `users.role_id` → `roles.id`
+- `user_units.user_id` → `users.id`
+- `user_units.unit_id` → `units.id`
+- `refresh_tokens.user_id` → `users.id`
+- `galleries.unit_id` → `units.id`
+- `cells.gallery_id` → `galleries.id`
+- `inmates.current_cell_id` → `cells.id`
+- `inmate_cell_history.inmate_id` → `inmates.id`
+- `inmate_cell_history.cell_id` → `cells.id`
+- `inmate_cell_history.user_id` → `users.id`
+- `routines.gallery_id` → `galleries.id`
+- `routines.created_by` → `users.id`
+- `routine_schedules.routine_id` → `routines.id`
+- `movements.inmate_id` → `inmates.id`
+- `movements.movement_type_id` → `movement_types.id`
+- `movements.origin_cell_id` → `cells.id`
+- `movements.destination_cell_id` → `cells.id`
+- `movements.user_id` → `users.id`
+- `staff_schedules.user_id` → `users.id`
+- `staff_schedules.unit_id` → `units.id`
+- `staff_schedules.gallery_id` → `galleries.id`
+- `minimum_staffing_config.unit_id` → `units.id`
+- `minimum_staffing_config.updated_by` → `users.id`
+- `audit_logs.user_id` → `users.id`
