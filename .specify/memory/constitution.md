@@ -22,7 +22,8 @@ Amendments to existing sections:
 Follow-up TODOs:
   - Rename existing Portuguese identifiers in data-model.md, docs/srp_spec_database_model.md and
     specs/001-gestao-rotinas-presos/contracts/*.md to English, applied retroactively per project
-    decision (2026-08-04) before /speckit-implement generates backend/prisma code from them.
+    decision (2026-08-04) before /speckit-implement generates backend code from them. Note:
+    ORM was later switched from Prisma to TypeORM (2026-08-04, same day) — see research.md #8.
 
 ---
 

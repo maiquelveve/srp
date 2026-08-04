@@ -1,13 +1,14 @@
 # Phase 1 Data Model: Gestão de Rotinas Penitenciárias (SRP)
 
 **Input**: Key Entities em [spec.md](./spec.md), requisitos funcionais FR-001…FR-032, schema de
-referência em `docs/srp_spec_database_model.md` (autoritativo para tipos/colunas exatos do
-Prisma schema — este documento descreve o modelo em nível de domínio e as regras de negócio que o
-schema deve impor).
+referência em `docs/srp_spec_database_model.md` (autoritativo para tipos/colunas exatos das
+entities TypeORM — este documento descreve o modelo em nível de domínio e as regras de negócio que
+o schema deve impor).
 
 **Convenção de nomenclatura**: por decisão do usuário do projeto (2026-08-04) e Princípio XI da
 Constituição (v1.1.0), todo nome de entidade/campo/enum abaixo é o nome em inglês que será usado
-literalmente no `schema.prisma` e no código do backend — não são apenas rótulos de domínio. O
+literalmente na entity TypeORM (`@Entity`/`@Column`) e no código do backend — não são apenas
+rótulos de domínio. O
 texto explicativo permanece em português (documentação técnica interna); os nomes entre crases
 são os identificadores reais.
 

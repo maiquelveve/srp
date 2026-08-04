@@ -30,7 +30,7 @@ Stack obrigatória:
 
 - Node.js
 - NestJS
-- Prisma ORM
+- TypeORM
 - PostgreSQL
 - JWT Authentication
 - Swagger/OpenAPI
@@ -197,11 +197,11 @@ Relatórios
 
 # Banco de Dados
 
-Utilizar exclusivamente Prisma.
+Utilizar exclusivamente TypeORM.
 
 Todas as alterações deverão ocorrer através de migrations.
 
-O schema Prisma deve permanecer sincronizado com o modelo definido em `srp_spec_database_model.md`.
+As entities TypeORM devem permanecer sincronizadas com o modelo definido em `srp_spec_database_model.md`.
 
 Nenhuma alteração manual no banco é permitida.
 

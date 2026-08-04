@@ -1,7 +1,7 @@
 # Modelo do Banco de Dados
 
 > Convenção (Constituição v1.1.0, Princípio XI): todo nome de tabela/coluna é em inglês. Este
-> documento é a referência autoritativa para tipos/colunas exatos do `schema.prisma`
+> documento é a referência autoritativa para tipos/colunas exatos das entities TypeORM
 > (ver `specs/001-gestao-rotinas-presos/data-model.md` para as regras de negócio associadas).
 
 ## Tabela `roles`

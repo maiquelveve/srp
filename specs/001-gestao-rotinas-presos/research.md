@@ -2,7 +2,7 @@
 
 **Input**: Technical Context em [plan.md](./plan.md), `docs/srp_plan.md`, `docs/srp_spec_database_model.md`.
 
-Todas as decisões de stack (NestJS, Prisma, PostgreSQL, React/Vite, React Native/Expo) já vêm
+Todas as decisões de stack (NestJS, TypeORM, PostgreSQL, React/Vite, React Native/Expo) já vêm
 determinadas por `docs/srp_plan.md` e não são tratadas como incertezas — nenhum item do Technical
 Context ficou marcado como `NEEDS CLARIFICATION`. As pesquisas abaixo resolvem as decisões de
 melhores práticas necessárias para implementar essa stack em conformidade com a Constituição do
@@ -10,12 +10,12 @@ projeto.
 
 **Convenção de nomenclatura**: a partir da versão 1.1.0 da Constituição (Princípio XI), todo
 identificador de código e de schema de banco citado neste documento usa o nome em inglês que será
-efetivamente usado no `schema.prisma` e no código (ex.: `inmates.status`, não `presos.status`).
+efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, não `presos.status`).
 
 ## 1. Framework de testes — Backend
 
 - **Decision**: Jest para testes unitários de services/controllers, Supertest para testes de
-  integração de endpoints HTTP (com banco de teste PostgreSQL isolado via Prisma).
+  integração de endpoints HTTP (com banco de teste PostgreSQL isolado via TypeORM/`DataSource` dedicado a testes).
 - **Rationale**: Jest é o test runner padrão gerado pelo NestJS CLI, com suporte nativo a mocking
   de providers via `@nestjs/testing`; Supertest é o padrão de facto para testar módulos NestJS
   ponta a ponta sem subir um servidor real.
@@ -83,7 +83,7 @@ efetivamente usado no `schema.prisma` e no código (ex.: `inmates.status`, não 
   Antes de persistir `oldData`/`newData`, o `AuditService` MUST aplicar uma lista de redação
   (`REDACTED_FIELDS`) que substitui o valor de campos sensíveis por `"[REDACTED]"` — no mínimo:
   `passwordHash`, `refreshTokenHash`, e qualquer outro campo futuramente marcado como sensível via
-  decorator (`@Sensitive()`) na entidade Prisma. Isso vale tanto para o módulo de usuários quanto
+  decorator (`@Sensitive()`) na entity TypeORM. Isso vale tanto para o módulo de usuários quanto
   para qualquer módulo futuro que grave dado sensível.
 - **Rationale**: Centralizar a captura evita depender de cada desenvolvedor lembrar de logar
   manualmente em cada novo endpoint (fonte comum de lacunas de auditoria), atendendo à exigência
@@ -114,14 +114,25 @@ efetivamente usado no `schema.prisma` e no código (ex.: `inmates.status`, não 
 
 ## 8. Migrations e schema do banco
 
-- **Decision**: Todo o schema é definido em `prisma/schema.prisma`, espelhando tabela a tabela o
-  modelo de `docs/srp_spec_database_model.md`; toda mudança de schema passa exclusivamente por
-  `prisma migrate`. Nenhuma alteração manual (`ALTER TABLE` direto) é permitida em nenhum
-  ambiente. Todos os nomes de tabela/coluna são em inglês (Constituição XI).
-- **Rationale**: Requisito explícito de `docs/srp_plan.md` ("Nenhuma alteração manual no banco é
-  permitida") e da Constituição IV (Data Integrity / nunca estados inconsistentes).
-- **Alternatives considered**: Ferramenta de migration separada (Flyway/Knex) — rejeitada, pois o
-  plano exige uso exclusivo do Prisma como ORM e ferramenta de migration.
+- **Decision**: TypeORM é o ORM exclusivo do backend (`@nestjs/typeorm` + `pg`). Cada módulo
+  define suas próprias entities (`<módulo>/entities/*.entity.ts`, decoradas com `@Entity`),
+  espelhando tabela a tabela o modelo de `docs/srp_spec_database_model.md`. Toda mudança de
+  schema passa exclusivamente por migrations geradas via `typeorm migration:generate` a partir de
+  um `DataSource` central (`backend/src/database/data-source.ts`) e aplicadas via
+  `typeorm migration:run`; `synchronize` do TypeORM MUST ficar `false` em todos os ambientes
+  (geração automática de schema sem migration violaria a mesma regra que uma alteração manual).
+  Nenhuma alteração manual (`ALTER TABLE` direto) é permitida em nenhum ambiente. Todos os nomes
+  de tabela/coluna são em inglês (Constituição XI).
+- **Rationale**: Requisito explícito do usuário do projeto (2026-08-04) — TypeORM é o ORM nativo
+  do NestJS e já era implícito na estrutura de módulo descrita em `docs/srp_plan.md` ("Cada
+  módulo deve conter: Controller, Service, Repository, DTOs, Entities, Validators, Tests"), que
+  pressupõe uma entity por módulo em vez de um schema único centralizado. Também atende ao
+  requisito de `docs/srp_plan.md` ("Nenhuma alteração manual no banco é permitida") e à
+  Constituição IV (Data Integrity / nunca estados inconsistentes).
+- **Alternatives considered**: Prisma ORM (descartado — decisão anterior deste documento, revertida
+  explicitamente pelo usuário do projeto em favor do ORM nativo do NestJS); ferramenta de
+  migration separada (Flyway/Knex) — rejeitada, pois o TypeORM já cobre geração e execução de
+  migrations integrada ao ciclo de vida da aplicação NestJS.
 
 ## 9. `inmates.status` como projeção derivada (Constituição VI)
 

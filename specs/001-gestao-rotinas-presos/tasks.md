@@ -23,7 +23,7 @@ description: "Task list template for feature implementation"
 
 Per `plan.md` Project Structure — three apps sharing one backend/API:
 
-- `backend/src/`, `backend/prisma/`, `backend/test/`
+- `backend/src/`, `backend/src/database/`, `backend/test/`
 - `frontend/src/`, `frontend/tests/`
 - `mobile/src/`, `mobile/tests/`
 
@@ -38,7 +38,7 @@ Per `plan.md` Project Structure — three apps sharing one backend/API:
 - [ ] T005 [P] Configure ESLint + Prettier + Husky + lint-staged for `backend/`, `frontend/`, `mobile/` (Constitution IX — no `any`, no `@ts-ignore`)
 - [ ] T006 [P] Create `.env.example` files for `backend/`, `frontend/`, `mobile/` (DATABASE_URL, JWT_SECRET, JWT_REFRESH_SECRET, API base URL)
 - [ ] T007 [P] Configure `docker-compose.yml` at repo root for local PostgreSQL
-- [ ] T008 Configure Prisma ORM in `backend/` (`backend/prisma/`, wire `DATABASE_URL`)
+- [ ] T008 Configure TypeORM in `backend/` (`@nestjs/typeorm` + `pg`, `backend/src/database/data-source.ts`, wire `DATABASE_URL`, `synchronize: false`)
 - [ ] T009 [P] Configure Swagger/OpenAPI bootstrap under `/api/v1` prefix in `backend/src/main.ts`
 
 ---
@@ -49,9 +49,9 @@ Per `plan.md` Project Structure — three apps sharing one backend/API:
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T010 Define full Prisma schema in `backend/prisma/schema.prisma` mirroring `docs/srp_spec_database_model.md` (all identifiers in English per Constitution XI) — `roles`, `users`, `user_units` (join table for FR-004a), `refresh_tokens` (FR-030…FR-032 auth revocation, research.md #11), `units`, `galleries`, `cells`, `inmates`, `inmate_cell_history`, `movement_types`, `movements`, `routines`, `routine_schedules`, `staff_schedules`, `minimum_staffing_config` (FR-024, research.md #12), `audit_logs`
-- [ ] T011 Generate and apply the initial Prisma migration in `backend/prisma/migrations/` (depends on T010)
-- [ ] T012 [P] Create Prisma seed script `backend/prisma/seed.ts` with the 3 roles and one sample user per role, unit, gallery and cell (depends on T011)
+- [ ] T010 Define all TypeORM entities across their owning modules (`<module>/entities/*.entity.ts`) mirroring `docs/srp_spec_database_model.md` (all identifiers in English per Constitution XI) — `Role`, `User`, `UserUnit` (join entity for FR-004a), `RefreshToken` (FR-030…FR-032 auth revocation, research.md #11), `Unit`, `Gallery`, `Cell`, `Inmate`, `InmateCellHistory`, `MovementType`, `Movement`, `Routine`, `RoutineSchedule`, `StaffSchedule`, `MinimumStaffingConfig` (FR-024, research.md #12), `AuditLog`; register all entities on the `DataSource` in `backend/src/database/data-source.ts` (depends on T008)
+- [ ] T011 Generate and run the initial TypeORM migration (`typeorm migration:generate` + `migration:run`) in `backend/src/database/migrations/` (depends on T010)
+- [ ] T012 [P] Create TypeORM seed script `backend/src/database/seeds/seed.ts` with the 3 roles and one sample user per role, unit, gallery and cell (depends on T011)
 - [ ] T013 [P] Implement global `ValidationPipe` + shared DTO base conventions in `backend/src/common/pipes/`
 - [ ] T014 [P] Implement global exception filter (consistent error shape) in `backend/src/common/filters/`
 - [ ] T015 [P] Implement request logging middleware in `backend/src/common/logging/`

@@ -8,15 +8,15 @@
 
 ## Summary
 
-Substituir o controle em papel das rotinas operacionais do sistema prisional do RS por um sistema digital auditável composto de uma API REST NestJS/Prisma/PostgreSQL, um front-end web React/Vite para Supervisor e Chefia/Diretor, e um aplicativo React Native/Expo com suporte offline para Policiais Penais. A abordagem técnica segue estritamente `docs/srp_plan.md`: autenticação JWT + RBAC por perfil e por unidade, auditoria automática e imutável de toda operação de escrita, migrations exclusivas via Prisma, e módulos com separação Controller/Service/Repository conforme a Constituição do projeto.
+Substituir o controle em papel das rotinas operacionais do sistema prisional do RS por um sistema digital auditável composto de uma API REST NestJS/TypeORM/PostgreSQL, um front-end web React/Vite para Supervisor e Chefia/Diretor, e um aplicativo React Native/Expo com suporte offline para Policiais Penais. A abordagem técnica segue estritamente `docs/srp_plan.md`: autenticação JWT + RBAC por perfil e por unidade, auditoria automática e imutável de toda operação de escrita, migrations exclusivas via TypeORM, e módulos com separação Controller/Service/Repository conforme a Constituição do projeto.
 
 ## Technical Context
 
 **Language/Version**: TypeScript (modo strict) em todo o stack — Node.js LTS no backend, React 18+ no frontend, React Native (Expo SDK atual) no mobile.
 
-**Primary Dependencies**: Backend: NestJS, Prisma ORM, `@nestjs/jwt` + Passport, Argon2 (hash de senha), `@nestjs/throttler`, Helmet, `@nestjs/swagger`. Frontend web: Vite, TailwindCSS, shadcn/ui, TanStack Query, React Hook Form, Zod. Mobile: Expo, React Navigation, cliente HTTP com fila de sincronização offline.
+**Primary Dependencies**: Backend: NestJS, TypeORM, `@nestjs/typeorm`, `pg` (driver PostgreSQL), `@nestjs/jwt` + Passport, Argon2 (hash de senha), `@nestjs/throttler`, Helmet, `@nestjs/swagger`. Frontend web: Vite, TailwindCSS, shadcn/ui, TanStack Query, React Hook Form, Zod. Mobile: Expo, React Navigation, cliente HTTP com fila de sincronização offline.
 
-**Storage**: PostgreSQL, acessado exclusivamente via Prisma; schema espelha `docs/srp_spec_database_model.md`; toda alteração de schema via Prisma Migrate (nenhuma alteração manual no banco).
+**Storage**: PostgreSQL, acessado exclusivamente via TypeORM (Repository pattern nativo do NestJS, `@InjectRepository` por módulo); entities espelham `docs/srp_spec_database_model.md`; toda alteração de schema via migrations TypeORM geradas por `typeorm migration:generate` (nenhuma alteração manual no banco).
 
 **Testing**: Backend — Jest (padrão NestJS) para testes unitários de services/controllers e Supertest para testes de integração de endpoints. Frontend web — Vitest + React Testing Library para componentes e fluxos principais. Mobile — Jest + React Native Testing Library para lógica de fila offline e telas críticas.
 
@@ -39,7 +39,7 @@ Substituir o controle em papel das rotinas operacionais do sistema prisional do 
 | I | Domain First | PASS — todo módulo do plano mapeia 1:1 para uma User Story/FR de `spec.md`; nenhuma funcionalidade fora da especificação é proposta. |
 | II | Security First | PASS — JWT + RBAC + escopo por unidade em todas as rotas, Argon2, rate limiting, Helmet, CORS restrito (ver research.md). |
 | III | Auditability | PASS — `AuditService` centralizado via interceptor cobre toda operação de escrita; tabela `auditoria_logs` sem endpoints de update/delete (ver research.md). |
-| IV | Data Integrity | PASS — validação de DTOs no backend (independente do cliente), migrations Prisma exclusivas, nenhuma alteração manual no banco. |
+| IV | Data Integrity | PASS — validação de DTOs no backend (independente do cliente), migrations TypeORM exclusivas, nenhuma alteração manual no banco. |
 | V | Clean Architecture | PASS — cada módulo backend segue Controller → Service → Repository conforme `docs/srp_plan.md`; regra de negócio nunca em controller. |
 | VI | Single Source of Truth | PASS com nota — `inmates.status` é uma projeção mantida transacionalmente a partir de `movements`/`inmate_cell_history` (não uma segunda fonte independente), necessária para atender SC-003 (consulta de status em até 5s); ver research.md. |
 | VII | Consistency | PASS — API REST versionada `/api/v1/`, DTOs padronizados, Swagger/OpenAPI, tratamento de erros consistente. |
@@ -92,25 +92,28 @@ specs/001-gestao-rotinas-presos/
 backend/
 ├── src/
 │   ├── auth/              # login, refresh token, guards, RBAC + escopo por unidade
-│   ├── users/              # usuários e vínculo com unidade(s)
-│   ├── roles/               # perfis (Policial Penal, Supervisor, Chefia/Diretor)
-│   ├── units/                # unidades prisionais
-│   ├── galleries/              # galerias
-│   ├── cells/                   # celas
-│   ├── inmates/                   # presos, status, histórico de cela, situações definitivas
-│   ├── movements/                    # movimentações temporárias e definitivas
-│   ├── routines/                       # rotinas e horários
-│   ├── staff/                            # escalas, presença/faltas, efetivo mínimo (cadastro de policial = users/, research.md #15)
+│   ├── users/              # usuários e vínculo com unidade(s) — entities/user.entity.ts, entities/refresh-token.entity.ts, entities/user-unit.entity.ts
+│   ├── roles/               # perfis (Policial Penal, Supervisor, Chefia/Diretor) — entities/role.entity.ts
+│   ├── units/                # unidades prisionais — entities/unit.entity.ts
+│   ├── galleries/              # galerias — entities/gallery.entity.ts
+│   ├── cells/                   # celas — entities/cell.entity.ts
+│   ├── inmates/                   # presos, status, histórico de cela, situações definitivas — entities/inmate.entity.ts, entities/inmate-cell-history.entity.ts
+│   ├── movements/                    # movimentações temporárias e definitivas — entities/movement.entity.ts, entities/movement-type.entity.ts
+│   ├── routines/                       # rotinas e horários — entities/routine.entity.ts, entities/routine-schedule.entity.ts
+│   ├── staff/                            # escalas, presença/faltas, efetivo mínimo (cadastro de policial = users/, research.md #15) — entities/staff-schedule.entity.ts, entities/minimum-staffing-config.entity.ts
 │   ├── reports/                            # relatórios (movimentações, inconsistências, efetivo, ocupação)
-│   ├── audit/                                # AuditService + interceptor, leitura de auditoria
+│   ├── audit/                                # AuditService + interceptor, leitura de auditoria — entities/audit-log.entity.ts
+│   ├── database/                               # data-source.ts (TypeORM DataSource/config), migrations/, seeds/seed.ts
 │   └── common/, config/                        # DTOs/pipes/filters compartilhados, configuração
-├── prisma/
-│   ├── schema.prisma       # espelha docs/srp_spec_database_model.md
-│   └── migrations/
 └── test/
     ├── unit/
-    └── integration/
+    ├── integration/
+    └── load/
+```
 
+Cada módulo de negócio contém sua(s) própria(s) entity(ies) TypeORM em `<módulo>/entities/*.entity.ts` (Constituição V — "Entities" já listada como arquivo padrão por módulo em `docs/srp_plan.md`), decoradas com `@Entity`/`@Column`/`@ManyToOne` etc.; nenhuma entity ou repository vive fora do módulo a que pertence.
+
+```text
 frontend/                    # painel web para Supervisor e Chefia/Diretor
 ├── src/
 │   ├── pages/, layouts/
