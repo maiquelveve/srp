@@ -7,7 +7,7 @@ Guia para validar, de ponta a ponta, que o sistema atende às User Stories de
 ## Pré-requisitos
 
 - PostgreSQL disponível e schema aplicado via `typeorm migration:run` (`backend/src/database/data-source.ts`).
-- Backend (`backend/`) rodando localmente com `.env` configurado (`DATABASE_URL`, `JWT_SECRET`,
+- Backend (`backend/`) rodando localmente com `.env` configurado (`POSTGRES_HOST/PORT/USER/PASSWORD/DB`, `JWT_SECRET`,
   `JWT_REFRESH_SECRET`).
 - Seed mínimo carregado: 1 Unit, 1 Gallery, 2 Cells, 3 Users (um por Role: `PRISON_OFFICER`,
   `SUPERVISOR`, `WARDEN`), 3 MovementTypes (ao menos um `TEMPORARY` e um `PERMANENT`).

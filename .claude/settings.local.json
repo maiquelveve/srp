@@ -36,7 +36,16 @@
       "Bash(npx vite *)",
       "Bash(echo \"EXIT2=$?\")",
       "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{const r=JSON.parse\\(d\\);console.log\\('files linted \\(bare\\):', r.length\\);}\\);\")",
-      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{const r=JSON.parse\\(d\\);console.log\\('files linted \\(with ext\\):', r.length\\);}\\);\")"
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{const r=JSON.parse\\(d\\);console.log\\('files linted \\(with ext\\):', r.length\\);}\\);\")",
+      "Bash(git check-ignore *)",
+      "Bash(python3 -c ' *)",
+      "Bash(node -e \"console.log\\(require\\('yaml'\\).parse\\(require\\('fs'\\).readFileSync\\('docker-compose.yml','utf8'\\)\\)\\)\")",
+      "Bash(sed -i 's/`DATABASE_URL`, `JWT_SECRET`,/`POSTGRES_HOST\\\\/PORT\\\\/USER\\\\/PASSWORD\\\\/DB`, `JWT_SECRET`,/' specs/001-gestao-rotinas-presos/quickstart.md)",
+      "Bash(sed -i 's/\\(DATABASE_URL, JWT_SECRET, JWT_REFRESH_SECRET, API base URL\\)/\\(POSTGRES_HOST\\\\/PORT\\\\/USER\\\\/PASSWORD\\\\/DB, JWT_SECRET, JWT_REFRESH_SECRET, API base URL\\)/' specs/001-gestao-rotinas-presos/tasks.md)",
+      "Bash(sed -i 's/wire `DATABASE_URL`, `synchronize: false`/wire `POSTGRES_HOST\\\\/PORT\\\\/USER\\\\/PASSWORD\\\\/DB`, `synchronize: false`/' specs/001-gestao-rotinas-presos/tasks.md)",
+      "Bash(timeout 6 node dist/main.js)",
+      "Bash(git mv *)",
+      "Bash(git rm *)"
     ]
   }
 }

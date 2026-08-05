@@ -2,7 +2,6 @@ import 'dotenv/config';
 
 export interface AppConfig {
   port: number;
-  databaseUrl: string;
   jwt: {
     accessSecret: string;
     accessExpiresIn: string;
@@ -23,7 +22,6 @@ function requireEnv(name: string): string {
 
 export default (): AppConfig => ({
   port: Number(process.env.PORT ?? 3000),
-  databaseUrl: requireEnv('DATABASE_URL'),
   jwt: {
     accessSecret: requireEnv('JWT_SECRET'),
     accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? '15m',

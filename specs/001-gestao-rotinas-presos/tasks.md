@@ -36,9 +36,9 @@ Per `plan.md` Project Structure — three apps sharing one backend/API:
 - [X] T003 [P] Initialize `frontend/` React + Vite + TypeScript project with TailwindCSS, shadcn/ui, TanStack Query, React Hook Form, Zod
 - [X] T004 [P] Initialize `mobile/` React Native + Expo + TypeScript project
 - [X] T005 [P] Configure ESLint + Prettier + Husky + lint-staged for `backend/`, `frontend/`, `mobile/` (Constitution IX — no `any`, no `@ts-ignore`)
-- [X] T006 [P] Create `.env.example` files for `backend/`, `frontend/`, `mobile/` (DATABASE_URL, JWT_SECRET, JWT_REFRESH_SECRET, API base URL)
-- [X] T007 [P] Configure `docker-compose.yml` at repo root for local PostgreSQL
-- [X] T008 Configure TypeORM in `backend/` (`@nestjs/typeorm` + `pg`, `backend/src/database/data-source.ts`, wire `DATABASE_URL`, `synchronize: false`)
+- [X] T006 [P] Create `.env.example` files for `backend/`, `frontend/`, `mobile/` (POSTGRES_HOST/PORT/USER/PASSWORD/DB, JWT_SECRET, JWT_REFRESH_SECRET, API base URL)
+- [X] T007 [P] Configure `docker-compose.yml` in `docker/postgres/` for local PostgreSQL (see `docker/README.md` for the convention — each stack gets its own subfolder with its own `.env`)
+- [X] T008 Configure TypeORM in `backend/` (`@nestjs/typeorm` + `pg`, `backend/src/database/data-source.ts`, wire `POSTGRES_HOST/PORT/USER/PASSWORD/DB`, `synchronize: false`)
 - [X] T009 [P] Configure Swagger/OpenAPI bootstrap under `/api/v1` prefix in `backend/src/main.ts`
 
 ---

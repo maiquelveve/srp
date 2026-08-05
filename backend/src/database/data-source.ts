@@ -24,9 +24,21 @@ import { AuditLog } from '../audit/entities/audit-log.entity';
  * `synchronize` MUST stay false in every environment — schema changes only via
  * migrations under `./migrations` (research.md #8).
  */
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
-  url: process.env.DATABASE_URL,
+  host: requireEnv('POSTGRES_HOST'),
+  port: Number(requireEnv('POSTGRES_PORT')),
+  username: requireEnv('POSTGRES_USER'),
+  password: requireEnv('POSTGRES_PASSWORD'),
+  database: requireEnv('POSTGRES_DB'),
   entities: [
     Role,
     User,
