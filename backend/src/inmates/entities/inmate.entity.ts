@@ -56,9 +56,9 @@ export class Inmate {
   @OneToMany(() => InmateCellHistory, (history) => history.inmate)
   cellHistory: InmateCellHistory[];
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 }

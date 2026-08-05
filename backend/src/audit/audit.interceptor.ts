@@ -6,6 +6,7 @@ import { tap } from 'rxjs/operators';
 import { AuditService } from './audit.service';
 import { AuditAction } from './entities/audit-log.entity';
 import { AUDIT_RESOURCE_KEY } from '../common/decorators/audit-resource.decorator';
+import { SKIP_AUTO_AUDIT_KEY } from '../common/decorators/skip-auto-audit.decorator';
 import { JwtPayload } from '../auth/types/jwt-payload.type';
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -36,8 +37,10 @@ function extractRecordId(responseBody: unknown, params: Record<string, string>):
  * POST/PUT/PATCH/DELETE gets a redacted `audit_logs` entry automatically.
  * `oldData` is `null` here by default — services with the previous state in
  * hand (e.g. UsersService.deactivate) call `AuditService.record()` directly
- * with a full before/after snapshot instead, and mark the request so this
- * interceptor does not double-log (see `markAuditRecorded`).
+ * with a full before/after snapshot instead, and mark the handler/controller
+ * `@SkipAutoAudit()` so this interceptor does not also log the raw response
+ * (critical for AuthController, whose response bodies carry live tokens —
+ * auto-logging them would leak a usable refresh token into audit_logs).
  */
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
@@ -47,11 +50,17 @@ export class AuditInterceptor implements NestInterceptor {
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
-    const request = context
-      .switchToHttp()
-      .getRequest<Request & { user?: JwtPayload; auditRecorded?: boolean }>();
+    const request = context.switchToHttp().getRequest<Request & { user?: JwtPayload }>();
 
     if (!MUTATING_METHODS.has(request.method)) {
+      return next.handle();
+    }
+
+    const skipAutoAudit = this.reflector.getAllAndOverride<boolean>(SKIP_AUTO_AUDIT_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (skipAutoAudit) {
       return next.handle();
     }
 
@@ -62,9 +71,6 @@ export class AuditInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       tap((responseBody: unknown) => {
-        if (request.auditRecorded) {
-          return;
-        }
         void this.auditService.record({
           userId: request.user?.sub ?? null,
           affectedTable: resource,

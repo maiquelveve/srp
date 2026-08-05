@@ -52,9 +52,9 @@ export class Routine {
   @OneToMany(() => RoutineSchedule, (schedule) => schedule.routine)
   schedules: RoutineSchedule[];
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 }

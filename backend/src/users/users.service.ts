@@ -166,5 +166,17 @@ export class UsersService {
 
     invite.usedAt = new Date();
     await this.inviteTokenRepository.save(invite);
+
+    // AuthController is @SkipAutoAudit()'d (its responses never carry
+    // tokens/secrets to log), so this is the only trail for this action —
+    // deliberately no password material, hashed or otherwise, in newData.
+    await this.auditService.record({
+      userId: invite.user.id,
+      affectedTable: 'users',
+      recordId: invite.user.id,
+      action: AuditAction.UPDATE,
+      oldData: null,
+      newData: { passwordSet: true },
+    });
   }
 }

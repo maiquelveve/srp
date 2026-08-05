@@ -35,6 +35,6 @@ export class MinimumStaffingConfig {
   @JoinColumn({ name: 'updated_by' })
   updatedBy: User | null;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 }

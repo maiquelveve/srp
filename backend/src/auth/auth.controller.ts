@@ -8,11 +8,19 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SetInitialPasswordDto } from './dto/set-initial-password.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { Public } from '../common/decorators/public.decorator';
+import { SkipAutoAudit } from '../common/decorators/skip-auto-audit.decorator';
 import { JwtPayload } from './types/jwt-payload.type';
 
-/** contracts/auth.md — base auth for every other module. */
+/**
+ * contracts/auth.md — base auth for every other module.
+ * @SkipAutoAudit() at class level: every response here carries a live
+ * access/refresh token — the generic AuditInterceptor must never log these
+ * bodies raw. AuthService already writes safe, minimal audit entries itself
+ * for LOGIN/LOGIN_FAILED/LOGOUT.
+ */
 @ApiTags('auth')
 @Controller('api/v1/auth')
+@SkipAutoAudit()
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 

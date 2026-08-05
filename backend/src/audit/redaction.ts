@@ -8,7 +8,17 @@ import { InviteToken } from '../users/entities/invite-token.entity';
  * (research.md #6, /speckit-analyze finding C1) — merged with every
  * `@Sensitive()`-marked field discovered across known entities.
  */
-const DEFAULT_REDACTED_FIELDS = ['passwordHash', 'tokenHash', 'password'];
+const DEFAULT_REDACTED_FIELDS = [
+  'passwordHash',
+  'tokenHash',
+  'password',
+  // Defense in depth: AuthController is @SkipAutoAudit()'d so these never
+  // reach here via the generic interceptor, but any future code path that
+  // logs a raw token payload must not leak it either.
+  'accessToken',
+  'refreshToken',
+  'inviteToken',
+];
 
 const ENTITIES_WITH_SENSITIVE_FIELDS = [User, RefreshToken, InviteToken];
 
@@ -44,6 +54,10 @@ export function redact(
   for (const [key, value] of Object.entries(data)) {
     if (REDACTED_FIELDS.has(key)) {
       result[key] = REDACTED_PLACEHOLDER;
+      continue;
+    }
+    if (value instanceof Date) {
+      result[key] = value;
       continue;
     }
     if (value && typeof value === 'object' && !Array.isArray(value)) {

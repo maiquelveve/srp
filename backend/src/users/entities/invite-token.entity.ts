@@ -36,6 +36,6 @@ export class InviteToken {
   @Column({ type: 'timestamptz', nullable: true })
   usedAt: Date | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 }

@@ -35,6 +35,6 @@ export class Unit {
   @OneToMany(() => Gallery, (gallery) => gallery.unit)
   galleries: Gallery[];
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 }

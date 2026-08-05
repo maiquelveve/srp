@@ -40,11 +40,11 @@ export class Movement {
   @Column({ type: 'text', nullable: true })
   reason: string | null;
 
-  @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ name: 'exit_datetime', type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   exitDateTime: Date;
 
   /** Required only for category=TEMPORARY, null until returned (FR-009). */
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ name: 'return_datetime', type: 'timestamptz', nullable: true })
   returnDateTime: Date | null;
 
   @Column({ type: 'text', nullable: true })
@@ -59,6 +59,6 @@ export class Movement {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 }

@@ -6,6 +6,7 @@ import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { Roles } from '../common/decorators/roles.decorator';
+import { SkipAutoAudit } from '../common/decorators/skip-auto-audit.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { RoleName } from '../roles/entities/role.entity';
 import { JwtPayload } from '../auth/types/jwt-payload.type';
@@ -37,6 +38,7 @@ export class UsersController {
 
   @Patch(':id/deactivate')
   @Roles(RoleName.WARDEN)
+  @SkipAutoAudit() // UsersService.deactivate() already records a richer before/after entry
   deactivate(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() currentUser: JwtPayload,
