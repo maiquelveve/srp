@@ -7,6 +7,10 @@ import { CommonModule } from './common/common.module';
 import { AuditModule } from './audit/audit.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { UnitsModule } from './units/units.module';
+import { GalleriesModule } from './galleries/galleries.module';
+import { CellsModule } from './cells/cells.module';
+import { InmatesModule } from './inmates/inmates.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { createGlobalValidationPipe } from './common/pipes/validation-pipe.factory';
 import { RequestLoggingMiddleware } from './common/logging/request-logging.middleware';
@@ -22,6 +26,10 @@ import { RolesGuard } from './auth/guards/roles.guard';
     AuditModule,
     UsersModule,
     AuthModule,
+    UnitsModule,
+    GalleriesModule,
+    CellsModule,
+    InmatesModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

@@ -241,3 +241,31 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
 - **Alternatives considered**: entidade `Staff` separada vinculada 1:1 a `User` (rejeitada pelo
   usuário do projeto — "não faz sentido" ter cadastro funcional sem login associado nesse
   domínio).
+
+## 16. Paleta de cores e tema do frontend web/mobile (identidade visual)
+
+- **Decision**: Tema **escuro como padrão** (não opcional/alternativo) em ambos os clientes,
+  usando os tokens de cor padrão do shadcn/ui (`--background`, `--foreground`, `--primary`,
+  `--card`, `--border`, etc., definidos como variáveis HSL em `frontend/src/index.css` e mapeados
+  no `tailwind.config.js`). Duas camadas de cor, deliberadamente separadas:
+  - **Identidade de marca** — preto (fundo, `--background`/`--card`) + dourado/âmbar
+    (`--primary`, `43 96% 56%` no dark), derivados do emblema oficial da Polícia Penal do RS
+    (brasão dourado sobre fundo preto) e da farda operacional (preto sólido, sem detalhes de
+    outra cor). Usado em navegação, botões primários, logo.
+  - **Semântica de status** — verde (`--success`), vermelho (`--destructive`), âmbar
+    (`--warning`) para estados de dado real do domínio: `Inmate.status = ACTIVE` (verde),
+    `inMovement = true` / efetivo abaixo do mínimo / inconsistência (âmbar/vermelho). Convenção
+    universal de dashboard, independente da cor de marca.
+- **Rationale**: Decisão do usuário do projeto (2026-08-06), a partir de fotos do brasão oficial
+  e da farda da Polícia Penal RS. Modo escuro como padrão (não só disponível) tem justificativa
+  funcional, não só estética: policiais penais operam em turnos noturnos numa sala de controle —
+  uma UI escura reduz fadiga visual nesse contexto, além de casar com a identidade preto/dourado
+  da farda. As cores de status (verde/vermelho/âmbar) foram mantidas por já corresponderem a
+  cores presentes no brasão do RS (verde/vermelho/branco no centro do emblema) e por já serem a
+  convenção universal de legibilidade rápida em painéis operacionais — não é decoração, mapeia
+  direto pra campos que já existem na API (`status`, `inMovement`, `belowMinimum`).
+- **Alternatives considered**: usar verde/vermelho/branco (cores do brasão do RS) como cor de
+  **identidade** da UI — rejeitado, ficaria com cara de bandeira/heráldica em vez de software
+  institucional, e colidiria com o significado semântico de status; tema claro como padrão com
+  escuro opcional — rejeitado, não haveria motivo funcional pra inverter a prioridade dado o
+  contexto real de uso (plantão/turno).

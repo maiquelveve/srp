@@ -2,12 +2,93 @@
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * SRP design tokens (research.md #16) — identity colors derived from the
+ * Polícia Penal RS emblem/uniform (black + gold), plus a standard semantic
+ * status palette (green/red/amber) mapped to real domain states (inmate
+ * status, open movements, minimum-staffing alerts, audit inconsistencies).
+ * Dark is the default theme (see index.html `<html class="dark">`) — light
+ * stays defined as a fallback/optional toggle for the same token names.
+ */
 :root {
   --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
+  --foreground: 240 10% 4%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 4%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 10% 4%;
+
+  --primary: 38 92% 42%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 240 5% 96%;
+  --secondary-foreground: 240 10% 4%;
+
+  --muted: 240 5% 96%;
+  --muted-foreground: 240 4% 46%;
+
+  --accent: 240 5% 96%;
+  --accent-foreground: 38 92% 42%;
+
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  --success: 142 71% 35%;
+  --success-foreground: 0 0% 100%;
+
+  --warning: 38 92% 50%;
+  --warning-foreground: 240 10% 4%;
+
+  --border: 240 6% 90%;
+  --input: 240 6% 90%;
+  --ring: 38 92% 42%;
+
+  --radius: 0.5rem;
 }
 
 .dark {
-  --background: 222.2 84% 4.9%;
-  --foreground: 210 40% 98%;
+  --background: 240 10% 4%;
+  --foreground: 240 5% 96%;
+
+  --card: 240 6% 8%;
+  --card-foreground: 240 5% 96%;
+
+  --popover: 240 6% 8%;
+  --popover-foreground: 240 5% 96%;
+
+  --primary: 43 96% 56%;
+  --primary-foreground: 240 10% 4%;
+
+  --secondary: 240 4% 16%;
+  --secondary-foreground: 240 5% 96%;
+
+  --muted: 240 4% 16%;
+  --muted-foreground: 240 5% 65%;
+
+  --accent: 240 4% 16%;
+  --accent-foreground: 43 96% 56%;
+
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  --success: 142 71% 45%;
+  --success-foreground: 0 0% 100%;
+
+  --warning: 38 92% 50%;
+  --warning-foreground: 240 10% 4%;
+
+  --border: 240 4% 18%;
+  --input: 240 4% 18%;
+  --ring: 43 96% 56%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }

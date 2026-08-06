@@ -15,4 +15,14 @@ module.exports = {
     '@typescript-eslint/ban-ts-comment': 'error',
     'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
   },
+  overrides: [
+    {
+      // shadcn/ui vendored components: the CLI's own templates export a
+      // `<x>Variants` cva helper alongside the component, by design.
+      files: ['src/components/ui/**/*.tsx'],
+      rules: {
+        'react-refresh/only-export-components': 'off',
+      },
+    },
+  ],
 };

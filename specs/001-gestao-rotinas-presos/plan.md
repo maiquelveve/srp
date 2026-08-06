@@ -116,8 +116,10 @@ Cada módulo de negócio contém sua(s) própria(s) entity(ies) TypeORM em `<mó
 ```text
 frontend/                    # painel web para Supervisor e Chefia/Diretor
 ├── src/
-│   ├── pages/, layouts/
-│   ├── features/            # um diretório por módulo (rotinas, presos, efetivo, relatórios, auditoria)
+│   ├── pages/                # telas sem chrome próprio (ex.: LoginPage) — sempre 1 arquivo por rota
+│   ├── layouts/               # AppShell (sidebar + header, shadcn dashboard-01) e demais casings de página — Phase 3.5
+│   ├── features/            # um diretório por módulo (rotinas, presos, efetivo, relatórios, auditoria); cada feature com sua própria `components/` para UI local à feature (ex.: `features/structure/components/StatusBadge.tsx`) — Phase 3.5
+│   ├── components/ui/        # componentes shadcn/ui (vendored via CLI, não editar a lógica de variantes manualmente além de extensões pontuais como `success`/`warning` no Badge)
 │   ├── components/, hooks/, services/, contexts/, types/
 └── tests/
 

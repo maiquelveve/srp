@@ -80,20 +80,37 @@ Per `plan.md` Project Structure — three apps sharing one backend/API:
 
 ### Tests for User Story 1
 
-- [ ] T026 [P] [US1] Backend integration tests for `contracts/structure.md` endpoints (incl. 403 for `PRISON_OFFICER` writes, unit-scope filtering) in `backend/test/integration/structure.spec.ts`
-- [ ] T027 [P] [US1] Backend unit tests for Cells capacity validation in `backend/test/unit/cells.service.spec.ts`
+- [X] T026 [P] [US1] Backend integration tests for `contracts/structure.md` endpoints (incl. 403 for `PRISON_OFFICER` writes, unit-scope filtering) in `backend/test/integration/structure.spec.ts`
+- [X] T027 [P] [US1] Backend unit tests for Cells capacity validation in `backend/test/unit/cells.service.spec.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T028 [P] [US1] Implement Units module (Controller/Service/Repository/DTOs) in `backend/src/units/`
-- [ ] T029 [P] [US1] Implement Galleries module in `backend/src/galleries/`
-- [ ] T030 [US1] Implement Cells module with capacity validation in `backend/src/cells/` (depends on T029)
-- [ ] T031 [US1] Implement Inmates module — create/update/get/list scoped by cela/galeria/unidade in `backend/src/inmates/` (depends on T030)
-- [ ] T032 [US1] Apply RBAC (WARDEN-only writes) + unit-scope guard to Units/Galleries/Cells/Inmates endpoints (depends on T019, T028–T031)
-- [ ] T033 [P] [US1] Build web frontend Units/Galleries/Cells/Inmates management screens in `frontend/src/features/structure/` (depends on T023, T031)
-- [ ] T034 [P] [US1] Build mobile read-only "consultar presos por cela/galeria" screen in `mobile/src/screens/InmatesLookup.tsx` (depends on T024, T031)
+- [X] T028 [P] [US1] Implement Units module (Controller/Service/Repository/DTOs) in `backend/src/units/`
+- [X] T029 [P] [US1] Implement Galleries module in `backend/src/galleries/`
+- [X] T030 [US1] Implement Cells module with capacity validation in `backend/src/cells/` (depends on T029)
+- [X] T031 [US1] Implement Inmates module — create/update/get/list scoped by cela/galeria/unidade in `backend/src/inmates/` (depends on T030)
+- [X] T032 [US1] Apply RBAC (WARDEN-only writes) + unit-scope guard to Units/Galleries/Cells/Inmates endpoints (depends on T019, T028–T031)
+- [X] T033 [P] [US1] Build web frontend Units/Galleries/Cells/Inmates management screens in `frontend/src/features/structure/` (depends on T023, T031)
+- [X] T034 [P] [US1] Build mobile read-only "consultar presos por cela/galeria" screen in `mobile/src/screens/InmatesLookup.tsx` (depends on T024, T031)
 
 **Checkpoint**: User Story 1 fully functional and independently testable
+
+---
+
+## Phase 3.5: UI/UX Design System & Layout Refinement (Pre-US2)
+
+**Purpose**: US1's screens were built to prove the API end-to-end, not to establish a reusable layout. Before US2–US6 add more screens, establish the shared navigation chrome (sidebar/header, shadcn `dashboard-01` pattern already validated with the user) and a consistent component-organization convention, so later stories don't each reinvent page layout — research.md #16/#17.
+
+**Independent Test**: `StructurePage` and `LoginPage` render through the shared `AppShell`/component structure with no behavior change (same data, same RBAC-gated actions); `npx tsc -b`, `npx eslint . --max-warnings=0`, `npx vite build` all pass in `frontend/`.
+
+- [ ] T034a [P] Extract feature-local UI pieces out of page components into `frontend/src/features/<feature>/components/` — starting with `StatusBadge` → `frontend/src/features/structure/components/StatusBadge.tsx` (one component per file; no inline helper components left in page files)
+- [ ] T034b Add any additional shadcn primitives needed for the shell (e.g. `sheet`, `separator`, `avatar`, `dropdown-menu`) via `npx shadcn@latest add`, then build a reusable `AppShell` (sidebar nav + header, shadcn `dashboard-01` pattern) in `frontend/src/layouts/AppShell.tsx`
+- [ ] T034c Wire `AppShell` into `frontend/src/App.tsx` around authenticated routes, replacing each page's own ad-hoc `<header>` (depends on T034b)
+- [ ] T034d Redesign `frontend/src/pages/LoginPage.tsx` to match the shadcn login example more closely, reusing existing `Card`/`Input`/`Label`/`Button` — no new business logic
+- [ ] T034e Redesign `frontend/src/features/structure/StructurePage.tsx` to sit inside `AppShell` (unit/gallery/cell navigation and content laid out per the `dashboard-01` pattern) and to import the components extracted in T034a (depends on T034a, T034c)
+- [ ] T034f [P] Document the layout/component-organization decision in `research.md` (#17): `AppShell` shell convention + `features/<x>/components/` subfolder convention for feature-local UI pieces
+
+**Checkpoint**: Shared layout foundation ready — Phase 4+ screens (movements, routines, staff, reports) reuse `AppShell` and follow the same `features/<x>/components/` convention instead of one-off page layouts
 
 ---
 
@@ -117,7 +134,7 @@ Per `plan.md` Project Structure — three apps sharing one backend/API:
 - [ ] T041 [US2] Extend Inmates status projection (FR-011, data-model.md `inmates.status`) updated transactionally on movement create/return in `backend/src/inmates/` (depends on T038, T039)
 - [ ] T042 [US2] Implement real-time status listing/filtering by unit/gallery/cell in `backend/src/inmates/inmates.controller.ts` (depends on T041)
 - [ ] T043 [P] [US2] Build mobile "registrar movimentação" + status screens using the offline queue in `mobile/src/screens/MovementRegister.tsx` (depends on T025, T040)
-- [ ] T044 [P] [US2] Build web frontend real-time status/map view in `frontend/src/features/movements/StatusMap.tsx` (depends on T042)
+- [ ] T044 [P] [US2] Build web frontend real-time status/map view in `frontend/src/features/movements/StatusMap.tsx`, inside `AppShell` per Phase 3.5 (depends on T042, T034e)
 - [ ] T045 [US2] Mobile offline-sync integration test (airplane mode → reconnect, no duplicates) per `quickstart.md` Cenário 7 in `mobile/tests/offline-sync.spec.ts` (depends on T043)
 
 **Checkpoint**: User Stories 1 AND 2 both work independently
@@ -241,6 +258,7 @@ Per `plan.md` Project Structure — three apps sharing one backend/API:
   - US1 has no dependency on other stories
   - US2–US6 build on entities/endpoints delivered by US1 (Inmates/Cells) but each remains independently testable once US1 exists
   - Recommended order follows priority: US1 → US2 → US3 → US4 → US5 → US6
+- **UI/UX Design System (Phase 3.5)**: Depends on US1 (Phase 3) completion — frontend-only, doesn't touch `backend/`, so it does NOT block starting US2's backend tasks (T035–T042) in parallel; it BLOCKS US2's frontend task (T044), which should reuse `AppShell`
 - **Polish (Phase 9)**: Depends on all desired user stories being complete
 
 ### User Story Dependencies
