@@ -101,16 +101,33 @@ Per `plan.md` Project Structure — three apps sharing one backend/API:
 
 **Purpose**: US1's screens were built to prove the API end-to-end, not to establish a reusable layout. Before US2–US6 add more screens, establish the shared navigation chrome (sidebar/header, shadcn `dashboard-01` pattern already validated with the user) and a consistent component-organization convention, so later stories don't each reinvent page layout — research.md #16/#17.
 
-**Independent Test**: `StructurePage` and `LoginPage` render through the shared `AppShell`/component structure with no behavior change (same data, same RBAC-gated actions); `npx tsc -b`, `npx eslint . --max-warnings=0`, `npx vite build` all pass in `frontend/`.
+**Independent Test**: `StructurePage` and `LoginPage` render through the shared `AppShell`/folder structure with no behavior change (same data, same RBAC-gated actions); `npx tsc -b`, `npx eslint . --max-warnings=0`, `npx vite build` all pass in `frontend/`.
 
-- [ ] T034a [P] Extract feature-local UI pieces out of page components into `frontend/src/features/<feature>/components/` — starting with `StatusBadge` → `frontend/src/features/structure/components/StatusBadge.tsx` (one component per file; no inline helper components left in page files)
-- [ ] T034b Add any additional shadcn primitives needed for the shell (e.g. `sheet`, `separator`, `avatar`, `dropdown-menu`) via `npx shadcn@latest add`, then build a reusable `AppShell` (sidebar nav + header, shadcn `dashboard-01` pattern) in `frontend/src/layouts/AppShell.tsx`
+**Folder-per-component convention** (research.md #17): every page and every component — feature-local or shared, single-file or not — lives in its own folder named after the concept (`PascalCase` for components, matching the route/feature name for pages/features), with `index.tsx` as its single entry point. No bare `<Name>.tsx` files at the page/component level, no exceptions based on file count — this trades a few extra folders for zero case-by-case judgment calls about when a component "deserves" its own folder. `types.ts`/`api.ts` (feature-level, not per-component) stay as plain files alongside `index.tsx`, not wrapped in their own folder.
+
+```text
+frontend/src/
+├── pages/
+│   └── LoginPage/
+│       └── index.tsx
+├── features/
+│   └── structure/
+│       ├── index.tsx           # the page itself (was StructurePage.tsx)
+│       ├── types.ts
+│       ├── api.ts
+│       └── components/
+│           └── StatusBadge/
+│               └── index.tsx
+```
+
+- [ ] T034a [P] Apply the folder-per-component convention above to existing US1 code: move `frontend/src/pages/LoginPage.tsx` → `frontend/src/pages/LoginPage/index.tsx`; move `frontend/src/features/structure/StructurePage.tsx` → `frontend/src/features/structure/index.tsx`; extract `StatusBadge` into `frontend/src/features/structure/components/StatusBadge/index.tsx`; update all importers (`App.tsx`)
+- [ ] T034b Add any additional shadcn primitives needed for the shell (e.g. `sheet`, `separator`, `avatar`, `dropdown-menu`) via `npx shadcn@latest add`, then build a reusable `AppShell` (sidebar nav + header, shadcn `dashboard-01` pattern) in `frontend/src/layouts/AppShell/index.tsx`, following the same folder-per-component convention
 - [ ] T034c Wire `AppShell` into `frontend/src/App.tsx` around authenticated routes, replacing each page's own ad-hoc `<header>` (depends on T034b)
-- [ ] T034d Redesign `frontend/src/pages/LoginPage.tsx` to match the shadcn login example more closely, reusing existing `Card`/`Input`/`Label`/`Button` — no new business logic
-- [ ] T034e Redesign `frontend/src/features/structure/StructurePage.tsx` to sit inside `AppShell` (unit/gallery/cell navigation and content laid out per the `dashboard-01` pattern) and to import the components extracted in T034a (depends on T034a, T034c)
-- [ ] T034f [P] Document the layout/component-organization decision in `research.md` (#17): `AppShell` shell convention + `features/<x>/components/` subfolder convention for feature-local UI pieces
+- [ ] T034d Redesign `frontend/src/pages/LoginPage/index.tsx` to match the shadcn login example more closely, reusing existing `Card`/`Input`/`Label`/`Button` — no new business logic (depends on T034a)
+- [ ] T034e Redesign `frontend/src/features/structure/index.tsx` to sit inside `AppShell` (unit/gallery/cell navigation and content laid out per the `dashboard-01` pattern) and to import the components extracted in T034a (depends on T034a, T034c)
+- [ ] T034f [P] Document the layout/component-organization decision in `research.md` (#17): `AppShell` shell convention + folder-per-component convention (depends on T034a)
 
-**Checkpoint**: Shared layout foundation ready — Phase 4+ screens (movements, routines, staff, reports) reuse `AppShell` and follow the same `features/<x>/components/` convention instead of one-off page layouts
+**Checkpoint**: Shared layout foundation and folder convention ready — Phase 4+ screens (movements, routines, staff, reports) reuse `AppShell` and follow the same folder-per-component convention instead of one-off page layouts
 
 ---
 

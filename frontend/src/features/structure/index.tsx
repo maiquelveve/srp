@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { structureApi } from './api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import StatusBadge from './components/StatusBadge';
 
 /**
  * User Story 1 — Cadastro e Mapa da Unidade (FR-005…FR-007).
@@ -240,20 +240,5 @@ export default function StructurePage(): JSX.Element {
         </section>
       )}
     </main>
-  );
-}
-
-const STATUS_LABEL: Record<string, string> = {
-  ACTIVE: 'Ativo',
-  RELEASED: 'Liberdade',
-  ANKLE_MONITOR: 'Tornozeleira',
-  TRANSFERRED: 'Transferido',
-  DECEASED: 'Óbito',
-};
-
-function StatusBadge({ status }: { status: string }): JSX.Element {
-  const isActive = status === 'ACTIVE';
-  return (
-    <Badge variant={isActive ? 'success' : 'secondary'}>{STATUS_LABEL[status] ?? status}</Badge>
   );
 }

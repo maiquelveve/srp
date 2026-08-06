@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
-import StructurePage from './features/structure/StructurePage';
+import StructurePage from './features/structure';
 import ProtectedRoute from './components/ProtectedRoute';
 
 export default function App(): JSX.Element {

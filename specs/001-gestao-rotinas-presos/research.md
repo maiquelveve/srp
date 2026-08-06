@@ -269,3 +269,37 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
   institucional, e colidiria com o significado semântico de status; tema claro como padrão com
   escuro opcional — rejeitado, não haveria motivo funcional pra inverter a prioridade dado o
   contexto real de uso (plantão/turno).
+
+## 17. Convenção de pastas — folder-per-component (`index.tsx`) no `frontend/`
+
+- **Decision**: Toda página e todo componente do `frontend/` — de feature ou compartilhado
+  (`components/ui/` do shadcn é a única exceção, por ser código vendorizado pela CLI), com um
+  arquivo só ou vários — vive em sua própria pasta nomeada pelo conceito (`PascalCase` para
+  componentes; nome da feature/rota para páginas), com `index.tsx` como ponto de entrada único.
+  Sem exceção por tamanho: um componente de uma linha só ganha a mesma estrutura de pasta que um
+  componente com teste/subcomponente/estilo próprio. `types.ts`/`api.ts` de uma feature (nível
+  feature, não por componente) ficam soltos ao lado do `index.tsx` da feature, não dentro de pasta
+  própria. Exemplo:
+
+  ```text
+  features/structure/
+  ├── index.tsx                        # a página (era StructurePage.tsx)
+  ├── types.ts
+  ├── api.ts
+  └── components/
+      └── StatusBadge/
+          └── index.tsx
+  ```
+
+- **Rationale**: Decisão do usuário do projeto (2026-08-06). A alternativa considerada — pasta só
+  quando o componente "cresce" (ganha teste, subcomponente, etc.) — foi rejeitada pelo próprio
+  usuário: cria dois padrões coexistindo no mesmo código (arquivo solto vs. pasta+`index.tsx`) sem
+  regra objetiva de quando migrar de um pro outro, e cada componente que cresce vira um refactor
+  de estrutura em vez de só editar o arquivo. Uma regra única e sem exceção elimina esse julgamento
+  caso a caso. A objeção óbvia — múltiplas abas abertas todas nomeadas `index.tsx` — foi julgada
+  aceitável porque os editores modernos (VSCode incluso) já desambiguam abas com nome igual
+  mostrando o nome da pasta-pai.
+- **Alternatives considered**: arquivo plano sempre (`StatusBadge.tsx`), pasta só quando o
+  componente ganha mais de um arquivo — rejeitado pelo motivo acima (padrão inconsistente ao
+  longo do tempo); arquivo plano sempre, sem nunca usar pasta+`index.tsx` — rejeitado, perde a
+  possibilidade de colocar teste/estilo/subcomponente junto sem renomear import paths depois.

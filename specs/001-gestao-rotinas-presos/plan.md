@@ -116,9 +116,20 @@ Cada módulo de negócio contém sua(s) própria(s) entity(ies) TypeORM em `<mó
 ```text
 frontend/                    # painel web para Supervisor e Chefia/Diretor
 ├── src/
-│   ├── pages/                # telas sem chrome próprio (ex.: LoginPage) — sempre 1 arquivo por rota
+│   ├── pages/                # telas sem chrome próprio (ex.: LoginPage/) — sempre 1 pasta por rota
+│   │   └── LoginPage/
+│   │       └── index.tsx
 │   ├── layouts/               # AppShell (sidebar + header, shadcn dashboard-01) e demais casings de página — Phase 3.5
-│   ├── features/            # um diretório por módulo (rotinas, presos, efetivo, relatórios, auditoria); cada feature com sua própria `components/` para UI local à feature (ex.: `features/structure/components/StatusBadge.tsx`) — Phase 3.5
+│   │   └── AppShell/
+│   │       └── index.tsx
+│   ├── features/            # um diretório por módulo (rotinas, presos, efetivo, relatórios, auditoria)
+│   │   └── structure/
+│   │       ├── index.tsx        # a página em si
+│   │       ├── types.ts
+│   │       ├── api.ts
+│   │       └── components/       # UI local à feature (não reaproveitada em outro lugar)
+│   │           └── StatusBadge/
+│   │               └── index.tsx
 │   ├── components/ui/        # componentes shadcn/ui (vendored via CLI, não editar a lógica de variantes manualmente além de extensões pontuais como `success`/`warning` no Badge)
 │   ├── components/, hooks/, services/, contexts/, types/
 └── tests/
@@ -131,7 +142,7 @@ mobile/                       # app operacional para Policial Penal
 └── tests/
 ```
 
-**Structure Decision**: Três projetos independentes compartilhando um único backend/API (`backend/`), conforme exigido por `docs/srp_plan.md` (web para administração/gestão, mobile para operação de plantão). Nenhum dos três acessa o PostgreSQL diretamente — toda persistência passa pela API REST do `backend/`. Módulos do backend seguem exatamente a lista de `docs/srp_plan.md` (auth, users, roles, units, galleries, cells, inmates, movements, routines, staff, reports, audit, common, config), cada um com Controller/Service/Repository/DTOs/Entities/Validators/Tests próprios (Constituição V).
+**Structure Decision**: Três projetos independentes compartilhando um único backend/API (`backend/`), conforme exigido por `docs/srp_plan.md` (web para administração/gestão, mobile para operação de plantão). Nenhum dos três acessa o PostgreSQL diretamente — toda persistência passa pela API REST do `backend/`. Módulos do backend seguem exatamente a lista de `docs/srp_plan.md` (auth, users, roles, units, galleries, cells, inmates, movements, routines, staff, reports, audit, common, config), cada um com Controller/Service/Repository/DTOs/Entities/Validators/Tests próprios (Constituição V). No `frontend/`, toda página e todo componente — de feature ou compartilhado, com um arquivo só ou vários — vive em sua própria pasta nomeada pelo conceito, com `index.tsx` como ponto de entrada único, sem exceção por tamanho (research.md #17); `types.ts`/`api.ts` de uma feature ficam soltos ao lado do `index.tsx` da feature, não dentro de pasta própria.
 
 ## Complexity Tracking
 
