@@ -130,7 +130,9 @@
       "Bash(npm init *)",
       "Bash(node convert.js)",
       "Bash(npx shadcn@latest add collapsible --yes)",
-      "Bash(npm uninstall *)"
+      "Bash(npm uninstall *)",
+      "Bash(npx shadcn@latest add login-03 --yes)",
+      "mcp__playwright__browser_resize"
     ]
   }
 }

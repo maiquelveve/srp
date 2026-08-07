@@ -335,3 +335,65 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
   responsividade mobile completa (`Sheet`, colapso por cookie) continua não sendo o foco — usamos
   o componente oficial pela fidelidade visual e pela ativação de estado (`data-active`) corretas,
   não pelas features mobile, mas elas vêm "de graça" por já fazerem parte do componente.
+
+## 19. Notificações — função global única `notify()`, visual `Alert` + motor `sonner`
+
+- **Decision**: `frontend/src/lib/notify.tsx` exporta `notify({ message, type, position, size?,
+  duration? })` — ponto de entrada único pra qualquer mensagem de feedback ao usuário (sucesso,
+  erro, aviso, info) em qualquer parte do app, em vez de cada tela gerenciar seu próprio estado de
+  erro/texto inline. Quatro peças:
+  - **Motor de posicionamento/empilhamento/auto-dismiss**: `sonner` (`Toaster` montado uma única
+    vez em `main.tsx`, fora do `AppShell`, funciona tanto autenticado quanto no login). `position`
+    é repassado por chamada (`top-left`, `top-center`, `top-right`, `bottom-left`,
+    `bottom-center`, `bottom-right`), não fixo no `Toaster`.
+  - **Visual**: em vez do balão padrão do `sonner`, cada notificação renderiza nosso próprio
+    componente `Alert`/`AlertTitle`/`AlertDescription` (`frontend/src/components/ui/alert.tsx`,
+    padrão "Custom Colors" da doc do shadcn — https://ui.shadcn.com/docs/components/radix/alert)
+    via `toast.custom(..., { unstyled: true })`, com 4 variantes de cor mapeadas 1:1 no `type`:
+    `success` (verde), `error` (vermelho), `warning` (âmbar), `info` (azul) — cada uma com ícone
+    próprio do lucide-react (`CheckCircle2Icon`, `AlertCircleIcon`, `AlertTriangleIcon`,
+    `InfoIcon`). Layout interno em flexbox (`flex items-start gap-3`), não no truque de
+    `[&>svg]:absolute` + seletor de irmão do exemplo original do shadcn — esse truque depende de
+    adjacência exata no DOM e quebrava dentro do wrapper de toast do `sonner` (ícone/texto
+    desalinhados, caixa encolhendo pro conteúdo).
+  - **Cor = fundo sólido saturado + texto quase branco**, não um tom translúcido de 10% — o
+    exemplo "Custom Colors" do shadcn usa classes cruas do Tailwind (`bg-amber-950`/`text-amber-50`
+    no dark mode), não os tokens semânticos do tema; `alert.tsx` reproduz isso ao pé da letra
+    (`bg-red-950`/`text-red-50` pra `error`, `bg-green-950`/`text-green-50` pra `success`,
+    `bg-amber-700`/`text-amber-50` pra `warning`, `bg-blue-700`/`text-blue-50` pra `info` — esses
+    dois ajustados pra um tom mais claro/vibrante que o `-950` original a pedido do usuário, depois
+    de testar visualmente lado a lado com os demais) em vez
+    de reusar `--destructive`/`--success`/`--warning`/`--info` (que são translúcidos/vívidos
+    demais pra esse efeito específico). Ainda assim precisou de um token novo,
+    `--info`/`--info-foreground` (`index.css` + `tailwind.config.js`), pra badges/estados fora do
+    `Alert` que continuam usando os tokens semânticos — a paleta (research.md #16) só tinha
+    success/warning/destructive até aqui.
+  - **Tamanho como prop do componente**: `Alert` aceita `size` (`xs`/`sm`/`md`/`lg`/`xl`, `cva`
+    variant em `alert.tsx`) controlando largura máxima, padding, tamanho de fonte e do ícone juntos
+    (não são classes soltas — trocar `size` troca as quatro coisas de forma coerente). `notify()`
+    repassa `size` e usa `lg` como padrão (o `md` inicial ficou pequeno demais pra ler à distância
+    como toast). **Pegadinha real encontrada**: `max-w-*` do `Alert` sozinho não bastava — o
+    `<li>` do próprio `sonner` tem `width: var(--width)` fixo (356px por padrão) vindo da regra CSS
+    `[data-sonner-toast][data-styled='true']`; com `unstyled: true` o `sonner` troca pra
+    `data-styled="false"`, o que **remove essa regra inteira** (não só o visual) — setar só a
+    variável `--width` não adianta mais, porque não sobra nenhuma regra lendo ela. Corrigido
+    setando `style: { width: '...px' }` (propriedade `width` direta, não a variável) na chamada de
+    `toast.custom()`, que como inline style vence independente de qual branch `data-styled` está
+    ativo — `notify.tsx` mapeia cada `size` pro px equivalente do `max-w-*` do `Alert`.
+  - **Título fixo por tipo, com complemento opcional**: `AlertTitle` não vem de `message` — é
+    derivado de `type` via um mapa fixo (`error`→"Erro", `success`→"Sucesso", `warning`→"Atenção",
+    `info`→"Informação"); `message` vira o conteúdo do `AlertDescription`, igual ao exemplo (título
+    curto + detalhe embaixo). `notify()` aceita um `title` opcional que vira sufixo do título fixo
+    ("Erro - Credenciais incorretas"); sem `title`, fica só a palavra fixa ("Erro"). `LoginPage` foi
+    o primeiro consumidor real: `notify({ message: 'E-mail ou senha inválido', type: 'error' })`
+    (sem `title`), em vez do parágrafo vermelho inline que existia antes.
+- **Rationale**: Decisão do usuário do projeto (2026-08-07) — evitar que cada feature reimplemente
+  sua própria UI de erro/sucesso, garantindo aparência e comportamento consistentes em todo o
+  sistema, no visual `Alert` (não o toast genérico do sonner) que o usuário apontou como
+  referência. `sonner` continua sendo o motor por já suportar posição por chamada nativamente
+  (`Position` type do próprio pacote) — não fazia sentido reescrever isso à mão só pra trocar a
+  aparência; `toast.custom()` permite usar `sonner` só pro mecanismo, com HTML/estilo 100% nosso.
+- **Alternatives considered**: manter estado de erro local por formulário (o que já existia) —
+  rejeitado, é exatamente o padrão duplicado que o usuário pediu pra eliminar; usar o `Alert` só
+  como elemento inline fixo na página (sem `sonner`) — rejeitado, perderia posicionamento
+  flutuante/empilhamento/auto-dismiss que `notify()` precisa suportar em qualquer tela.
