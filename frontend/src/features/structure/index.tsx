@@ -14,7 +14,7 @@ import StatusBadge from './components/StatusBadge';
  * this hiding is just UX, not a security boundary).
  */
 export default function StructurePage(): JSX.Element {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const isWarden = user?.role === 'WARDEN';
 
   const [unitId, setUnitId] = useState<number | null>(null);
@@ -76,17 +76,7 @@ export default function StructurePage(): JSX.Element {
   });
 
   return (
-    <main className="mx-auto max-w-5xl space-y-6 p-6">
-      <header className="flex items-center justify-between border-b border-border pb-4">
-        <h1 className="text-xl font-semibold text-foreground">Mapa da Unidade</h1>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          {user?.name} <span className="text-primary">({user?.role})</span>
-          <Button variant="link" size="sm" onClick={logout} className="h-auto p-0 text-muted-foreground">
-            Sair
-          </Button>
-        </div>
-      </header>
-
+    <div className="mx-auto max-w-5xl space-y-6 p-6">
       <section>
         <h2 className="mb-2 font-medium text-foreground">Unidades</h2>
         <ul className="flex flex-wrap gap-2">
@@ -239,6 +229,6 @@ export default function StructurePage(): JSX.Element {
           )}
         </section>
       )}
-    </main>
+    </div>
   );
 }

@@ -17,9 +17,10 @@ module.exports = {
   },
   overrides: [
     {
-      // shadcn/ui vendored components: the CLI's own templates export a
-      // `<x>Variants` cva helper alongside the component, by design.
-      files: ['src/components/ui/**/*.tsx'],
+      // shadcn/ui vendored components (ui/ primitives + block files like
+      // app-sidebar.tsx, data-table.tsx pulled in as-is via `shadcn add`):
+      // these export extra constants/schemas alongside the component, by design.
+      files: ['src/components/**/*.tsx'],
       rules: {
         'react-refresh/only-export-components': 'off',
       },

@@ -31,7 +31,7 @@ export default function LoginPage(): JSX.Element {
     setError(null);
     try {
       await login(values.email, values.password);
-      navigate('/structure');
+      navigate('/mapa-da-unidade');
     } catch {
       setError('Credenciais inválidas');
     }

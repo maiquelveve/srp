@@ -303,3 +303,35 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
   componente ganha mais de um arquivo — rejeitado pelo motivo acima (padrão inconsistente ao
   longo do tempo); arquivo plano sempre, sem nunca usar pasta+`index.tsx` — rejeitado, perde a
   possibilidade de colocar teste/estilo/subcomponente junto sem renomear import paths depois.
+
+## 18. `AppShell` — chrome compartilhado via layout route (React Router `<Outlet />`)
+
+- **Decision**: `frontend/src/layouts/AppShell/index.tsx` concentra tudo que é fixo em toda tela
+  autenticada — sidebar (símbolo + navegação) e barra superior (avatar/role do usuário, menu
+  suspenso com "Sair") — no padrão visual do bloco `dashboard-01` do shadcn/ui já validado com o
+  usuário. Implementado como **layout route** do React Router: `AppShell` não importa nenhuma
+  página, só renderiza `<Outlet />` no centro; cada página vira uma rota filha aninhada dentro
+  dela em `App.tsx`. O item de menu ativo não é passado por prop — o `NavLink` do React Router já
+  compara sozinho `to` com a URL atual e aplica a classe correspondente. Páginas fora do fluxo
+  autenticado (`LoginPage`, e futuras telas de erro 404/500) ficam em rotas irmãs, fora da
+  `AppShell`, e não recebem esse chrome.
+- **Rationale**: Decisão do usuário do projeto (2026-08-06) — evita repetir sidebar/topo em cada
+  página nova (US2–US6 vão todas herdar o mesmo shell) e mantém cada página responsável só pelo
+  próprio conteúdo. Layout route + `<Outlet />` é o mecanismo nativo do React Router pra isso (já
+  usado no projeto por `ProtectedRoute`), então não introduz uma biblioteca ou padrão novo.
+- **Alternatives considered**: cada página receber o item de menu ativo via prop e repassar pro
+  shell — rejeitado, obrigaria toda página nova a "avisar" o layout quem ela é, exatamente o tipo
+  de repetição que a `AppShell` existe pra eliminar.
+- **Revisão (2026-08-06, mesmo dia)**: a primeira versão do `AppShell` reimplementava o efeito
+  visual do `Sidebar` oficial (canvas cinza + painel preto arredondado "inset") à mão, com CSS
+  próprio — decisão registrada acima como "adotar o `Sidebar` completo foi adiado por ora". Testes
+  visuais reais (via Playwright MCP, comparando contra o bloco `dashboard-01` oficial rodando lado
+  a lado) mostraram que a versão à mão não reproduzia o efeito corretamente e tinha aparência
+  amadora. **Decisão revertida**: `AppShell` passou a usar o componente `Sidebar` oficial do
+  shadcn/ui de fato (`SidebarProvider`, `Sidebar variant="inset"`, `SidebarInset`, `SidebarHeader/
+  Content/Footer`, `SidebarMenuButton` com `isActive`), estruturado em
+  `layouts/AppShell/components/{NavMain,NavUser,SiteHeader}/index.tsx` (convenção #17) com dados
+  reais (nosso menu, nosso usuário via `useAuth()`), no lugar do menu/usuário fake do bloco. A
+  responsividade mobile completa (`Sheet`, colapso por cookie) continua não sendo o foco — usamos
+  o componente oficial pela fidelidade visual e pela ativação de estado (`data-active`) corretas,
+  não pelas features mobile, mas elas vêm "de graça" por já fazerem parte do componente.

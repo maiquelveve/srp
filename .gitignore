@@ -39,3 +39,6 @@ backend/dist/
 frontend/vite.config.js
 frontend/vite.config.d.ts
 *.tsbuildinfo
+
+# Playwright MCP screenshots/console logs (local dev inspection only)
+.playwright-mcp/
