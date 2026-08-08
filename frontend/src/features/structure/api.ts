@@ -20,4 +20,8 @@ export const structureApi = {
     apiClient.get<Paginated<Inmate>>('/inmates', { params }).then((r) => r.data),
   createInmate: (input: { name: string; currentCellId: number; registrationId?: string }) =>
     apiClient.post<Inmate>('/inmates', input).then((r) => r.data),
+  updateInmate: (
+    id: number,
+    input: { name?: string; registrationId?: string; birthDate?: string; custodyRegime?: string; photoUrl?: string },
+  ) => apiClient.patch<Inmate>(`/inmates/${id}`, input).then((r) => r.data),
 };

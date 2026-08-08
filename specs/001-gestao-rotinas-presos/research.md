@@ -397,3 +397,20 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
   rejeitado, é exatamente o padrão duplicado que o usuário pediu pra eliminar; usar o `Alert` só
   como elemento inline fixo na página (sem `sonner`) — rejeitado, perderia posicionamento
   flutuante/empilhamento/auto-dismiss que `notify()` precisa suportar em qualquer tela.
+
+## 20. Efeito de clique padrão em todos os botões (`Button`)
+
+- **Decision**: `active:scale-95` (mais `transition-all` no lugar do antigo `transition-colors`)
+  vive direto na `cva` base de `frontend/src/components/ui/button.tsx`, não em cada uso — todo
+  `Button` do sistema (qualquer `variant`/`size`) encolhe levemente ao ser clicado, automaticamente,
+  sem precisar repetir a classe em cada tela. Regra descoberta/validada primeiro no botão
+  "Pesquisar" (`features/structure/components/StructureFilters`) — que além do clique tem um
+  `hover:scale-105` próprio (cresce levemente no hover, some no clique porque `active:` vem depois
+  de `hover:` na ordem padrão de variantes do Tailwind, então o `scale-95` do clique vence) — depois
+  promovida pra regra global a pedido explícito do usuário (2026-08-08).
+- **Rationale**: usuário quis um feedback tátil consistente em qualquer botão do app, não só nos da
+  tela de estrutura; colocar na base do componente (em vez de repetir `active:scale-95` em cada
+  `Button` individual) garante que isso vale por padrão em telas futuras também, sem exigir memória
+  do padrão a cada novo botão.
+- **Alternatives considered**: adicionar `active:scale-95` manualmente em cada botão existente —
+  rejeitado, não escala (literalmente) e depende de lembrança manual em cada novo componente.
