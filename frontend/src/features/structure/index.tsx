@@ -2,16 +2,17 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { structureApi } from './api';
-import CreateEntityDialog from './components/CreateEntityDialog';
 import StructureFilters from './components/StructureFilters';
 import GalleryCards from './components/GalleryCards';
 
 /**
  * User Story 1 — Cadastro e Mapa da Unidade (FR-005…FR-007).
  * Unit + galleries filter up top (auto-selected on load) driving a flat
- * cells table below; creation (gallery/cell/inmate) is gated to WARDEN
- * behind a single "Novo" dialog — backend is the real enforcement point
- * (FR-004/FR-004a), this hiding is just UX, not a security boundary.
+ * cells table below. Cadastro de Galeria/Cela/Unidade saiu daqui (era o
+ * botão "Novo" flutuante, componente `CreateEntityDialog`) — vai virar a
+ * tela de Configurações (research.md #21, tasks.md T034g/T034h). Cadastro
+ * de preso continua aqui (`InmateDialog`, dentro de cada cela), pois já
+ * depende do contexto de qual cela — isso não muda.
  */
 export default function StructurePage(): JSX.Element {
   const { user } = useAuth();
@@ -39,8 +40,6 @@ export default function StructurePage(): JSX.Element {
       />
 
       <GalleryCards galleries={galleries} galleryIds={galleryIds} isWarden={isWarden} />
-
-      {isWarden && unitId !== null && <CreateEntityDialog unitId={unitId} galleries={galleries} />}
     </div>
   );
 }

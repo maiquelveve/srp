@@ -414,3 +414,52 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
   do padrão a cada novo botão.
 - **Alternatives considered**: adicionar `active:scale-95` manualmente em cada botão existente —
   rejeitado, não escala (literalmente) e depende de lembrança manual em cada novo componente.
+
+## 21. Cadastro de Unidade/Galeria/Cela sai do Mapa da Unidade — vira tela de Configurações
+
+- **Decision**: o botão "Novo" flutuante do Mapa da Unidade (`CreateEntityDialog`, T034e) foi
+  **removido** dessa tela (2026-08-08). O componente em si continua existindo em
+  `frontend/src/features/structure/components/CreateEntityDialog/` — só parou de ser importado/
+  renderizado por `features/structure/index.tsx` — porque a mesma funcionalidade (cadastrar
+  Unidade/Galeria/Cela) vai reaparecer numa tela dedicada em `/configuracoes`, acessível pelo item
+  "Configurações" do menu lateral (hoje um placeholder que cai no catch-all de `App.tsx` —
+  research.md #18). Cadastro de **preso** não muda de lugar — continua dentro do Mapa da Unidade
+  (`InmateDialog`, no contexto de cada cela), porque cadastrar um preso já exige saber em qual cela
+  ele está, informação que só a tela do mapa tem à mão naturalmente. T034h (tasks.md, ainda não
+  implementada) rastreia a construção da tela `/configuracoes` em si.
+  - Efeito colateral: com o botão flutuante fora, a barra de filtros (`StructureFilters`) ficou
+    visualmente esparsa — os campos "Unidade"/"Galerias" passaram de largura fixa (`w-56`) pra
+    `flex-1 min-w-[200px]`, ocupando o espaço da linha em vez de ficarem agrupados à esquerda com um
+    vão vazio à direita.
+- **Rationale**: cadastro estrutural (unidade/galeria/cela) é uma ação administrativa pouco
+  frequente — não faz sentido competir por espaço/atenção numa tela pensada pra consulta do dia a
+  dia (Mapa da Unidade, usada por qualquer policial/supervisor). Centralizar esse tipo de cadastro
+  numa tela de "Configurações" (ação explicitamente de administração, já prevista na navegação)
+  separa consulta de administração com mais clareza — decisão do usuário do projeto.
+- **Alternatives considered**: manter o botão flutuante no Mapa da Unidade — rejeitado, foi
+  exatamente o incômodo que motivou a mudança; mover só parte do cadastro (ex.: manter Unidade lá,
+  só Galeria/Cela pra Configurações) — rejeitado por inconsistência, mais fácil manter a regra
+  simples ("cadastro estrutural = Configurações, cadastro de preso = Mapa da Unidade").
+
+## 22. Página/menu "Início" — decisão de conteúdo explicitamente adiada
+
+- **Decision**: **Não resolvida nesta fase, de forma intencional.** Vai existir um item de
+  navegação "Início" em `AppShell` (research.md #18), como primeiro item do menu, apontando pra
+  uma página nova (`frontend/src/pages/HomePage/index.tsx`, folder-per-component per research.md
+  #17) — mas por enquanto **em branco**. O que essa página efetivamente mostra (dashboard com
+  métricas, atalhos pras telas mais usadas, widgets customizáveis, ou combinação disso) ainda não
+  foi definido pelo dono do produto. A criação da página/rota/item de menu em si é próxima
+  (tracked em tasks.md T034j) — o conteúdo é uma decisão separada, posterior, que substituirá esta
+  seção quando tomada.
+- **Rationale**: Definido explicitamente pelo usuário do projeto (2026-08-08): existir uma tela
+  "Início" já é certo (todo sistema com `AppShell`/sidebar como esse tipicamente tem uma landing
+  page própria, separada das telas operacionais como Mapa da Unidade), mas o *conteúdo* dela
+  depende de decisões de produto (o que priorizar mostrar pra cada perfil de usuário) que ainda não
+  foram tomadas — construir a casca agora evita que a decisão de conteúdo bloqueie o item de
+  navegação/rota em si.
+- **Follow-up necessário antes de T034j poder sair do estado "página em branco"**: decidir o que a
+  página mostra (dashboard/atalhos/widgets/outra coisa), então voltar a este item e substituir esta
+  seção por uma decisão concreta de layout/conteúdo.
+- **Enquanto isso**: T034j cobre só a casca (rota + item de menu + página vazia dentro do
+  `AppShell`, mesmo padrão RBAC/layout das demais telas); nenhuma task de conteúdo (dashboard,
+  atalhos, etc.) é criada em `tasks.md` até essa decisão ser tomada.

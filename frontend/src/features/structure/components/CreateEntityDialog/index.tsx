@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { PlusIcon } from 'lucide-react';
 import { structureApi } from '../../api';
 import type { Gallery } from '../../types';
@@ -17,12 +17,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-type EntityType = 'gallery' | 'cell' | 'inmate';
+type EntityType = 'gallery' | 'cell';
 
 const ENTITY_LABEL: Record<EntityType, string> = {
   gallery: 'Galeria',
   cell: 'Cela',
-  inmate: 'Preso',
 };
 
 export interface CreateEntityDialogProps {
@@ -31,10 +30,11 @@ export interface CreateEntityDialogProps {
 }
 
 /**
- * WARDEN-only "Novo" button (the caller is responsible for the role check —
- * this component has no opinion on who renders it) opening a dialog that
- * creates a Gallery, Cell, or Inmate depending on a type selector, reusing
- * the same mutations `StructurePage`'s drill-down used to own directly.
+ * WARDEN-only floating "Novo" button (the caller is responsible for the role
+ * check — this component has no opinion on who renders it) opening a dialog
+ * that creates a Gallery or Cell depending on a type selector. Cadastro de
+ * Preso saiu daqui — vive agora no botão "Cadastrar preso" de cada cela
+ * (`CreateInmateDialog`), já que precisa de uma cela específica de contexto.
  */
 export default function CreateEntityDialog({ unitId, galleries }: CreateEntityDialogProps): JSX.Element {
   const [open, setOpen] = useState(false);
@@ -43,29 +43,14 @@ export default function CreateEntityDialog({ unitId, galleries }: CreateEntityDi
   const [cellGalleryId, setCellGalleryId] = useState<number | null>(null);
   const [cellCode, setCellCode] = useState('');
   const [cellCapacity, setCellCapacity] = useState(1);
-  const [inmateCellId, setInmateCellId] = useState<number | null>(null);
-  const [inmateName, setInmateName] = useState('');
 
   const queryClient = useQueryClient();
-
-  const cellsByGalleryQuery = useQueries({
-    queries: galleries.map((gallery) => ({
-      queryKey: ['cells', gallery.id],
-      queryFn: () => structureApi.listCells(gallery.id),
-      enabled: open && entityType === 'inmate',
-    })),
-  });
-  const allCells = cellsByGalleryQuery.flatMap((q, i) =>
-    (q.data?.data ?? []).map((cell) => ({ ...cell, galleryCode: galleries[i].code })),
-  );
 
   function resetForm(): void {
     setGalleryCode('');
     setCellGalleryId(null);
     setCellCode('');
     setCellCapacity(1);
-    setInmateCellId(null);
-    setInmateName('');
   }
 
   const createGallery = useMutation({
@@ -91,33 +76,15 @@ export default function CreateEntityDialog({ unitId, galleries }: CreateEntityDi
     onError: () => notify({ title: 'Não foi possível cadastrar', message: 'Verifique os dados', type: 'error' }),
   });
 
-  const createInmate = useMutation({
-    mutationFn: () => structureApi.createInmate({ name: inmateName, currentCellId: inmateCellId as number }),
-    onSuccess: () => {
-      notify({ message: `${inmateName} cadastrado`, type: 'success' });
-      void queryClient.invalidateQueries({ queryKey: ['inmates', inmateCellId] });
-      void queryClient.invalidateQueries({ queryKey: ['cells'] });
-      resetForm();
-      setOpen(false);
-    },
-    onError: () =>
-      notify({ title: 'Não foi possível cadastrar', message: 'Verifique a capacidade da cela', type: 'error' }),
-  });
-
-  const isPending = createGallery.isPending || createCell.isPending || createInmate.isPending;
+  const isPending = createGallery.isPending || createCell.isPending;
 
   function handleSubmit(): void {
     if (entityType === 'gallery') createGallery.mutate();
-    else if (entityType === 'cell') createCell.mutate();
-    else createInmate.mutate();
+    else createCell.mutate();
   }
 
   const canSubmit =
-    entityType === 'gallery'
-      ? galleryCode.length > 0
-      : entityType === 'cell'
-        ? cellGalleryId !== null && cellCode.length > 0
-        : inmateCellId !== null && inmateName.length > 0;
+    entityType === 'gallery' ? galleryCode.length > 0 : cellGalleryId !== null && cellCode.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -144,7 +111,6 @@ export default function CreateEntityDialog({ unitId, galleries }: CreateEntityDi
               <SelectContent>
                 <SelectItem value="gallery">Galeria</SelectItem>
                 <SelectItem value="cell">Cela</SelectItem>
-                <SelectItem value="inmate">Preso</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -189,33 +155,6 @@ export default function CreateEntityDialog({ unitId, galleries }: CreateEntityDi
                   value={cellCapacity}
                   onChange={(e) => setCellCapacity(Number(e.target.value))}
                 />
-              </div>
-            </>
-          )}
-
-          {entityType === 'inmate' && (
-            <>
-              <div className="grid gap-1.5">
-                <Label>Cela</Label>
-                <Select
-                  value={inmateCellId !== null ? String(inmateCellId) : ''}
-                  onValueChange={(v) => setInmateCellId(Number(v))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a cela" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allCells.map((cell) => (
-                      <SelectItem key={cell.id} value={String(cell.id)}>
-                        Galeria {cell.galleryCode} - Cela {cell.code} ({cell.occupancy}/{cell.capacity})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="inmate-name">Nome do preso</Label>
-                <Input id="inmate-name" value={inmateName} onChange={(e) => setInmateName(e.target.value)} />
               </div>
             </>
           )}

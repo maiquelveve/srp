@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { SearchIcon } from 'lucide-react';
+import { ChevronDown, SearchIcon } from 'lucide-react';
 import { structureApi } from '../../api';
 import { Button } from '@/components/ui/button';
 import {
@@ -58,26 +58,21 @@ export default function StructureFilters({ unitId, onUnitChange, onSearch }: Str
     .filter((gallery) => draftGalleryIds.includes(gallery.id))
     .map((gallery) => `Galeria ${gallery.code}`)
     .join(', ');
-  const galleryLabel =
-    draftGalleryIds.length === 0
-      ? 'Nenhuma galeria'
-      : draftGalleryIds.length === galleries.length
-        ? 'Todas as galerias'
-        : selectedGalleryNames;
+  const galleryLabel = draftGalleryIds.length === 0 ? 'Nenhuma galeria' : selectedGalleryNames;
 
   function toggleGallery(id: number, checked: boolean): void {
     setDraftGalleryIds((prev) => (checked ? [...prev, id] : prev.filter((g) => g !== id)));
   }
 
   return (
-    <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-4">
-      <div className="grid gap-1.5">
+    <div className="flex flex-wrap items-end gap-4 rounded-lg border border-border bg-card p-4">
+      <div className="grid min-w-[200px] flex-1 gap-1.5">
         <span className="text-sm font-medium text-foreground">Unidade</span>
         <Select
           value={unitId !== null ? String(unitId) : ''}
           onValueChange={(value) => onUnitChange(Number(value))}
         >
-          <SelectTrigger className="w-56">
+          <SelectTrigger className="w-full">
             <SelectValue placeholder="Selecione a unidade" />
           </SelectTrigger>
           <SelectContent>
@@ -90,12 +85,17 @@ export default function StructureFilters({ unitId, onUnitChange, onSearch }: Str
         </Select>
       </div>
 
-      <div className="grid gap-1.5">
+      <div className="grid min-w-[200px] flex-1 gap-1.5">
         <span className="text-sm font-medium text-foreground">Galerias</span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="w-56 justify-start truncate font-normal" title={galleryLabel}>
-              {galleryLabel}
+            <Button
+              variant="outline"
+              className="w-full justify-between font-normal"
+              title={galleryLabel}
+            >
+              <span className="truncate">{galleryLabel}</span>
+              <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56">
@@ -120,7 +120,7 @@ export default function StructureFilters({ unitId, onUnitChange, onSearch }: Str
         <span className="invisible text-sm font-medium">Pesquisar</span>
         <Button
           variant="outline"
-          className="border-primary bg-accent px-6 font-bold text-accent-foreground hover:scale-105"
+          className="border-primary bg-accent px-8 font-bold text-accent-foreground hover:scale-105"
           onClick={() => onSearch(draftGalleryIds)}
         >
           <SearchIcon />

@@ -1,9 +1,16 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeftRight, ChevronDownIcon, ChevronRightIcon, RefreshCcw, type LucideIcon } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  PlusIcon,
+  RefreshCcw,
+  type LucideIcon,
+} from 'lucide-react';
 import { structureApi } from '../../api';
 import type { Gallery } from '../../types';
-import EditInmateDialog from '../EditInmateDialog';
+import InmateDialog from '../InmateDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,7 +49,7 @@ const INMATE_ROW_GRID = 'grid grid-cols-[1fr_1fr_4.5rem] items-center gap-2';
  * não o cinza padrão do `outline` — a linha inteira também fica cinza no
  * hover (`hover:bg-accent`), então um botão cinza-no-cinza some visualmente
  * quando o mouse passa por cima dele. `stopPropagation` evita que o clique
- * "vaze" pro `EditInmateDialog` que envolve a linha inteira.
+ * "vaze" pro `InmateDialog` (modo edição) que envolve a linha inteira.
  */
 function InmateActionButton({ label, icon: Icon }: { label: string; icon: LucideIcon }): JSX.Element {
   return (
@@ -64,7 +71,15 @@ function InmateActionButton({ label, icon: Icon }: { label: string; icon: Lucide
   );
 }
 
-function CellRowInmates({ cellId, isWarden }: { cellId: number; isWarden: boolean }): JSX.Element {
+function CellRowInmates({
+  cellId,
+  cellLabel,
+  isWarden,
+}: {
+  cellId: number;
+  cellLabel: string;
+  isWarden: boolean;
+}): JSX.Element {
   const inmatesQuery = useQuery({
     queryKey: ['inmates', cellId],
     queryFn: () => structureApi.listInmates({ cellId }),
@@ -72,54 +87,71 @@ function CellRowInmates({ cellId, isWarden }: { cellId: number; isWarden: boolea
 
   const inmates = inmatesQuery.data?.data ?? [];
 
-  if (inmatesQuery.isLoading) {
-    return <p className="py-1 text-sm text-muted-foreground">Carregando presos...</p>;
-  }
-
-  if (inmates.length === 0) {
-    return <p className="py-1 text-sm text-muted-foreground">Nenhum preso nesta cela.</p>;
-  }
-
   return (
     <div className="space-y-1 py-1">
-      <div className={cn(INMATE_ROW_GRID, 'px-2.5 text-xs font-medium text-muted-foreground')}>
-        <span>Nome</span>
-        <span className="text-center">Matrícula</span>
-        <span className="text-center">Ações</span>
-      </div>
-      {inmates.map((inmate) => {
-        const row = (
-          <div
-            className={cn(
-              INMATE_ROW_GRID,
-              'rounded-md border border-border bg-background px-2.5 py-1.5 text-sm',
-              isWarden && 'cursor-pointer transition-colors hover:bg-accent',
-            )}
-          >
-            <span className="truncate">
-              {inmate.name}
-              {inmate.inMovement && <span className="ml-1.5 text-xs text-warning">(fora da cela)</span>}
-            </span>
-            <span className="truncate text-center text-muted-foreground">{inmate.registrationId ?? '—'}</span>
-            <span className="flex items-center justify-center gap-1">
-              {isWarden && (
-                <>
-                  <InmateActionButton label="Mover preso" icon={ArrowLeftRight} />
-                  <InmateActionButton label="Alterar status" icon={RefreshCcw} />
-                </>
-              )}
-            </span>
-          </div>
-        );
+      {inmatesQuery.isLoading && <p className="py-1 text-sm text-muted-foreground">Carregando presos...</p>}
 
-        return isWarden ? (
-          <EditInmateDialog key={inmate.id} inmate={inmate} cellId={cellId}>
-            {row}
-          </EditInmateDialog>
-        ) : (
-          <div key={inmate.id}>{row}</div>
-        );
-      })}
+      {!inmatesQuery.isLoading && inmates.length === 0 && (
+        <p className="py-1 text-sm text-muted-foreground">Nenhum preso nesta cela.</p>
+      )}
+
+      {!inmatesQuery.isLoading && inmates.length > 0 && (
+        <>
+          <div className={cn(INMATE_ROW_GRID, 'px-2.5 text-xs font-medium text-muted-foreground')}>
+            <span>Nome</span>
+            <span className="text-center">Matrícula</span>
+            <span className="text-center">Ações</span>
+          </div>
+          {inmates.map((inmate) => {
+            const row = (
+              <div
+                className={cn(
+                  INMATE_ROW_GRID,
+                  'rounded-md border border-border bg-background px-2.5 py-1.5 text-sm',
+                  isWarden && 'cursor-pointer transition-colors hover:bg-accent',
+                )}
+              >
+                <span className="truncate">
+                  {inmate.name}
+                  {inmate.inMovement && <span className="ml-1.5 text-xs text-warning">(fora da cela)</span>}
+                </span>
+                <span className="truncate text-center text-muted-foreground">{inmate.registrationId ?? '—'}</span>
+                <span className="flex items-center justify-center gap-1">
+                  {isWarden && (
+                    <>
+                      <InmateActionButton label="Mover preso" icon={ArrowLeftRight} />
+                      <InmateActionButton label="Alterar situação" icon={RefreshCcw} />
+                    </>
+                  )}
+                </span>
+              </div>
+            );
+
+            return isWarden ? (
+              <InmateDialog key={inmate.id} inmate={inmate} cellId={cellId} cellLabel={cellLabel}>
+                {row}
+              </InmateDialog>
+            ) : (
+              <div key={inmate.id}>{row}</div>
+            );
+          })}
+        </>
+      )}
+
+      {isWarden && (
+        <div className="flex justify-end pt-1">
+          <InmateDialog cellId={cellId} cellLabel={cellLabel}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 gap-1 border-primary bg-accent px-2 text-xs font-bold text-accent-foreground hover:scale-105"
+            >
+              <PlusIcon className="size-3" />
+              Cadastrar preso
+            </Button>
+          </InmateDialog>
+        </div>
+      )}
     </div>
   );
 }
@@ -192,7 +224,11 @@ function GalleryCard({ gallery, isWarden }: { gallery: Gallery; isWarden: boolea
               </button>
               {isExpanded && (
                 <div className="mb-3 ml-10 mr-16">
-                  <CellRowInmates cellId={cell.id} isWarden={isWarden} />
+                  <CellRowInmates
+                    cellId={cell.id}
+                    cellLabel={`Galeria ${gallery.code} - Cela ${cell.code}`}
+                    isWarden={isWarden}
+                  />
                 </div>
               )}
             </div>
