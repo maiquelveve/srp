@@ -133,7 +133,12 @@
       "Bash(npm uninstall *)",
       "Bash(npx shadcn@latest add login-03 --yes)",
       "mcp__playwright__browser_resize",
-      "Bash(npx shadcn@latest add select table dialog --yes)"
+      "Bash(npx shadcn@latest add select table dialog --yes)",
+      "mcp__playwright__browser_network_requests",
+      "Bash(timeout 40 npx shadcn@latest add tabs alert-dialog --yes)",
+      "Bash(git -C /home/maiquel/projetos/spr status --porcelain -- frontend/src/components/ui/ frontend/package.json)",
+      "Bash(python3 -m json.tool)",
+      "Bash(python3 -)"
     ]
   }
 }
