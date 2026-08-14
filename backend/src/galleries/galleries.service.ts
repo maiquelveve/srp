@@ -36,7 +36,7 @@ export class GalleriesService {
         unit,
         code: dto.code,
         description: dto.description ?? null,
-        type: dto.type ?? null,
+        type: dto.type,
         active: true,
       }),
     );

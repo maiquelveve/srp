@@ -2,6 +2,10 @@ export type RoleName = 'PRISON_OFFICER' | 'SUPERVISOR' | 'WARDEN';
 
 export type InmateStatus = 'ACTIVE' | 'RELEASED' | 'ANKLE_MONITOR' | 'TRANSFERRED' | 'DECEASED';
 
+export type GalleryType = 'MALE' | 'FEMALE';
+
+export type CellType = 'SHARED' | 'INDIVIDUAL';
+
 export interface Unit {
   id: number;
   name: string;
@@ -16,7 +20,7 @@ export interface Gallery {
   unitId: number;
   code: string;
   description: string | null;
-  type: string | null;
+  type: GalleryType;
   active: boolean;
 }
 
@@ -25,7 +29,7 @@ export interface Cell {
   galleryId: number;
   code: string;
   capacity: number;
-  type: string | null;
+  type: CellType;
   active: boolean;
   occupancy: number;
 }

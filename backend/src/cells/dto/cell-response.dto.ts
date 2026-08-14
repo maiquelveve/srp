@@ -1,11 +1,11 @@
-import { Cell } from '../entities/cell.entity';
+import { Cell, CellType } from '../entities/cell.entity';
 
 export class CellResponseDto {
   id: number;
   galleryId: number;
   code: string;
   capacity: number;
-  type: string | null;
+  type: CellType;
   active: boolean;
   /** Computed from inmates.current_cell_id — never stored directly (contracts/structure.md). */
   occupancy: number;

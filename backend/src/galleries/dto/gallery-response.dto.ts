@@ -1,11 +1,11 @@
-import { Gallery } from '../entities/gallery.entity';
+import { Gallery, GalleryType } from '../entities/gallery.entity';
 
 export class GalleryResponseDto {
   id: number;
   unitId: number;
   code: string;
   description: string | null;
-  type: string | null;
+  type: GalleryType;
   active: boolean;
 
   static fromEntity(gallery: Gallery): GalleryResponseDto {

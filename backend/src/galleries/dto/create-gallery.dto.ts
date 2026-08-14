@@ -1,4 +1,5 @@
-import { IsInt, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { GalleryType } from '../entities/gallery.entity';
 
 export class CreateGalleryDto {
   @IsInt()
@@ -13,8 +14,6 @@ export class CreateGalleryDto {
   @IsString()
   description?: string;
 
-  @IsOptional()
-  @IsString()
-  @MaxLength(50)
-  type?: string;
+  @IsEnum(GalleryType)
+  type: GalleryType;
 }

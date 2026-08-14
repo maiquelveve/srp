@@ -1,4 +1,5 @@
-import { IsInt, IsNotEmpty, IsOptional, IsString, Min, MaxLength } from 'class-validator';
+import { IsEnum, IsInt, IsNotEmpty, IsString, Min, MaxLength } from 'class-validator';
+import { CellType } from '../entities/cell.entity';
 
 export class CreateCellDto {
   @IsInt()
@@ -13,8 +14,6 @@ export class CreateCellDto {
   @Min(0)
   capacity: number;
 
-  @IsOptional()
-  @IsString()
-  @MaxLength(50)
-  type?: string;
+  @IsEnum(CellType)
+  type: CellType;
 }

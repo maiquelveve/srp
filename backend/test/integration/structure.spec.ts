@@ -78,7 +78,7 @@ describe('Structure endpoints (contracts/structure.md)', () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/galleries')
       .set('Authorization', `Bearer ${wardenToken}`)
-      .send({ unitId: TEST_FIXTURE.unitBId, code: 'X' });
+      .send({ unitId: TEST_FIXTURE.unitBId, code: 'X', type: 'MALE' });
     expect(res.status).toBe(403);
   });
 
@@ -86,14 +86,14 @@ describe('Structure endpoints (contracts/structure.md)', () => {
     const galleryRes = await request(app.getHttpServer())
       .post('/api/v1/galleries')
       .set('Authorization', `Bearer ${wardenToken}`)
-      .send({ unitId: TEST_FIXTURE.unitAId, code: 'IT-GAL' });
+      .send({ unitId: TEST_FIXTURE.unitAId, code: 'IT-GAL', type: 'MALE' });
     expect(galleryRes.status).toBe(201);
     const galleryId = (galleryRes.body as { id: number }).id;
 
     const cellRes = await request(app.getHttpServer())
       .post('/api/v1/cells')
       .set('Authorization', `Bearer ${wardenToken}`)
-      .send({ galleryId, code: 'IT-01', capacity: 1 });
+      .send({ galleryId, code: 'IT-01', capacity: 1, type: 'SHARED' });
     expect(cellRes.status).toBe(201);
     const cellId = (cellRes.body as { id: number }).id;
 

@@ -10,6 +10,11 @@ import {
 import { Unit } from '../../units/entities/unit.entity';
 import { Cell } from '../../cells/entities/cell.entity';
 
+export enum GalleryType {
+  MALE = 'MALE',
+  FEMALE = 'FEMALE',
+}
+
 @Entity('galleries')
 @Index(['unit', 'code'], { unique: true })
 export class Gallery {
@@ -26,9 +31,8 @@ export class Gallery {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
-  /** e.g. 'MALE' | 'FEMALE' */
-  @Column({ type: 'varchar', length: 50, nullable: true })
-  type: string | null;
+  @Column({ type: 'varchar', length: 50 })
+  type: GalleryType;
 
   @Column({ type: 'boolean', default: true })
   active: boolean;

@@ -4,8 +4,8 @@ import { AppDataSource } from '../data-source';
 import { Role, RoleName } from '../../roles/entities/role.entity';
 import { User } from '../../users/entities/user.entity';
 import { Unit } from '../../units/entities/unit.entity';
-import { Gallery } from '../../galleries/entities/gallery.entity';
-import { Cell } from '../../cells/entities/cell.entity';
+import { Gallery, GalleryType } from '../../galleries/entities/gallery.entity';
+import { Cell, CellType } from '../../cells/entities/cell.entity';
 import { MovementType, MovementCategory } from '../../movements/entities/movement-type.entity';
 
 /**
@@ -36,12 +36,12 @@ async function seed(): Promise<void> {
   );
 
   const gallery = await galleryRepo.save(
-    galleryRepo.create({ unit, code: 'A', type: 'MALE', active: true }),
+    galleryRepo.create({ unit, code: 'A', type: GalleryType.MALE, active: true }),
   );
 
   await cellRepo.save([
-    cellRepo.create({ gallery, code: '01', capacity: 4, type: 'SHARED', active: true }),
-    cellRepo.create({ gallery, code: '02', capacity: 1, type: 'INDIVIDUAL', active: true }),
+    cellRepo.create({ gallery, code: '01', capacity: 4, type: CellType.SHARED, active: true }),
+    cellRepo.create({ gallery, code: '02', capacity: 1, type: CellType.INDIVIDUAL, active: true }),
   ]);
 
   await movementTypeRepo.save([

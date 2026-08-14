@@ -3,7 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ObjectLiteral, Repository } from 'typeorm';
 import { CellsService } from '../../src/cells/cells.service';
-import { Cell } from '../../src/cells/entities/cell.entity';
+import { Cell, CellType } from '../../src/cells/entities/cell.entity';
 import { Inmate, InmateStatus } from '../../src/inmates/entities/inmate.entity';
 import { GalleriesService } from '../../src/galleries/galleries.service';
 import { Gallery } from '../../src/galleries/entities/gallery.entity';
@@ -49,7 +49,7 @@ describe('CellsService', () => {
   describe('create', () => {
     it('rejects negative capacity even if the DTO validation layer is bypassed', async () => {
       await expect(
-        service.create({ galleryId: 10, code: '01', capacity: -1 }, [1]),
+        service.create({ galleryId: 10, code: '01', capacity: -1, type: CellType.SHARED }, [1]),
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(cellRepository.save).not.toHaveBeenCalled();
     });
@@ -67,11 +67,14 @@ describe('CellsService', () => {
         gallery,
         code: '01',
         capacity: 0,
-        type: null,
+        type: CellType.SHARED,
         active: true,
       });
 
-      const result = await service.create({ galleryId: 10, code: '01', capacity: 0 }, [1]);
+      const result = await service.create(
+        { galleryId: 10, code: '01', capacity: 0, type: CellType.SHARED },
+        [1],
+      );
 
       expect(result.capacity).toBe(0);
       expect(cellRepository.save).toHaveBeenCalled();
@@ -81,7 +84,7 @@ describe('CellsService', () => {
       galleriesService.findEntityInScope.mockRejectedValueOnce(new ForbiddenException());
 
       await expect(
-        service.create({ galleryId: 10, code: '01', capacity: 2 }, [999]),
+        service.create({ galleryId: 10, code: '01', capacity: 2, type: CellType.SHARED }, [999]),
       ).rejects.toBeInstanceOf(ForbiddenException);
     });
   });

@@ -49,7 +49,7 @@ export class CellsService {
         gallery,
         code: dto.code,
         capacity: dto.capacity,
-        type: dto.type ?? null,
+        type: dto.type,
         active: true,
       }),
     );

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { structureApi } from '@/features/structure/api';
-import type { Cell, Gallery, Unit } from '@/features/structure/types';
+import type { Cell, CellType, Gallery, GalleryType, Unit } from '@/features/structure/types';
 import { notify } from '@/lib/notify';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type EntityDialogProps =
   | { entityType: 'unit'; unit?: Unit; children: ReactNode }
@@ -26,6 +27,19 @@ const LABEL_BY_TYPE: Record<EntityDialogProps['entityType'], string> = {
   gallery: 'Galeria',
   cell: 'Cela',
 };
+
+// Backend now constrains these to a real enum (tasks.md T034h-type-enum) —
+// a `Select` over fixed options, not free text, so the value space matches
+// what `GalleryType`/`CellType` (frontend/src/features/structure/types.ts)
+// actually accept.
+const GALLERY_TYPE_OPTIONS: { value: GalleryType; label: string }[] = [
+  { value: 'MALE', label: 'Masculina' },
+  { value: 'FEMALE', label: 'Feminina' },
+];
+const CELL_TYPE_OPTIONS: { value: CellType; label: string }[] = [
+  { value: 'SHARED', label: 'Coletiva' },
+  { value: 'INDIVIDUAL', label: 'Individual' },
+];
 
 function existingEntity(props: EntityDialogProps): Unit | Gallery | Cell | undefined {
   if (props.entityType === 'unit') return props.unit;
@@ -83,13 +97,15 @@ export default function EntityDialog(props: EntityDialogProps): JSX.Element {
           : structureApi.createUnit({ name, code: code || undefined });
       }
       if (entityType === 'gallery') {
+        const galleryType = type as GalleryType;
         return isEdit
-          ? structureApi.updateGalleryMock(entity as Gallery, { code, type: type || undefined })
-          : structureApi.createGallery({ unitId: props.unitId, code, type: type || undefined });
+          ? structureApi.updateGalleryMock(entity as Gallery, { code, type: galleryType })
+          : structureApi.createGallery({ unitId: props.unitId, code, type: galleryType });
       }
+      const cellType = type as CellType;
       return isEdit
-        ? structureApi.updateCellMock(entity as Cell, { code, capacity, type: type || undefined })
-        : structureApi.createCell({ galleryId: props.galleryId, code, capacity, type: type || undefined });
+        ? structureApi.updateCellMock(entity as Cell, { code, capacity, type: cellType })
+        : structureApi.createCell({ galleryId: props.galleryId, code, capacity, type: cellType });
     },
     onSuccess: () => {
       const isMock = isEdit && entityType !== 'unit';
@@ -107,7 +123,8 @@ export default function EntityDialog(props: EntityDialogProps): JSX.Element {
     onError: () => notify({ title: 'Não foi possível salvar', message: 'Verifique os dados', type: 'error' }),
   });
 
-  const canSubmit = entityType === 'unit' ? name.length > 0 : code.length > 0;
+  const canSubmit =
+    entityType === 'unit' ? name.length > 0 : code.length > 0 && type.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -161,13 +178,19 @@ export default function EntityDialog(props: EntityDialogProps): JSX.Element {
 
           {entityType !== 'unit' && (
             <div className="grid gap-1.5">
-              <Label htmlFor="entity-type">Tipo (opcional)</Label>
-              <Input
-                id="entity-type"
-                placeholder={entityType === 'gallery' ? 'Ex.: MALE, FEMALE' : 'Ex.: SHARED, INDIVIDUAL'}
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-              />
+              <Label htmlFor="entity-type">Tipo</Label>
+              <Select value={type} onValueChange={setType}>
+                <SelectTrigger id="entity-type">
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(entityType === 'gallery' ? GALLERY_TYPE_OPTIONS : CELL_TYPE_OPTIONS).map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
         </div>

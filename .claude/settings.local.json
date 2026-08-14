@@ -138,7 +138,12 @@
       "Bash(timeout 40 npx shadcn@latest add tabs alert-dialog --yes)",
       "Bash(git -C /home/maiquel/projetos/spr status --porcelain -- frontend/src/components/ui/ frontend/package.json)",
       "Bash(python3 -m json.tool)",
-      "Bash(python3 -)"
+      "Bash(python3 -)",
+      "Bash(kill 81265 81266)",
+      "Bash(kill 70708 70709)",
+      "Bash(nohup npm run start:dev)",
+      "Bash(echo \"started with pid $!\")",
+      "Bash(python3 *)"
     ]
   }
 }

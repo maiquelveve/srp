@@ -11,6 +11,7 @@ import {
   Trash2Icon,
 } from 'lucide-react';
 import { structureApi } from '@/features/structure/api';
+import type { CellType, GalleryType } from '@/features/structure/types';
 import DeactivateAlert from './components/DeactivateAlert';
 import EntityDialog from './components/EntityDialog';
 import { useAuth } from '@/hooks/useAuth';
@@ -26,6 +27,19 @@ import { cn } from '@/lib/utils';
 function ActiveBadge({ active }: { active: boolean }): JSX.Element {
   return <Badge variant={active ? 'success' : 'secondary'}>{active ? 'Ativo' : 'Inativo'}</Badge>;
 }
+
+// Safe now that the backend constrains `type` to a real enum (tasks.md
+// T034h-type-enum) — every value that can reach these tables came from
+// `EntityDialog`'s `Select` (GALLERY_TYPE_OPTIONS/CELL_TYPE_OPTIONS), so this
+// is total, not a lookup-with-fallback over free text.
+const GALLERY_TYPE_LABEL: Record<GalleryType, string> = {
+  MALE: 'Masculina',
+  FEMALE: 'Feminina',
+};
+const CELL_TYPE_LABEL: Record<CellType, string> = {
+  SHARED: 'Coletiva',
+  INDIVIDUAL: 'Individual',
+};
 
 const NEW_BUTTON_CLASS =
   'gap-1 border-primary bg-accent px-3 text-xs font-bold text-accent-foreground hover:scale-105';
@@ -241,7 +255,7 @@ export default function SettingsPage(): JSX.Element {
                   {galleries.map((gallery) => (
                     <TableRow key={gallery.id}>
                       <TableCell className="w-48 text-left">Galeria {gallery.code}</TableCell>
-                      <TableCell>{gallery.type ?? '—'}</TableCell>
+                      <TableCell>{GALLERY_TYPE_LABEL[gallery.type]}</TableCell>
                       <TableCell>
                         <ActiveBadge active={gallery.active} />
                       </TableCell>
@@ -312,7 +326,7 @@ export default function SettingsPage(): JSX.Element {
                     <TableRow key={cell.id}>
                       <TableCell className="w-32 text-left">{cell.code}</TableCell>
                       <TableCell>{cell.capacity}</TableCell>
-                      <TableCell>{cell.type ?? '—'}</TableCell>
+                      <TableCell>{CELL_TYPE_LABEL[cell.type]}</TableCell>
                       <TableCell>
                         <ActiveBadge active={cell.active} />
                       </TableCell>

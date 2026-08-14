@@ -10,6 +10,11 @@ import {
 import { Gallery } from '../../galleries/entities/gallery.entity';
 import { Inmate } from '../../inmates/entities/inmate.entity';
 
+export enum CellType {
+  SHARED = 'SHARED',
+  INDIVIDUAL = 'INDIVIDUAL',
+}
+
 @Entity('cells')
 @Index(['gallery', 'code'], { unique: true })
 export class Cell {
@@ -26,9 +31,8 @@ export class Cell {
   @Column({ type: 'int', default: 0 })
   capacity: number;
 
-  /** e.g. 'SHARED' | 'INDIVIDUAL' */
-  @Column({ type: 'varchar', length: 50, nullable: true })
-  type: string | null;
+  @Column({ type: 'varchar', length: 50 })
+  type: CellType;
 
   @Column({ type: 'boolean', default: true })
   active: boolean;
