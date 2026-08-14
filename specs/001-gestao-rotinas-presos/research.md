@@ -460,7 +460,55 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
     (`['galleries', unitId]`/`['cells', galleryId]`) — inclusive `DeactivateAlert`, que antes só
     invalidava a lista de `units` no caminho de unidade e não tinha motivo pra invalidar
     galeria/cela (o mock nunca escrevia em cache mesmo). Sem gaps conhecidos restantes nessa tela.
-
+  - **Correções (2026-08-14, feedback do usuário testando ao vivo)**: (1) uma linha inativa (Unidade/
+    Galeria/Cela) ficava sem caminho de volta pra `active: true` no nível da própria linha — só
+    "Desativar" (`Trash2Icon`) era mostrado, mesmo já inativa, e o único jeito de reativar (só pra
+    Unit) era abrir `EntityDialog` e clicar num badge dentro do formulário. Adicionado `RotateCcwIcon`
+    "Reativar" nas três tabelas: quando `entity.active` é `false`, a coluna Ações troca
+    `DeactivateAlert` por um `RowActionButton` direto (sem confirmação — reativar não é destrutivo)
+    que chama `structureApi.updateUnit`/`updateGallery`/`updateCell` com `{ active: true }` e invalida
+    a query certa. (2) `GalleryCards` (Mapa da Unidade) mostrava celas inativas junto das ativas —
+    correto pra `/configuracoes` (tela de gestão, por isso tem coluna Status), mas errado pro Mapa
+    da Unidade, que é a tela de consulta do dia a dia: celas desativadas não têm nada a fazer lá.
+    Fix: `cells = (cellsQuery.data?.data ?? []).filter((cell) => cell.active)` em
+    `GalleryCard`, só nesse componente — `/configuracoes` continua puxando a mesma
+    `structureApi.listCells` sem filtro, então uma cela desativada some do mapa mas continua
+    visível (com "Reativar") na tela de gestão. Verificado ao vivo: desativar/reativar uma cela via
+    `/configuracoes` reflete corretamente em `/mapa-da-unidade` (soma de ocupação/capacidade da
+    Galeria também recalcula, já que é derivada da lista já filtrada).
+  - **Revisado (2026-08-14, mesmo dia, segunda rodada de feedback)**: (1) o ícone "Reativar" tinha
+    saído com o mesmo tom `primary` (amarelo) do "Editar" — indistinguível à primeira vista. Criado
+    um novo tom `success` em `TONE_CLASS` (`text-success`/`bg-success`, o mesmo token de cor do badge
+    "Ativo" via `ActiveBadge`), então Reativar agora lê visualmente como o oposto verde/positivo de
+    Desativar, não mais uma terceira variação de amarelo. (2) Reativar disparava direto no clique,
+    sem confirmação — inconsistente com Desativar (que sempre confirma via `AlertDialog`, mesmo
+    sendo reversível). Extraído para um componente irmão de `DeactivateAlert`,
+    `frontend/src/features/settings/components/ReactivateAlert/`, mesmo formato (discriminated
+    union por `entityType`, mesma mutation/invalidação por tipo), só que com o `AlertDialogAction`
+    estilizado em verde (`bg-success text-success-foreground`) em vez do `variant="destructive"`
+    padrão. (3) Adicionado um filtro Status (`Ativas`/`Inativas`, um `Select` — nunca os dois ao
+    mesmo tempo) ao lado do seletor de Galeria na aba Celas de `/configuracoes`, `cellStatusFilter`
+    com default `'active'` — a lista de celas é filtrada no cliente sobre a mesma resposta de
+    `structureApi.listCells` (que já traz ativas e inativas juntas), sem round-trip extra ao
+    backend. Escopo só na aba Celas, por pedido explícito do usuário (não replicado nas abas
+    Unidades/Galerias). Verificado ao vivo: ícone verde + diálogo "Reativar Cela Z01?" com botão
+    verde; trocar Status pra "Inativas" isola só a cela inativa, "Ativas" isola só as ativas.
+  - **Revisado (2026-08-14, mesmo dia, terceira rodada de feedback)**: (1) o verde de
+    `bg-success` (mesmo token do ícone/badge) ficou claro/pálido demais como preenchimento de botão
+    sólido dentro do `AlertDialog` — trocado por um verde mais escuro no `AlertDialogAction`
+    (`bg-[hsl(142_71%_24%)]`, mesmo matiz/saturação do token `--success`, só com lightness menor;
+    hover `hsl(142_71%_18%)`), sem mexer no ícone (`TONE_CLASS.success`), que já estava bom. (2) `F5`
+    numa unidade selecionada voltava sempre pra primeira da lista — tanto em `/configuracoes`
+    quanto em `/mapa-da-unidade`, o `unitId` só existia como `useState` em memória, perdido a cada
+    reload. Fix simples e direto: guardar o `unitId` escolhido no `localStorage` (chaves
+    independentes por tela — `srp:settings:lastUnitId` e `srp:structure:lastUnitId`, as duas telas
+    não precisam compartilhar seleção), inicializar o `useState` lendo essa chave, e trocar a
+    condição do efeito de "auto-selecionar a primeira unidade" de `unitId === null` para
+    `unitId === null || essa unidade não está mais na lista atual` — assim o valor restaurado do
+    `localStorage` só é descartado se de fato não for mais válido (ex.: usuário perdeu acesso àquela
+    unidade), não do zero a cada carregamento. Nenhuma mudança no backend — puramente
+    armazenamento do lado do cliente. Verificado ao vivo nas duas telas: selecionar uma unidade,
+    dar F5, a seleção se mantém (em vez de voltar pra primeira da lista).
 ## 22. Página/menu "Início" — decisão de conteúdo explicitamente adiada
 
 - **Decision**: **Conteúdo ainda não resolvido, de forma intencional — casca já implementada.**

@@ -176,7 +176,11 @@ function GalleryCard({ gallery, isWarden }: { gallery: Gallery; isWarden: boolea
     queryFn: () => structureApi.listCells(gallery.id),
   });
 
-  const cells = cellsQuery.data?.data ?? [];
+  // Mapa da Unidade only shows operational celas — deactivated ones stay
+  // visible (with a Reativar path) in /configuracoes, which is the cadastro/
+  // management screen, but have no business appearing on the day-to-day
+  // consulta view.
+  const cells = (cellsQuery.data?.data ?? []).filter((cell) => cell.active);
   const totalCapacity = cells.reduce((sum, cell) => sum + cell.capacity, 0);
   const totalOccupancy = cells.reduce((sum, cell) => sum + cell.occupancy, 0);
 

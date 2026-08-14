@@ -151,7 +151,8 @@
       "Bash(command -v psql)",
       "Bash(npx typeorm-ts-node-commonjs *)",
       "Bash(echo \"pid $!\")",
-      "mcp__playwright__browser_run_code_unsafe"
+      "mcp__playwright__browser_run_code_unsafe",
+      "Bash(./node_modules/.bin/vite build *)"
     ]
   }
 }

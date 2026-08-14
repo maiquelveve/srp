@@ -7,6 +7,7 @@ import {
   DoorClosedIcon,
   PencilIcon,
   PlusIcon,
+  RotateCcwIcon,
   Rows3Icon,
   Trash2Icon,
 } from 'lucide-react';
@@ -14,6 +15,7 @@ import { structureApi } from '@/features/structure/api';
 import type { CellType, GalleryType } from '@/features/structure/types';
 import DeactivateAlert from './components/DeactivateAlert';
 import EntityDialog from './components/EntityDialog';
+import ReactivateAlert from './components/ReactivateAlert';
 import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -44,12 +46,19 @@ const CELL_TYPE_LABEL: Record<CellType, string> = {
 const NEW_BUTTON_CLASS =
   'gap-1 border-primary bg-accent px-3 text-xs font-bold text-accent-foreground hover:scale-105';
 
+const SETTINGS_UNIT_STORAGE_KEY = 'srp:settings:lastUnitId';
+
 // Idle (unhovered) tint per action — user asked for color at rest, not just
 // on hover. Hover keeps the existing full-fill treatment (already approved).
 const TONE_CLASS = {
   primary: 'border-primary/40 bg-primary/10 text-primary hover:border-primary hover:bg-primary hover:text-primary-foreground',
   destructive:
     'border-destructive/40 bg-destructive/10 text-destructive hover:border-destructive hover:bg-destructive hover:text-destructive-foreground',
+  // Same tone as ActiveBadge's "Ativo" label — Reativar should read as the
+  // green/positive counterpart to Desativar, not another yellow action like
+  // Editar.
+  success:
+    'border-success/40 bg-success/10 text-success hover:border-success hover:bg-success hover:text-success-foreground',
 } as const;
 
 // `forwardRef` on purpose: this is used as the direct child of
@@ -91,8 +100,18 @@ RowActionButton.displayName = 'RowActionButton';
 export default function SettingsPage(): JSX.Element {
   const { user } = useAuth();
 
-  const [unitId, setUnitId] = useState<number | null>(null);
+  const [unitId, setUnitIdState] = useState<number | null>(() => {
+    const stored = localStorage.getItem(SETTINGS_UNIT_STORAGE_KEY);
+    return stored ? Number(stored) : null;
+  });
+  // F5 was resetting the selected unit back to the first one in the list —
+  // remember it across reloads the simple way, via localStorage.
+  function setUnitId(id: number): void {
+    setUnitIdState(id);
+    localStorage.setItem(SETTINGS_UNIT_STORAGE_KEY, String(id));
+  }
   const [galleryId, setGalleryId] = useState<number | null>(null);
+  const [cellStatusFilter, setCellStatusFilter] = useState<'active' | 'inactive'>('active');
 
   const unitsQuery = useQuery({ queryKey: ['units'], queryFn: structureApi.listUnits });
   const galleriesQuery = useQuery({
@@ -108,12 +127,18 @@ export default function SettingsPage(): JSX.Element {
 
   const units = unitsQuery.data?.data ?? [];
   const galleries = galleriesQuery.data?.data ?? [];
-  const cells = cellsQuery.data?.data ?? [];
+  const cells = (cellsQuery.data?.data ?? []).filter((cell) =>
+    cellStatusFilter === 'active' ? cell.active : !cell.active,
+  );
   const selectedUnit = units.find((u) => u.id === unitId);
 
-  // Auto-pick the first unit/gallery so the lower tabs aren't empty on load.
+  // Auto-pick the first unit so the lower tabs aren't empty on load — but
+  // only if nothing's selected yet, or the unit restored from localStorage
+  // isn't in this user's accessible list anymore.
   useEffect(() => {
-    if (unitId === null && unitsQuery.data && unitsQuery.data.data.length > 0) {
+    if (!unitsQuery.data || unitsQuery.data.data.length === 0) return;
+    const stillValid = unitId !== null && unitsQuery.data.data.some((u) => u.id === unitId);
+    if (!stillValid) {
       setUnitId(unitsQuery.data.data[0].id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -206,9 +231,15 @@ export default function SettingsPage(): JSX.Element {
                             <EntityDialog entityType="unit" unit={unit}>
                               <RowActionButton label="Editar" icon={PencilIcon} tone="primary" />
                             </EntityDialog>
-                            <DeactivateAlert entityType="unit" unit={unit}>
-                              <RowActionButton label="Desativar" icon={Trash2Icon} tone="destructive" />
-                            </DeactivateAlert>
+                            {unit.active ? (
+                              <DeactivateAlert entityType="unit" unit={unit}>
+                                <RowActionButton label="Desativar" icon={Trash2Icon} tone="destructive" />
+                              </DeactivateAlert>
+                            ) : (
+                              <ReactivateAlert entityType="unit" unit={unit}>
+                                <RowActionButton label="Reativar" icon={RotateCcwIcon} tone="success" />
+                              </ReactivateAlert>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -264,9 +295,15 @@ export default function SettingsPage(): JSX.Element {
                           <EntityDialog entityType="gallery" unitId={unitId as number} gallery={gallery}>
                             <RowActionButton label="Editar" icon={PencilIcon} tone="primary" />
                           </EntityDialog>
-                          <DeactivateAlert entityType="gallery" unitId={unitId as number} gallery={gallery}>
-                            <RowActionButton label="Desativar" icon={Trash2Icon} tone="destructive" />
-                          </DeactivateAlert>
+                          {gallery.active ? (
+                            <DeactivateAlert entityType="gallery" unitId={unitId as number} gallery={gallery}>
+                              <RowActionButton label="Desativar" icon={Trash2Icon} tone="destructive" />
+                            </DeactivateAlert>
+                          ) : (
+                            <ReactivateAlert entityType="gallery" unitId={unitId as number} gallery={gallery}>
+                              <RowActionButton label="Reativar" icon={RotateCcwIcon} tone="success" />
+                            </ReactivateAlert>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -299,6 +336,19 @@ export default function SettingsPage(): JSX.Element {
                           Galeria {gallery.code}
                         </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm font-medium text-foreground">Status</span>
+                  <Select
+                    value={cellStatusFilter}
+                    onValueChange={(v) => setCellStatusFilter(v as 'active' | 'inactive')}
+                  >
+                    <SelectTrigger className="h-8 w-32 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Ativas</SelectItem>
+                      <SelectItem value="inactive">Inativas</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -335,9 +385,15 @@ export default function SettingsPage(): JSX.Element {
                           <EntityDialog entityType="cell" galleryId={galleryId as number} cell={cell}>
                             <RowActionButton label="Editar" icon={PencilIcon} tone="primary" />
                           </EntityDialog>
-                          <DeactivateAlert entityType="cell" galleryId={galleryId as number} cell={cell}>
-                            <RowActionButton label="Desativar" icon={Trash2Icon} tone="destructive" />
-                          </DeactivateAlert>
+                          {cell.active ? (
+                            <DeactivateAlert entityType="cell" galleryId={galleryId as number} cell={cell}>
+                              <RowActionButton label="Desativar" icon={Trash2Icon} tone="destructive" />
+                            </DeactivateAlert>
+                          ) : (
+                            <ReactivateAlert entityType="cell" galleryId={galleryId as number} cell={cell}>
+                              <RowActionButton label="Reativar" icon={RotateCcwIcon} tone="success" />
+                            </ReactivateAlert>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -345,7 +401,8 @@ export default function SettingsPage(): JSX.Element {
                   {cells.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-muted-foreground">
-                        Nenhuma cela cadastrada para esta galeria.
+                        Nenhuma cela {cellStatusFilter === 'active' ? 'ativa' : 'inativa'} cadastrada para esta
+                        galeria.
                       </TableCell>
                     </TableRow>
                   )}

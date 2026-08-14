@@ -14,11 +14,21 @@ import GalleryCards from './components/GalleryCards';
  * de preso continua aqui (`InmateDialog`, dentro de cada cela), pois já
  * depende do contexto de qual cela — isso não muda.
  */
+// Remembers the last unit picked here across reloads (F5 was resetting back
+// to the first unit in the list every time) — same simple localStorage-cache
+// approach as `/configuracoes` (`SettingsPage`'s `SETTINGS_UNIT_STORAGE_KEY`),
+// kept as a separate key since the two screens don't need to share a
+// selection.
+const STRUCTURE_UNIT_STORAGE_KEY = 'srp:structure:lastUnitId';
+
 export default function StructurePage(): JSX.Element {
   const { user } = useAuth();
   const isWarden = user?.role === 'WARDEN';
 
-  const [unitId, setUnitId] = useState<number | null>(null);
+  const [unitId, setUnitId] = useState<number | null>(() => {
+    const stored = localStorage.getItem(STRUCTURE_UNIT_STORAGE_KEY);
+    return stored ? Number(stored) : null;
+  });
   const [galleryIds, setGalleryIds] = useState<number[]>([]);
 
   const galleriesQuery = useQuery({
@@ -34,6 +44,7 @@ export default function StructurePage(): JSX.Element {
         unitId={unitId}
         onUnitChange={(id) => {
           setUnitId(id);
+          localStorage.setItem(STRUCTURE_UNIT_STORAGE_KEY, String(id));
           setGalleryIds([]);
         }}
         onSearch={setGalleryIds}

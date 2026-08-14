@@ -34,9 +34,14 @@ export default function StructureFilters({ unitId, onUnitChange, onSearch }: Str
 
   const [draftGalleryIds, setDraftGalleryIds] = useState<number[]>([]);
 
-  // Auto-select the user's first accessible unit once the list loads.
+  // Auto-select the user's first accessible unit once the list loads — but
+  // only if there's no unit selected yet, or the previously-selected one
+  // (restored from localStorage by the parent) isn't in this user's
+  // accessible list anymore.
   useEffect(() => {
-    if (unitId === null && unitsQuery.data && unitsQuery.data.data.length > 0) {
+    if (!unitsQuery.data || unitsQuery.data.data.length === 0) return;
+    const stillValid = unitId !== null && unitsQuery.data.data.some((u) => u.id === unitId);
+    if (!stillValid) {
       onUnitChange(unitsQuery.data.data[0].id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
