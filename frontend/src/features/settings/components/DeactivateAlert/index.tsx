@@ -32,28 +32,26 @@ function label(props: DeactivateAlertProps): string {
  * "Excluir" is a soft deactivation everywhere (`active: false`), never a
  * hard DELETE — Unit → Gallery → Cell → Inmate all chain off each other and
  * off the audit log, so removing a row outright would orphan history
- * (mirrors the existing `PATCH /users/:id/deactivate` pattern). Galeria/Cela
- * deactivation is a client-side mock for the same reason as `EntityDialog`'s
- * edit path — no `PATCH /galleries/:id` or `/cells/:id` yet.
+ * (mirrors the existing `PATCH /users/:id/deactivate` pattern).
  */
 export default function DeactivateAlert(props: DeactivateAlertProps): JSX.Element {
-  const { entityType, children } = props;
+  const { children } = props;
   const queryClient = useQueryClient();
-  const isMock = entityType !== 'unit';
 
   const mutation = useMutation<Unit | Gallery | Cell, unknown, void>({
     mutationFn: () => {
       if (props.entityType === 'unit') return structureApi.updateUnit(props.unit.id, { active: false });
       if (props.entityType === 'gallery')
-        return structureApi.updateGalleryMock(props.gallery, { active: false });
-      return structureApi.updateCellMock(props.cell, { active: false });
+        return structureApi.updateGallery(props.gallery.id, { active: false });
+      return structureApi.updateCell(props.cell.id, { active: false });
     },
     onSuccess: () => {
-      notify({
-        message: `${label(props)} desativado${isMock ? ' (simulado — backend ainda não implementado)' : ''}`,
-        type: isMock ? 'info' : 'success',
-      });
+      notify({ message: `${label(props)} desativado`, type: 'success' });
       if (props.entityType === 'unit') void queryClient.invalidateQueries({ queryKey: ['units'] });
+      if (props.entityType === 'gallery')
+        void queryClient.invalidateQueries({ queryKey: ['galleries', props.unitId] });
+      if (props.entityType === 'cell')
+        void queryClient.invalidateQueries({ queryKey: ['cells', props.galleryId] });
     },
     onError: () => notify({ title: 'Não foi possível desativar', message: 'Tente novamente', type: 'error' }),
   });

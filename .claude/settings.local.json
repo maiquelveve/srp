@@ -143,7 +143,8 @@
       "Bash(kill 70708 70709)",
       "Bash(nohup npm run start:dev)",
       "Bash(echo \"started with pid $!\")",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(echo \"EXIT: $?\")"
     ]
   }
 }

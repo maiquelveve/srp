@@ -116,5 +116,45 @@ describe('Structure endpoints (contracts/structure.md)', () => {
       .set('Authorization', `Bearer ${officerToken}`);
     expect(lookupRes.status).toBe(200);
     expect((lookupRes.body as { total: number }).total).toBe(1);
+
+    const patchGalleryRes = await request(app.getHttpServer())
+      .patch(`/api/v1/galleries/${galleryId}`)
+      .set('Authorization', `Bearer ${wardenToken}`)
+      .send({ type: 'FEMALE' });
+    expect(patchGalleryRes.status).toBe(200);
+    expect(patchGalleryRes.body).toMatchObject({ id: galleryId, type: 'FEMALE' });
+
+    const patchCellRes = await request(app.getHttpServer())
+      .patch(`/api/v1/cells/${cellId}`)
+      .set('Authorization', `Bearer ${wardenToken}`)
+      .send({ capacity: 2, type: 'INDIVIDUAL' });
+    expect(patchCellRes.status).toBe(200);
+    expect(patchCellRes.body).toMatchObject({ id: cellId, capacity: 2, type: 'INDIVIDUAL' });
+  });
+
+  it('rejects PRISON_OFFICER updating a gallery or cell (FR-002/FR-004)', async () => {
+    const galleryRes = await request(app.getHttpServer())
+      .post('/api/v1/galleries')
+      .set('Authorization', `Bearer ${wardenToken}`)
+      .send({ unitId: TEST_FIXTURE.unitAId, code: 'IT-GAL-PATCH', type: 'MALE' });
+    const galleryId = (galleryRes.body as { id: number }).id;
+
+    const cellRes = await request(app.getHttpServer())
+      .post('/api/v1/cells')
+      .set('Authorization', `Bearer ${wardenToken}`)
+      .send({ galleryId, code: 'IT-01-PATCH', capacity: 1, type: 'SHARED' });
+    const cellId = (cellRes.body as { id: number }).id;
+
+    const galleryPatchRes = await request(app.getHttpServer())
+      .patch(`/api/v1/galleries/${galleryId}`)
+      .set('Authorization', `Bearer ${officerToken}`)
+      .send({ type: 'FEMALE' });
+    expect(galleryPatchRes.status).toBe(403);
+
+    const cellPatchRes = await request(app.getHttpServer())
+      .patch(`/api/v1/cells/${cellId}`)
+      .set('Authorization', `Bearer ${officerToken}`)
+      .send({ type: 'INDIVIDUAL' });
+    expect(cellPatchRes.status).toBe(403);
   });
 });

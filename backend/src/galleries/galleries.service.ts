@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Gallery } from './entities/gallery.entity';
 import { CreateGalleryDto } from './dto/create-gallery.dto';
+import { UpdateGalleryDto } from './dto/update-gallery.dto';
 import { GalleryResponseDto } from './dto/gallery-response.dto';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { UnitsService } from '../units/units.service';
@@ -41,6 +42,17 @@ export class GalleriesService {
       }),
     );
     gallery.unit = unit;
+    return GalleryResponseDto.fromEntity(gallery);
+  }
+
+  async update(
+    id: number,
+    dto: UpdateGalleryDto,
+    callerUnitIds: number[],
+  ): Promise<GalleryResponseDto> {
+    const gallery = await this.findEntityInScope(id, callerUnitIds);
+    Object.assign(gallery, dto);
+    await this.galleryRepository.save(gallery);
     return GalleryResponseDto.fromEntity(gallery);
   }
 

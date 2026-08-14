@@ -1,7 +1,8 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CellsService } from './cells.service';
 import { CreateCellDto } from './dto/create-cell.dto';
+import { UpdateCellDto } from './dto/update-cell.dto';
 import { CellResponseDto } from './dto/cell-response.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -21,5 +22,15 @@ export class CellsController {
     @CurrentUser() currentUser: JwtPayload,
   ): Promise<CellResponseDto> {
     return this.cellsService.create(dto, currentUser.units);
+  }
+
+  @Patch(':id')
+  @Roles(RoleName.WARDEN)
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateCellDto,
+    @CurrentUser() currentUser: JwtPayload,
+  ): Promise<CellResponseDto> {
+    return this.cellsService.update(id, dto, currentUser.units);
   }
 }

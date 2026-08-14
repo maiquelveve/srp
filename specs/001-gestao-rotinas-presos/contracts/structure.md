@@ -13,8 +13,10 @@ autenticação; escritas exigem perfil `WARDEN` (Chefia/Diretor) (FR-004), excet
 | PATCH | `/api/v1/units/:id` | WARDEN | Atualiza unidade. |
 | GET | `/api/v1/units/:id/galleries` | qualquer autenticado | Lista galerias de uma unidade. |
 | POST | `/api/v1/galleries` | WARDEN | Cadastra galeria vinculada a uma unidade. |
+| PATCH | `/api/v1/galleries/:id` | WARDEN | Atualiza galeria. |
 | GET | `/api/v1/galleries/:id/cells` | qualquer autenticado | Lista celas de uma galeria, com ocupação atual. |
 | POST | `/api/v1/cells` | WARDEN | Cadastra cela vinculada a uma galeria. |
+| PATCH | `/api/v1/cells/:id` | WARDEN | Atualiza cela. |
 | GET | `/api/v1/inmates?galleryId=&cellId=&status=` | qualquer autenticado | Lista presos filtrados por cela/galeria/unidade/status (FR-007). |
 | GET | `/api/v1/inmates/:id` | qualquer autenticado | Detalhe de um preso, incluindo status atual. |
 | POST | `/api/v1/inmates` | WARDEN | Cadastra preso (FR-006). |

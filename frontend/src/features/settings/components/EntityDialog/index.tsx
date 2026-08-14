@@ -50,14 +50,9 @@ function existingEntity(props: EntityDialogProps): Unit | Gallery | Cell | undef
 /**
  * Create AND edit dialog for Units/Galleries/Cells (same
  * create-or-edit-in-one-form shape as `InmateDialog`), used from the
- * `/configuracoes` screen (tasks.md T034h/T034h-follow-up) — one instance
+ * `/configuracoes` screen (tasks.md T034h/T034h-backend) — one instance
  * per row/section, fixed to its own `entityType`. Renamed from
  * `CreateEntityDialog` once edit joined create here.
- *
- * Galeria/Cela edits go through `structureApi.updateGalleryMock`/
- * `updateCellMock` — client-side mocks, since the backend has no
- * `PATCH /galleries/:id` or `/cells/:id` yet (research.md #21). Unit edits
- * are real (`PATCH /units/:id` already exists).
  */
 export default function EntityDialog(props: EntityDialogProps): JSX.Element {
   const { entityType, children } = props;
@@ -99,25 +94,22 @@ export default function EntityDialog(props: EntityDialogProps): JSX.Element {
       if (entityType === 'gallery') {
         const galleryType = type as GalleryType;
         return isEdit
-          ? structureApi.updateGalleryMock(entity as Gallery, { code, type: galleryType })
+          ? structureApi.updateGallery((entity as Gallery).id, { code, type: galleryType })
           : structureApi.createGallery({ unitId: props.unitId, code, type: galleryType });
       }
       const cellType = type as CellType;
       return isEdit
-        ? structureApi.updateCellMock(entity as Cell, { code, capacity, type: cellType })
+        ? structureApi.updateCell((entity as Cell).id, { code, capacity, type: cellType })
         : structureApi.createCell({ galleryId: props.galleryId, code, capacity, type: cellType });
     },
     onSuccess: () => {
-      const isMock = isEdit && entityType !== 'unit';
       notify({
-        message: `${isEdit ? 'Edição' : 'Cadastro'} de ${LABEL_BY_TYPE[entityType]} concluído${isMock ? ' (simulado — backend ainda não implementado)' : ''}`,
-        type: isMock ? 'info' : 'success',
+        message: `${isEdit ? 'Edição' : 'Cadastro'} de ${LABEL_BY_TYPE[entityType]} concluído`,
+        type: 'success',
       });
-      if (!isMock) {
-        if (entityType === 'unit') void queryClient.invalidateQueries({ queryKey: ['units'] });
-        if (entityType === 'gallery') void queryClient.invalidateQueries({ queryKey: ['galleries', props.unitId] });
-        if (entityType === 'cell') void queryClient.invalidateQueries({ queryKey: ['cells', props.galleryId] });
-      }
+      if (entityType === 'unit') void queryClient.invalidateQueries({ queryKey: ['units'] });
+      if (entityType === 'gallery') void queryClient.invalidateQueries({ queryKey: ['galleries', props.unitId] });
+      if (entityType === 'cell') void queryClient.invalidateQueries({ queryKey: ['cells', props.galleryId] });
       setOpen(false);
     },
     onError: () => notify({ title: 'Não foi possível salvar', message: 'Verifique os dados', type: 'error' }),

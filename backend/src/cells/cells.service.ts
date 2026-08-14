@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import { Cell } from './entities/cell.entity';
 import { Inmate, InmateStatus } from '../inmates/entities/inmate.entity';
 import { CreateCellDto } from './dto/create-cell.dto';
+import { UpdateCellDto } from './dto/update-cell.dto';
 import { CellResponseDto } from './dto/cell-response.dto';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { GalleriesService } from '../galleries/galleries.service';
@@ -40,7 +41,7 @@ export class CellsService {
     // Defense in depth — the DTO's @Min(0) already rejects this at the HTTP layer,
     // but the service must not trust the transport layer alone (Constitution IV).
     if (dto.capacity < 0) {
-      throw new BadRequestException('capacity deve ser >= 0');
+      throw new BadRequestException('capacidade deve ser maior que 0');
     }
 
     const gallery = await this.galleriesService.findEntityInScope(dto.galleryId, callerUnitIds);
@@ -55,6 +56,19 @@ export class CellsService {
     );
     cell.gallery = gallery;
     return CellResponseDto.fromEntity(cell, 0);
+  }
+
+  async update(id: number, dto: UpdateCellDto, callerUnitIds: number[]): Promise<CellResponseDto> {
+    // Same defense-in-depth reasoning as create() — @Min(0) already rejects
+    // this at the HTTP layer, but the service must not trust it alone.
+    if (dto.capacity !== undefined && dto.capacity < 0) {
+      throw new BadRequestException('capacity deve ser >= 0');
+    }
+
+    const cell = await this.findEntityInScope(id, callerUnitIds);
+    Object.assign(cell, dto);
+    await this.cellRepository.save(cell);
+    return CellResponseDto.fromEntity(cell, await this.occupancyOf(cell.id));
   }
 
   /** Used by InmatesService to validate a cellId is real, resolve its unit for scope, and check capacity. */
