@@ -1,5 +1,6 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
-import { tokenStorage } from './token-storage';
+import { tokenStorage, AUTH_USER_REFRESHED_EVENT } from './token-storage';
+import type { AuthUser } from '@/contexts/auth-context';
 
 /**
  * Shared HTTP client (contracts/auth.md). Attaches the access token to every
@@ -25,11 +26,15 @@ async function refreshAccessToken(): Promise<string> {
   if (!refreshToken) {
     throw new Error('No refresh token available');
   }
-  const response = await axios.post<{ accessToken: string; refreshToken: string }>(
+  const response = await axios.post<{ accessToken: string; refreshToken: string; user: AuthUser }>(
     `${import.meta.env.VITE_API_BASE_URL}/auth/refresh`,
     { refreshToken },
   );
   tokenStorage.setTokens(response.data.accessToken, response.data.refreshToken);
+  // /auth/refresh returns the same fresh `user` (incl. `units`) as /auth/login
+  // — keep AuthContext's cached copy in sync instead of freezing it at
+  // whatever it was during the original login.
+  window.dispatchEvent(new CustomEvent(AUTH_USER_REFRESHED_EVENT, { detail: response.data.user }));
   return response.data.accessToken;
 }
 

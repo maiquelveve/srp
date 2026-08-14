@@ -6,6 +6,7 @@ import {
   ClipboardList,
   FileText,
   HelpCircle,
+  HomeIcon,
   LayoutGrid,
   ListChecks,
   MapPin,
@@ -33,9 +34,10 @@ import NavUser from './components/NavUser';
 import SiteHeader from './components/SiteHeader';
 
 // US2–US6 (spec.md). Placeholder routes fall through to the App.tsx catch-all
-// (redirect to /mapa-da-unidade) until each story lands with a real page —
-// research.md #18.
+// (NotFoundPage, tasks.md T034j-404page) until each story lands with a real
+// page — research.md #18.
 const NAV_ITEMS: NavMainItem[] = [
+  { to: '/inicio', label: 'Início', icon: HomeIcon },
   { to: '/mapa-da-unidade', label: 'Mapa da Unidade', icon: LayoutGrid },
   { to: '/movimentacoes', label: 'Movimentações', icon: ArrowLeftRight },
   { to: '/situacoes-definitivas', label: 'Situações Definitivas', icon: CheckCircle2 },

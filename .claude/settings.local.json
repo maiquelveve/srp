@@ -144,7 +144,14 @@
       "Bash(nohup npm run start:dev)",
       "Bash(echo \"started with pid $!\")",
       "Bash(python3 *)",
-      "Bash(echo \"EXIT: $?\")"
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(echo \"started pid $!\")",
+      "mcp__playwright__browser_find",
+      "Bash(lsof *)",
+      "Bash(command -v psql)",
+      "Bash(npx typeorm-ts-node-commonjs *)",
+      "Bash(echo \"pid $!\")",
+      "mcp__playwright__browser_run_code_unsafe"
     ]
   }
 }

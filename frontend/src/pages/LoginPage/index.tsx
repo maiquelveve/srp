@@ -30,7 +30,7 @@ export default function LoginPage(): JSX.Element {
   async function onSubmit(values: LoginFormValues): Promise<void> {
     try {
       await login(values.email, values.password);
-      navigate('/mapa-da-unidade');
+      navigate('/inicio');
     } catch {
       notify({ title: 'Credenciais Inválidas', message: 'E-mail ou senha inválido', type: 'error', size: 'sm', position: 'top-right', duration: 3000 });
     }

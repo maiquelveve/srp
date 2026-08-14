@@ -1,4 +1,4 @@
-import { LogOutIcon, MoreVerticalIcon, SettingsIcon } from 'lucide-react';
+import { LogOutIcon, MoreVerticalIcon, UserIcon } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import type { RoleName } from '@/features/structure/types';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -85,8 +85,8 @@ export default function NavUser(): JSX.Element {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem disabled>
-                <SettingsIcon />
-                Configurações
+                <UserIcon />
+                Perfil
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

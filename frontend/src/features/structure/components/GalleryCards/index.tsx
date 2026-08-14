@@ -75,10 +75,12 @@ function CellRowInmates({
   cellId,
   cellLabel,
   isWarden,
+  isFull,
 }: {
   cellId: number;
   cellLabel: string;
   isWarden: boolean;
+  isFull: boolean;
 }): JSX.Element {
   const inmatesQuery = useQuery({
     queryKey: ['inmates', cellId],
@@ -140,16 +142,27 @@ function CellRowInmates({
 
       {isWarden && (
         <div className="flex justify-end pt-1">
-          <InmateDialog cellId={cellId} cellLabel={cellLabel}>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-6 gap-1 border-primary bg-accent px-2 text-xs font-bold text-accent-foreground hover:scale-105"
-            >
-              <PlusIcon className="size-3" />
-              Cadastrar preso
-            </Button>
-          </InmateDialog>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              {/* `disabled` alone already blocks the click from reaching
+                  DialogTrigger's asChild-cloned handler — no need to skip
+                  rendering InmateDialog itself when the cell is full. */}
+              <span className={isFull ? 'cursor-not-allowed' : undefined}>
+                <InmateDialog cellId={cellId} cellLabel={cellLabel}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isFull}
+                    className="h-6 gap-1 border-primary bg-accent px-2 text-xs font-bold text-accent-foreground hover:scale-105"
+                  >
+                    <PlusIcon className="size-3" />
+                    Cadastrar preso
+                  </Button>
+                </InmateDialog>
+              </span>
+            </TooltipTrigger>
+            {isFull && <TooltipContent>Cela sem vagas</TooltipContent>}
+          </Tooltip>
         </div>
       )}
     </div>
@@ -228,6 +241,7 @@ function GalleryCard({ gallery, isWarden }: { gallery: Gallery; isWarden: boolea
                     cellId={cell.id}
                     cellLabel={`Galeria ${gallery.code} - Cela ${cell.code}`}
                     isWarden={isWarden}
+                    isFull={isFull}
                   />
                 </div>
               )}

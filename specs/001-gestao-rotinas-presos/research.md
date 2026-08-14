@@ -440,26 +440,61 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
   exatamente o incômodo que motivou a mudança; mover só parte do cadastro (ex.: manter Unidade lá,
   só Galeria/Cela pra Configurações) — rejeitado por inconsistência, mais fácil manter a regra
   simples ("cadastro estrutural = Configurações, cadastro de preso = Mapa da Unidade").
+- **Layout final** (tasks.md T034i, 2026-08-14): a tela `/configuracoes` fechou como um único
+  `Card` com `Tabs` (Unidades/Galerias/Celas — underline deslizante medido via JS, não CSS
+  pseudo-elemento, ver a sequência de revisões em tasks.md T034h para o porquê), uma tabela por
+  vez. Cada linha tem uma coluna "Ações" com dois `RowActionButton` (Editar/Desativar,
+  `forwardRef` porque são usados como filho direto de `DialogTrigger`/`AlertDialogTrigger`
+  `asChild`). Um único componente `EntityDialog` cobre create *e* edit pras três entidades
+  (discriminated union por `entityType`), com um `Select` de tipo fixo (`GALLERY_TYPE_OPTIONS`/
+  `CELL_TYPE_OPTIONS`) desde que o backend passou a constranger `type` a um enum real (T034h-type-
+  enum). "Excluir" é sempre soft-deactivate (`active: false`) via `DeactivateAlert` +
+  `AlertDialog` de confirmação, nunca DELETE.
+  - **T034h-backend (2026-08-14) fechou o último gap**: `PATCH /api/v1/galleries/:id` e
+    `PATCH /api/v1/cells/:id` existem agora (mesmo padrão de `UnitsController.update`), então os
+    mocks client-side (`updateGalleryMock`/`updateCellMock`, que resolviam depois de um delay
+    fake sem tocar a rede) foram removidos — `structureApi.updateGallery`/`updateCell` chamam a
+    API de verdade. `EntityDialog`/`DeactivateAlert` perderam o branch "simulado" (toast
+    `info`/"simulado — backend ainda não implementado" existia só pra não mentir sobre persistência
+    enquanto o endpoint não existia); hoje sempre mostram sucesso real e invalidam a query certa
+    (`['galleries', unitId]`/`['cells', galleryId]`) — inclusive `DeactivateAlert`, que antes só
+    invalidava a lista de `units` no caminho de unidade e não tinha motivo pra invalidar
+    galeria/cela (o mock nunca escrevia em cache mesmo). Sem gaps conhecidos restantes nessa tela.
 
 ## 22. Página/menu "Início" — decisão de conteúdo explicitamente adiada
 
-- **Decision**: **Não resolvida nesta fase, de forma intencional.** Vai existir um item de
-  navegação "Início" em `AppShell` (research.md #18), como primeiro item do menu, apontando pra
-  uma página nova (`frontend/src/pages/HomePage/index.tsx`, folder-per-component per research.md
-  #17) — mas por enquanto **em branco**. O que essa página efetivamente mostra (dashboard com
+- **Decision**: **Conteúdo ainda não resolvido, de forma intencional — casca já implementada.**
+  Existe um item de navegação "Início" em `AppShell` (research.md #18), primeiro item do menu,
+  apontando pra `frontend/src/pages/HomePage/index.tsx` (folder-per-component per research.md
+  #17) — mas a página em si é **em branco**. O que ela efetivamente mostra (dashboard com
   métricas, atalhos pras telas mais usadas, widgets customizáveis, ou combinação disso) ainda não
-  foi definido pelo dono do produto. A criação da página/rota/item de menu em si é próxima
-  (tracked em tasks.md T034j) — o conteúdo é uma decisão separada, posterior, que substituirá esta
-  seção quando tomada.
+  foi definido pelo dono do produto; isso é uma decisão separada, posterior, que substituirá este
+  bullet quando tomada.
 - **Rationale**: Definido explicitamente pelo usuário do projeto (2026-08-08): existir uma tela
   "Início" já é certo (todo sistema com `AppShell`/sidebar como esse tipicamente tem uma landing
   page própria, separada das telas operacionais como Mapa da Unidade), mas o *conteúdo* dela
   depende de decisões de produto (o que priorizar mostrar pra cada perfil de usuário) que ainda não
   foram tomadas — construir a casca agora evita que a decisão de conteúdo bloqueie o item de
   navegação/rota em si.
-- **Follow-up necessário antes de T034j poder sair do estado "página em branco"**: decidir o que a
-  página mostra (dashboard/atalhos/widgets/outra coisa), então voltar a este item e substituir esta
-  seção por uma decisão concreta de layout/conteúdo.
-- **Enquanto isso**: T034j cobre só a casca (rota + item de menu + página vazia dentro do
-  `AppShell`, mesmo padrão RBAC/layout das demais telas); nenhuma task de conteúdo (dashboard,
-  atalhos, etc.) é criada em `tasks.md` até essa decisão ser tomada.
+- **Follow-up necessário antes do conteúdo poder ser definido**: decidir o que a página mostra
+  (dashboard/atalhos/widgets/outra coisa), então voltar a este item e substituir este bullet por
+  uma decisão concreta de layout/conteúdo (tasks.md T034k, ainda bloqueada por essa decisão de
+  produto).
+- **Rota padrão + 404 (tasks.md T034j, 2026-08-14)**: decisão explícita do usuário do projeto —
+  "Início" (`/inicio`) virou o destino padrão pós-login (`LoginPage` navega pra lá em vez de
+  `/mapa-da-unidade`) e o alvo de `/` (`<Navigate to="/inicio" replace />` em `App.tsx`, antes do
+  `ProtectedRoute` — redireciona antes mesmo de checar autenticação, então usuário deslogado acaba
+  em `/login` do mesmo jeito via `ProtectedRoute`). Junto disso (T034j-404page, escopo novo
+  descoberto ao implementar T034j, não previsto originalmente na task): o catch-all `*` de
+  `App.tsx`, que antes fazia `<Navigate to="/mapa-da-unidade" replace />` silenciosamente pra
+  qualquer rota desconhecida, virou uma página `NotFoundPage`
+  (`frontend/src/pages/NotFoundPage/index.tsx`) de verdade — "404" + mensagem + botão linkando pra
+  `/inicio`. Renderizada fora do `AppShell`/`ProtectedRoute` (standalone, sem sidebar) de propósito,
+  pra um visitante não-autenticado batendo numa URL inválida também ver a 404 em vez de um redirect
+  cego; o link "Voltar para o Início" ainda o manda pro fluxo normal de login via
+  `ProtectedRoute`. Efeito colateral esperado e aceito: todo item de nav ainda não implementado
+  (Movimentações, Situações Definitivas, Rotinas, Efetivo, Relatórios e Auditoria, Documentos,
+  Ajuda, etc. — US2–US6) agora cai nessa 404 em vez de silenciosamente mostrar o Mapa da Unidade
+  como antes; mais correto do que fingir que a rota existe. Verificado via Playwright: `/` →
+  `/inicio` com `AppShell` completo; rota inválida → 404 standalone; botão "Voltar para o Início" →
+  `/inicio` com `AppShell`; login → `/inicio`; clique em item de nav não implementado → 404.
