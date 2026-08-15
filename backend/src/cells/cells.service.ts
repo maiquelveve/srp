@@ -69,6 +69,24 @@ export class CellsService {
 
     const cell = await this.findEntityInScope(id, callerUnitIds);
     const isDeactivating = dto.active === false && cell.active;
+    const isReactivating = dto.active === true && !cell.active;
+
+    // A Cela can never be ACTIVE while its Galeria or Unidade is INATIVA —
+    // `gallery`/`gallery.unit` are already loaded by `findEntityInScope`, no
+    // extra query needed. Checked closest-ancestor-first so the message
+    // points at whichever one actually needs reactivating.
+    if (isReactivating) {
+      if (!cell.gallery.active) {
+        throw new ConflictException(
+          'Não é possível reativar: a galeria desta cela está inativa. Reative a galeria antes de reativar esta cela.',
+        );
+      }
+      if (!cell.gallery.unit.active) {
+        throw new ConflictException(
+          'Não é possível reativar: a unidade desta cela está inativa. Reative a unidade antes de reativar esta cela.',
+        );
+      }
+    }
 
     if (isDeactivating) {
       const activeOccupancy = await countActiveInmatesInScope(this.inmateRepository.manager, {

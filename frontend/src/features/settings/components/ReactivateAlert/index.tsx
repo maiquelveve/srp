@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { isAxiosError } from 'axios';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { structureApi } from '@/features/structure/api';
 import type { Cell, Gallery, Unit } from '@/features/structure/types';
@@ -55,7 +56,22 @@ export default function ReactivateAlert(props: ReactivateAlertProps): JSX.Elemen
       if (props.entityType === 'cell')
         void queryClient.invalidateQueries({ queryKey: ['cells', props.galleryId] });
     },
-    onError: () => notify({ title: 'Não foi possível reativar', message: 'Tente novamente', type: 'error' }),
+    onError: (error) => {
+      // The Reativar button is disabled whenever the parent Galeria/Unidade
+      // is inactive (SettingsPage), so this 409 should be rare in normal
+      // use — but the backend enforces it independently either way
+      // (Constitution IV), so surface its specific message here too instead
+      // of a generic one that wouldn't explain what to do next.
+      const backendMessage =
+        isAxiosError<{ message?: string }>(error) && error.response?.status === 409
+          ? error.response.data?.message
+          : undefined;
+      notify({
+        title: 'Não foi possível reativar',
+        message: backendMessage ?? 'Tente novamente',
+        type: 'error',
+      });
+    },
   });
 
   return (

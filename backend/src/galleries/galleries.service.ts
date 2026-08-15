@@ -60,6 +60,17 @@ export class GalleriesService {
   ): Promise<GalleryResponseDto> {
     const gallery = await this.findEntityInScope(id, callerUnitIds);
     const isDeactivating = dto.active === false && gallery.active;
+    const isReactivating = dto.active === true && !gallery.active;
+
+    // A Galeria can never be ACTIVE while its own Unidade is INATIVA — that
+    // would leave an inconsistent state impossible to reach the other way
+    // around (deactivating a Unidade always cascades its Galerias). `unit`
+    // is already loaded by `findEntityInScope`, no extra query needed.
+    if (isReactivating && !gallery.unit.active) {
+      throw new ConflictException(
+        'Não é possível reativar: a unidade desta galeria está inativa. Reative a unidade antes de reativar esta galeria.',
+      );
+    }
 
     if (!isDeactivating) {
       Object.assign(gallery, dto);

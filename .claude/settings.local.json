@@ -152,7 +152,10 @@
       "Bash(npx typeorm-ts-node-commonjs *)",
       "Bash(echo \"pid $!\")",
       "mcp__playwright__browser_run_code_unsafe",
-      "Bash(./node_modules/.bin/vite build *)"
+      "Bash(./node_modules/.bin/vite build *)",
+      "Bash(command -v lsof)",
+      "Bash(sudo -n lsof -i :3000)",
+      "Bash(netstat -ltnp)"
     ]
   }
 }

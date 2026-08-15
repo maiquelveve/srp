@@ -69,20 +69,26 @@ const TONE_CLASS = {
 const RowActionButton = forwardRef<
   HTMLButtonElement,
   { label: string; icon: typeof PencilIcon; tone: keyof typeof TONE_CLASS } & ButtonHTMLAttributes<HTMLButtonElement>
->(({ label, icon: Icon, tone, className, ...props }, ref) => (
+>(({ label, icon: Icon, tone, className, disabled, ...props }, ref) => (
   <Tooltip>
     <TooltipTrigger asChild>
-      <Button
-        ref={ref}
-        type="button"
-        variant="outline"
-        size="icon"
-        className={cn('h-7 w-7', TONE_CLASS[tone], className)}
-        {...props}
-      >
-        <Icon className="size-3.5" />
-        <span className="sr-only">{label}</span>
-      </Button>
+      {/* Wrapping span keeps the tooltip working on hover even when the
+          button itself is `disabled` — disabled buttons don't reliably
+          dispatch the pointer events Radix's hover trigger relies on. */}
+      <span className={disabled ? 'cursor-not-allowed' : undefined}>
+        <Button
+          ref={ref}
+          type="button"
+          variant="outline"
+          size="icon"
+          disabled={disabled}
+          className={cn('h-7 w-7', TONE_CLASS[tone], className)}
+          {...props}
+        >
+          <Icon className="size-3.5" />
+          <span className="sr-only">{label}</span>
+        </Button>
+      </span>
     </TooltipTrigger>
     <TooltipContent>{label}</TooltipContent>
   </Tooltip>
@@ -131,6 +137,7 @@ export default function SettingsPage(): JSX.Element {
     cellStatusFilter === 'active' ? cell.active : !cell.active,
   );
   const selectedUnit = units.find((u) => u.id === unitId);
+  const selectedGallery = galleries.find((g) => g.id === galleryId);
 
   // Auto-pick the first unit so the lower tabs aren't empty on load — but
   // only if nothing's selected yet, or the unit restored from localStorage
@@ -299,10 +306,17 @@ export default function SettingsPage(): JSX.Element {
                             <DeactivateAlert entityType="gallery" unitId={unitId as number} gallery={gallery}>
                               <RowActionButton label="Desativar" icon={Trash2Icon} tone="destructive" />
                             </DeactivateAlert>
-                          ) : (
+                          ) : selectedUnit?.active ? (
                             <ReactivateAlert entityType="gallery" unitId={unitId as number} gallery={gallery}>
                               <RowActionButton label="Reativar" icon={RotateCcwIcon} tone="success" />
                             </ReactivateAlert>
+                          ) : (
+                            <RowActionButton
+                              label="Reative a unidade primeiro"
+                              icon={RotateCcwIcon}
+                              tone="success"
+                              disabled
+                            />
                           )}
                         </div>
                       </TableCell>
@@ -389,10 +403,17 @@ export default function SettingsPage(): JSX.Element {
                             <DeactivateAlert entityType="cell" galleryId={galleryId as number} cell={cell}>
                               <RowActionButton label="Desativar" icon={Trash2Icon} tone="destructive" />
                             </DeactivateAlert>
-                          ) : (
+                          ) : selectedGallery?.active ? (
                             <ReactivateAlert entityType="cell" galleryId={galleryId as number} cell={cell}>
                               <RowActionButton label="Reativar" icon={RotateCcwIcon} tone="success" />
                             </ReactivateAlert>
+                          ) : (
+                            <RowActionButton
+                              label="Reative a galeria primeiro"
+                              icon={RotateCcwIcon}
+                              tone="success"
+                              disabled
+                            />
                           )}
                         </div>
                       </TableCell>

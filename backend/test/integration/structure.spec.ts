@@ -3,6 +3,8 @@ import { Test } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
+import { TokenService } from '../../src/auth/token.service';
+import { UsersService } from '../../src/users/users.service';
 import { TEST_FIXTURE } from './fixtures';
 
 /** No external jwt-decode dep needed just to read `sub` out of a test token. */
@@ -205,10 +207,16 @@ describe('Structure endpoints (contracts/structure.md)', () => {
         wardenId,
         unitId,
       ]);
-      const relogin = await request(app.getHttpServer())
-        .post('/api/v1/auth/login')
-        .send({ email: TEST_FIXTURE.wardenEmail, password: TEST_FIXTURE.password });
-      return (relogin.body as { accessToken: string }).accessToken;
+      // Mint the token via TokenService directly instead of POST /auth/login
+      // — that route is rate-limited (`@Throttle limit: 5/60s`, contracts/
+      // auth.md), and a suite with several tests each needing their own
+      // freshly-scoped unit blows through it fast, leaving `accessToken`
+      // undefined and every subsequent request 401ing on a literal
+      // "Bearer undefined" header. Calling the service directly bypasses the
+      // HTTP-only guard entirely — it only guards the route, not the method.
+      const user = await app.get(UsersService).findByIdForAuth(wardenId);
+      const { accessToken } = await app.get(TokenService).issueTokenPair(user!);
+      return accessToken;
     }
 
     it('rejects deactivating a cell that still holds an ACTIVE inmate', async () => {
@@ -349,6 +357,179 @@ describe('Structure endpoints (contracts/structure.md)', () => {
         (c) => c.id === cellId,
       );
       expect(cell?.active).toBe(false);
+    });
+
+    describe('parent-active invariant', () => {
+      it('rejects reactivating a gallery whose unit is inactive', async () => {
+        const unitRes = await request(app.getHttpServer())
+          .post('/api/v1/units')
+          .set('Authorization', `Bearer ${wardenToken}`)
+          .send({ name: 'Unidade Invariante 1' });
+        const unitId = (unitRes.body as { id: number }).id;
+        const scopedToken = await tokenScopedToUnit(unitId);
+
+        const galleryRes = await request(app.getHttpServer())
+          .post('/api/v1/galleries')
+          .set('Authorization', `Bearer ${scopedToken}`)
+          .send({ unitId, code: 'IT-INV-1', type: 'MALE' });
+        const galleryId = (galleryRes.body as { id: number }).id;
+
+        // Deactivating the unit cascades the gallery to inactive too.
+        const deactivateUnitRes = await request(app.getHttpServer())
+          .patch(`/api/v1/units/${unitId}`)
+          .set('Authorization', `Bearer ${scopedToken}`)
+          .send({ active: false });
+        expect(deactivateUnitRes.status).toBe(200);
+
+        const reactivateGalleryRes = await request(app.getHttpServer())
+          .patch(`/api/v1/galleries/${galleryId}`)
+          .set('Authorization', `Bearer ${scopedToken}`)
+          .send({ active: true });
+        expect(reactivateGalleryRes.status).toBe(409);
+      });
+
+      it('allows reactivating a gallery once its unit is active again', async () => {
+        const unitRes = await request(app.getHttpServer())
+          .post('/api/v1/units')
+          .set('Authorization', `Bearer ${wardenToken}`)
+          .send({ name: 'Unidade Invariante 2' });
+        const unitId = (unitRes.body as { id: number }).id;
+        const scopedToken = await tokenScopedToUnit(unitId);
+
+        const galleryRes = await request(app.getHttpServer())
+          .post('/api/v1/galleries')
+          .set('Authorization', `Bearer ${scopedToken}`)
+          .send({ unitId, code: 'IT-INV-2', type: 'MALE' });
+        const galleryId = (galleryRes.body as { id: number }).id;
+
+        await request(app.getHttpServer())
+          .patch(`/api/v1/units/${unitId}`)
+          .set('Authorization', `Bearer ${scopedToken}`)
+          .send({ active: false });
+
+        // Reactivating the unit does NOT cascade-reactivate the gallery
+        // (deliberate — see research.md #23) — it stays inactive here...
+        const reactivateUnitRes = await request(app.getHttpServer())
+          .patch(`/api/v1/units/${unitId}`)
+          .set('Authorization', `Bearer ${scopedToken}`)
+          .send({ active: true });
+        expect(reactivateUnitRes.status).toBe(200);
+
+        // ...but once the unit is active again, reactivating the gallery
+        // directly is now allowed.
+        const reactivateGalleryRes = await request(app.getHttpServer())
+          .patch(`/api/v1/galleries/${galleryId}`)
+          .set('Authorization', `Bearer ${scopedToken}`)
+          .send({ active: true });
+        expect(reactivateGalleryRes.status).toBe(200);
+        expect(reactivateGalleryRes.body).toMatchObject({ id: galleryId, active: true });
+      });
+
+      it('rejects reactivating a cell whose gallery is inactive', async () => {
+        const galleryId = await createGallery('IT-INV-3');
+        const cellId = await createCell(galleryId, 'C1');
+
+        const deactivateGalleryRes = await request(app.getHttpServer())
+          .patch(`/api/v1/galleries/${galleryId}`)
+          .set('Authorization', `Bearer ${wardenToken}`)
+          .send({ active: false });
+        expect(deactivateGalleryRes.status).toBe(200);
+
+        const reactivateCellRes = await request(app.getHttpServer())
+          .patch(`/api/v1/cells/${cellId}`)
+          .set('Authorization', `Bearer ${wardenToken}`)
+          .send({ active: true });
+        expect(reactivateCellRes.status).toBe(409);
+      });
+
+      it('allows reactivating a cell once both its gallery and unit are active again', async () => {
+        const unitRes = await request(app.getHttpServer())
+          .post('/api/v1/units')
+          .set('Authorization', `Bearer ${wardenToken}`)
+          .send({ name: 'Unidade Invariante 4' });
+        const unitId = (unitRes.body as { id: number }).id;
+        const scopedToken = await tokenScopedToUnit(unitId);
+
+        const galleryRes = await request(app.getHttpServer())
+          .post('/api/v1/galleries')
+          .set('Authorization', `Bearer ${scopedToken}`)
+          .send({ unitId, code: 'IT-INV-4', type: 'MALE' });
+        const galleryId = (galleryRes.body as { id: number }).id;
+
+        const cellRes = await request(app.getHttpServer())
+          .post('/api/v1/cells')
+          .set('Authorization', `Bearer ${scopedToken}`)
+          .send({ galleryId, code: 'C1', capacity: 2, type: 'SHARED' });
+        const cellId = (cellRes.body as { id: number }).id;
+
+        // Cascades gallery + cell to inactive too.
+        await request(app.getHttpServer())
+          .patch(`/api/v1/units/${unitId}`)
+          .set('Authorization', `Bearer ${scopedToken}`)
+          .send({ active: false });
+
+        // Reactivate the unit, then the gallery — both now active — but the
+        // cell (deactivated by the same earlier cascade) is still inactive.
+        await request(app.getHttpServer())
+          .patch(`/api/v1/units/${unitId}`)
+          .set('Authorization', `Bearer ${scopedToken}`)
+          .send({ active: true });
+        await request(app.getHttpServer())
+          .patch(`/api/v1/galleries/${galleryId}`)
+          .set('Authorization', `Bearer ${scopedToken}`)
+          .send({ active: true });
+
+        const reactivateCellRes = await request(app.getHttpServer())
+          .patch(`/api/v1/cells/${cellId}`)
+          .set('Authorization', `Bearer ${scopedToken}`)
+          .send({ active: true });
+        expect(reactivateCellRes.status).toBe(200);
+        expect(reactivateCellRes.body).toMatchObject({ id: cellId, active: true });
+      });
+
+      it('rejects reactivating a cell whose unit is inactive even when its gallery looks active', async () => {
+        // Exercises the second (unit) check in CellsService.update
+        // specifically — a gallery active under an inactive unit shouldn't
+        // be reachable through the API anymore (GalleriesService.update
+        // blocks that reactivation itself), but the cell-level guard must
+        // still hold defensively against stale/pre-fix data. A fresh,
+        // disposable unit is used here (never touches the shared unitA
+        // fixture) — deactivate it normally (cascades gallery+cell), then
+        // force just the gallery back to `active` directly in the DB to
+        // simulate that stale state.
+        const unitRes = await request(app.getHttpServer())
+          .post('/api/v1/units')
+          .set('Authorization', `Bearer ${wardenToken}`)
+          .send({ name: 'Unidade Invariante 5' });
+        const unitId = (unitRes.body as { id: number }).id;
+        const scopedToken = await tokenScopedToUnit(unitId);
+
+        const galleryRes = await request(app.getHttpServer())
+          .post('/api/v1/galleries')
+          .set('Authorization', `Bearer ${scopedToken}`)
+          .send({ unitId, code: 'IT-INV-5', type: 'MALE' });
+        const galleryId = (galleryRes.body as { id: number }).id;
+
+        const cellRes = await request(app.getHttpServer())
+          .post('/api/v1/cells')
+          .set('Authorization', `Bearer ${scopedToken}`)
+          .send({ galleryId, code: 'C1', capacity: 2, type: 'SHARED' });
+        const cellId = (cellRes.body as { id: number }).id;
+
+        await request(app.getHttpServer())
+          .patch(`/api/v1/units/${unitId}`)
+          .set('Authorization', `Bearer ${scopedToken}`)
+          .send({ active: false });
+
+        const dataSource = app.get(DataSource);
+        await dataSource.query('UPDATE galleries SET active = true WHERE id = $1', [galleryId]);
+
+        const blockedRes = await request(app.getHttpServer())
+          .patch(`/api/v1/cells/${cellId}`)
+          .set('Authorization', `Bearer ${scopedToken}`)
+          .send({ active: true });
+        expect(blockedRes.status).toBe(409);
+      });
     });
   });
 });

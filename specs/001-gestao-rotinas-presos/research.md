@@ -626,3 +626,47 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
   graça: como `/mapa-da-unidade` usa a mesma forma de chave (`['cells', galleryId]`), ele também
   atualiza sozinho se estiver montado. Verificado ao vivo: criada uma galeria + cela de teste,
   desativada a galeria, cela apareceu "Inativo" na aba Celas sem reload (só trocando de aba).
+- **Invariante pai-ativo (2026-08-15, feedback do usuário)**: até aqui, reativar uma Galeria/Cela
+  não checava se o pai (Unidade/Galeria) estava ativo — dava pra ter uma Galeria `active: true` sob
+  uma Unidade `active: false` (ou uma Cela ativa sob Galeria/Unidade inativa), estado que a cascata
+  de desativação nunca produz sozinha, mas que a reativação isolada de um nível abria brecha pra
+  criar. Fix, backend primeiro (fonte da verdade):
+  - `GalleriesService.update`: ao reativar (`dto.active === true && !gallery.active`), rejeita com
+    `409` se `gallery.unit.active` for `false` — `unit` já vem carregado por `findEntityInScope`,
+    sem query extra.
+  - `CellsService.update`: mesma ideia, checando `cell.gallery.active` e (se a galeria estiver ok)
+    `cell.gallery.unit.active` — ambos já carregados via `findEntityInScope` (`relations: { gallery:
+    { unit: true } }`). Checa o ancestral mais próximo primeiro, pra mensagem apontar pro nível
+    certo.
+  - `UnitsService` não precisou de nada — Unidade é a raiz, não tem pai pra checar.
+  - 5 testes de integração novos (`describe('parent-active invariant')`): bloqueia reativar Galeria
+    com Unidade inativa; permite depois que a Unidade volta a ativa; bloqueia reativar Cela com
+    Galeria inativa; permite depois que Galeria+Unidade estão ativas; e um caso defensivo (Galeria
+    forçada `active` via SQL direto enquanto a Unidade segue inativa) provando que o segundo `if`
+    (checagem da Unidade) do `CellsService` funciona mesmo se a Galeria "parecer" OK.
+  - **Achado no processo**: os testes nesses 2 arquivos passaram a fazer `tokenScopedToUnit` demais
+    (cada teste que precisa de uma Unidade nova faz um WARDEN se auto-associar a ela e relogar — ver
+    bloco acima "**Correções**") — e `POST /auth/login` é limitado a 5 requisições/60s
+    (`@Throttle`, contracts/auth.md). Com `beforeAll` (2 logins) + os testes de cascata (mais 2) +
+    os novos de invariante (mais 4), estourava o limite: `/auth/login` passava a responder `429`,
+    `accessToken` ficava `undefined`, e todo request seguinte com aquele token quebrado voltava
+    `401` — sintoma visto nos 3 primeiros testes que rodei (`Expected: 200, Received: 401`). Fix
+    definitivo: `tokenScopedToUnit` (usado pelas duas suítes) trocou `POST /auth/login` via HTTP por
+    chamar `TokenService.issueTokenPair(user)` direto (via `app.get(TokenService)`), contornando o
+    `ThrottlerGuard` de vez — o guard só intercepta a rota HTTP, não o método do service. Bônus:
+    suíte ficou mais rápida (não paga mais o custo do hash Argon2 do login a cada chamada).
+  - **Frontend**: `RowActionButton` (`/configuracoes/index.tsx`) passou a envolver o `Button` num
+    `<span>` dentro do `TooltipTrigger` — necessário pra tooltip continuar funcionando no hover
+    mesmo com o botão `disabled` (botão nativo desabilitado não dispara os eventos de ponteiro que o
+    hover do Radix depende; mesmo truque já usado no botão "Cadastrar preso" de `GalleryCards`,
+    tasks.md). Nas abas Galerias/Celas, quando a entidade está inativa mas o pai também está
+    inativo, troca `ReactivateAlert` por um `RowActionButton` `disabled` com o texto explicando o
+    que fazer: "Reative a unidade primeiro" (Galeria) / "Reative a galeria primeiro" (Cela) — direto
+    e acionável, sem jargão. `ReactivateAlert.onError` ganhou a mesma extração de mensagem real do
+    backend que `DeactivateAlert` já tinha, como defesa em profundidade (o botão desabilitado evita
+    chegar nesse erro na maioria dos casos, mas o backend valida de novo mesmo assim).
+  - **Dados legados descobertos ao testar**: "Galeria B" (sob "Unidade Sul", inativa) está `active:
+    true`, e a Cela "2" (Galeria A, inativa) estava `active: true` até eu desativá-la ao vivo pra
+    testar o bloqueio — resquícios de testes anteriores a essa validação existir. Não fiz limpeza
+    automática desses dados (decisão do usuário, não minha), só documentando que "Galeria B"
+    continua nesse estado inconsistente até alguém desativar ou o usuário decidir o que fazer.
