@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -8,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Cell } from './entities/cell.entity';
 import { Inmate, InmateStatus } from '../inmates/entities/inmate.entity';
+import { countActiveInmatesInScope } from '../inmates/helpers';
 import { CreateCellDto } from './dto/create-cell.dto';
 import { UpdateCellDto } from './dto/update-cell.dto';
 import { CellResponseDto } from './dto/cell-response.dto';
@@ -66,6 +68,20 @@ export class CellsService {
     }
 
     const cell = await this.findEntityInScope(id, callerUnitIds);
+    const isDeactivating = dto.active === false && cell.active;
+
+    if (isDeactivating) {
+      const activeOccupancy = await countActiveInmatesInScope(this.inmateRepository.manager, {
+        level: 'cell',
+        cellId: id,
+      });
+      if (activeOccupancy > 0) {
+        throw new ConflictException(
+          'Não é possível desativar: existem presos ativos nesta cela. Mova-os ou registre a situação definitiva antes de desativar.',
+        );
+      }
+    }
+
     Object.assign(cell, dto);
     await this.cellRepository.save(cell);
     return CellResponseDto.fromEntity(cell, await this.occupancyOf(cell.id));

@@ -1,7 +1,14 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Gallery } from './entities/gallery.entity';
+import { Cell } from '../cells/entities/cell.entity';
+import { countActiveInmatesInScope } from '../inmates/helpers';
 import { CreateGalleryDto } from './dto/create-gallery.dto';
 import { UpdateGalleryDto } from './dto/update-gallery.dto';
 import { GalleryResponseDto } from './dto/gallery-response.dto';
@@ -13,6 +20,7 @@ export class GalleriesService {
   constructor(
     @InjectRepository(Gallery) private readonly galleryRepository: Repository<Gallery>,
     private readonly unitsService: UnitsService,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   async listByUnit(
@@ -51,9 +59,31 @@ export class GalleriesService {
     callerUnitIds: number[],
   ): Promise<GalleryResponseDto> {
     const gallery = await this.findEntityInScope(id, callerUnitIds);
-    Object.assign(gallery, dto);
-    await this.galleryRepository.save(gallery);
-    return GalleryResponseDto.fromEntity(gallery);
+    const isDeactivating = dto.active === false && gallery.active;
+
+    if (!isDeactivating) {
+      Object.assign(gallery, dto);
+      await this.galleryRepository.save(gallery);
+      return GalleryResponseDto.fromEntity(gallery);
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      const activeInmateCount = await countActiveInmatesInScope(manager, {
+        level: 'gallery',
+        galleryId: id,
+      });
+
+      if (activeInmateCount > 0) {
+        throw new ConflictException(
+          'Não é possível desativar: existem presos ativos nesta galeria. Mova-os ou registre a situação definitiva antes de desativar.',
+        );
+      }
+
+      await manager.update(Cell, { gallery: { id } }, { active: false });
+      await manager.update(Gallery, { id }, dto);
+    });
+
+    return GalleryResponseDto.fromEntity(await this.findEntityInScope(id, callerUnitIds));
   }
 
   /** Used by CellsService to validate a galleryId is real and resolve its unit for scope checks. */

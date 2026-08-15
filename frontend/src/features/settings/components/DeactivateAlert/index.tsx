@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { isAxiosError } from 'axios';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { structureApi } from '@/features/structure/api';
 import type { Cell, Gallery, Unit } from '@/features/structure/types';
@@ -47,13 +48,39 @@ export default function DeactivateAlert(props: DeactivateAlertProps): JSX.Elemen
     },
     onSuccess: () => {
       notify({ message: `${label(props)} desativado`, type: 'success' });
-      if (props.entityType === 'unit') void queryClient.invalidateQueries({ queryKey: ['units'] });
-      if (props.entityType === 'gallery')
+      // Deactivating a Unit/Gallery cascades to its descendants on the
+      // backend (research.md #23) — invalidate every `galleries`/`cells`
+      // query in the cache (no unitId/galleryId filter, so it matches
+      // whichever ones are currently mounted, on this screen or on Mapa da
+      // Unidade) instead of just the one row the user clicked, otherwise the
+      // cascaded rows only show as deactivated after a manual reload.
+      if (props.entityType === 'unit') {
+        void queryClient.invalidateQueries({ queryKey: ['units'] });
+        void queryClient.invalidateQueries({ queryKey: ['galleries'] });
+        void queryClient.invalidateQueries({ queryKey: ['cells'] });
+      }
+      if (props.entityType === 'gallery') {
         void queryClient.invalidateQueries({ queryKey: ['galleries', props.unitId] });
+        void queryClient.invalidateQueries({ queryKey: ['cells'] });
+      }
       if (props.entityType === 'cell')
         void queryClient.invalidateQueries({ queryKey: ['cells', props.galleryId] });
     },
-    onError: () => notify({ title: 'Não foi possível desativar', message: 'Tente novamente', type: 'error' }),
+    onError: (error) => {
+      // The backend rejects deactivating a Unit/Gallery/Cell that still has
+      // an ACTIVE inmate under it (409, cascading-deactivation guard) with a
+      // specific, actionable message — surface it instead of a generic
+      // "tente novamente" that would wrongly imply retrying could help.
+      const backendMessage =
+        isAxiosError<{ message?: string }>(error) && error.response?.status === 409
+          ? error.response.data?.message
+          : undefined;
+      notify({
+        title: 'Não foi possível desativar',
+        message: backendMessage ?? 'Tente novamente',
+        type: 'error',
+      });
+    },
   });
 
   return (

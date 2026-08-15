@@ -35,6 +35,11 @@ autenticação; escritas exigem perfil `WARDEN` (Chefia/Diretor) (FR-004), excet
   campos sensíveis redigidos (research.md #6).
 - `POST /cells` MUST validar `capacity >= 0`; ocupação corrente é calculada, não armazenada
   diretamente nesta entidade.
+- `PATCH /units/:id` e `PATCH /galleries/:id` com `active: false` MUST cascatear a desativação
+  pra toda a subárvore (Unidade→Galerias→Celas; Galeria→Celas), e MUST responder `409` sem
+  alterar nada — nem o próprio registro — se existir qualquer preso `status: ACTIVE` em qualquer
+  Cela dentro do escopo sendo desativado (research.md #23). `PATCH /cells/:id` com `active: false`
+  aplica a mesma checagem sobre os presos da própria cela, sem cascata (é o nível folha).
 
 ## Exemplo — POST /api/v1/users
 

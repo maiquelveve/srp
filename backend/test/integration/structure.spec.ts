@@ -1,8 +1,17 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { DataSource } from 'typeorm';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { TEST_FIXTURE } from './fixtures';
+
+/** No external jwt-decode dep needed just to read `sub` out of a test token. */
+function decodeJwtSub(token: string): number {
+  const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString('utf8')) as {
+    sub: number;
+  };
+  return payload.sub;
+}
 
 /**
  * Integration tests for contracts/structure.md — User Story 1
@@ -156,5 +165,190 @@ describe('Structure endpoints (contracts/structure.md)', () => {
       .set('Authorization', `Bearer ${officerToken}`)
       .send({ type: 'INDIVIDUAL' });
     expect(cellPatchRes.status).toBe(403);
+  });
+
+  describe('cascading deactivation', () => {
+    async function createGallery(code: string): Promise<number> {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/galleries')
+        .set('Authorization', `Bearer ${wardenToken}`)
+        .send({ unitId: TEST_FIXTURE.unitAId, code, type: 'MALE' });
+      return (res.body as { id: number }).id;
+    }
+
+    async function createCell(galleryId: number, code: string): Promise<number> {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/cells')
+        .set('Authorization', `Bearer ${wardenToken}`)
+        .send({ galleryId, code, capacity: 2, type: 'SHARED' });
+      return (res.body as { id: number }).id;
+    }
+
+    async function createInmate(cellId: number, name: string): Promise<number> {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/inmates')
+        .set('Authorization', `Bearer ${wardenToken}`)
+        .send({ name, currentCellId: cellId });
+      return (res.body as { id: number }).id;
+    }
+
+    // `POST /units` doesn't add the creating WARDEN to the new unit's scope
+    // (research.md #21, a known gap) — a fresh unit is otherwise invisible
+    // to `wardenToken` (issued in `beforeAll`, scoped only to unitA), so
+    // `PATCH /units/:id` on it would 403 before ever reaching the cascade
+    // logic under test. Grant access directly and re-login for a token that
+    // actually carries the new unit in its `units` claim.
+    async function tokenScopedToUnit(unitId: number): Promise<string> {
+      const dataSource = app.get(DataSource);
+      const wardenId = decodeJwtSub(wardenToken);
+      await dataSource.query('INSERT INTO user_units (user_id, unit_id) VALUES ($1, $2)', [
+        wardenId,
+        unitId,
+      ]);
+      const relogin = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email: TEST_FIXTURE.wardenEmail, password: TEST_FIXTURE.password });
+      return (relogin.body as { accessToken: string }).accessToken;
+    }
+
+    it('rejects deactivating a cell that still holds an ACTIVE inmate', async () => {
+      const galleryId = await createGallery('IT-CASC-1');
+      const cellId = await createCell(galleryId, 'C1');
+      await createInmate(cellId, 'Preso Cascata 1');
+
+      const res = await request(app.getHttpServer())
+        .patch(`/api/v1/cells/${cellId}`)
+        .set('Authorization', `Bearer ${wardenToken}`)
+        .send({ active: false });
+      expect(res.status).toBe(409);
+
+      const cellCheck = await request(app.getHttpServer())
+        .get(`/api/v1/galleries/${galleryId}/cells`)
+        .set('Authorization', `Bearer ${wardenToken}`);
+      const cell = (cellCheck.body as { data: { id: number; active: boolean }[] }).data.find(
+        (c) => c.id === cellId,
+      );
+      expect(cell?.active).toBe(true);
+    });
+
+    it('deactivates an empty cell directly', async () => {
+      const galleryId = await createGallery('IT-CASC-2');
+      const cellId = await createCell(galleryId, 'C1');
+
+      const res = await request(app.getHttpServer())
+        .patch(`/api/v1/cells/${cellId}`)
+        .set('Authorization', `Bearer ${wardenToken}`)
+        .send({ active: false });
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ id: cellId, active: false });
+    });
+
+    it('rejects deactivating a gallery with an ACTIVE inmate in any of its cells', async () => {
+      const galleryId = await createGallery('IT-CASC-3');
+      const cellId = await createCell(galleryId, 'C1');
+      await createInmate(cellId, 'Preso Cascata 2');
+
+      const res = await request(app.getHttpServer())
+        .patch(`/api/v1/galleries/${galleryId}`)
+        .set('Authorization', `Bearer ${wardenToken}`)
+        .send({ active: false });
+      expect(res.status).toBe(409);
+    });
+
+    it('cascades gallery deactivation to all its cells when none has an ACTIVE inmate', async () => {
+      const galleryId = await createGallery('IT-CASC-4');
+      const cellId1 = await createCell(galleryId, 'C1');
+      const cellId2 = await createCell(galleryId, 'C2');
+
+      const res = await request(app.getHttpServer())
+        .patch(`/api/v1/galleries/${galleryId}`)
+        .set('Authorization', `Bearer ${wardenToken}`)
+        .send({ active: false });
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ id: galleryId, active: false });
+
+      const cellsRes = await request(app.getHttpServer())
+        .get(`/api/v1/galleries/${galleryId}/cells`)
+        .set('Authorization', `Bearer ${wardenToken}`);
+      const cells = (cellsRes.body as { data: { id: number; active: boolean }[] }).data;
+      expect(cells.find((c) => c.id === cellId1)?.active).toBe(false);
+      expect(cells.find((c) => c.id === cellId2)?.active).toBe(false);
+    });
+
+    it('rejects deactivating a unit with an ACTIVE inmate anywhere under it', async () => {
+      const unitRes = await request(app.getHttpServer())
+        .post('/api/v1/units')
+        .set('Authorization', `Bearer ${wardenToken}`)
+        .send({ name: 'Unidade Cascata Bloqueio' });
+      const unitId = (unitRes.body as { id: number }).id;
+      const scopedToken = await tokenScopedToUnit(unitId);
+
+      const galleryRes = await request(app.getHttpServer())
+        .post('/api/v1/galleries')
+        .set('Authorization', `Bearer ${scopedToken}`)
+        .send({ unitId, code: 'IT-CASC-5', type: 'MALE' });
+      const galleryId = (galleryRes.body as { id: number }).id;
+
+      const cellRes = await request(app.getHttpServer())
+        .post('/api/v1/cells')
+        .set('Authorization', `Bearer ${scopedToken}`)
+        .send({ galleryId, code: 'C1', capacity: 2, type: 'SHARED' });
+      const cellId = (cellRes.body as { id: number }).id;
+
+      await request(app.getHttpServer())
+        .post('/api/v1/inmates')
+        .set('Authorization', `Bearer ${scopedToken}`)
+        .send({ name: 'Preso Cascata 3', currentCellId: cellId });
+
+      const res = await request(app.getHttpServer())
+        .patch(`/api/v1/units/${unitId}`)
+        .set('Authorization', `Bearer ${scopedToken}`)
+        .send({ active: false });
+      expect(res.status).toBe(409);
+    });
+
+    it('cascades unit deactivation to its galleries and their cells when no ACTIVE inmate is left', async () => {
+      const unitRes = await request(app.getHttpServer())
+        .post('/api/v1/units')
+        .set('Authorization', `Bearer ${wardenToken}`)
+        .send({ name: 'Unidade Cascata OK' });
+      const unitId = (unitRes.body as { id: number }).id;
+      const scopedToken = await tokenScopedToUnit(unitId);
+
+      const galleryRes = await request(app.getHttpServer())
+        .post('/api/v1/galleries')
+        .set('Authorization', `Bearer ${scopedToken}`)
+        .send({ unitId, code: 'IT-CASC-6', type: 'MALE' });
+      const galleryId = (galleryRes.body as { id: number }).id;
+
+      const cellRes = await request(app.getHttpServer())
+        .post('/api/v1/cells')
+        .set('Authorization', `Bearer ${scopedToken}`)
+        .send({ galleryId, code: 'C1', capacity: 2, type: 'SHARED' });
+      const cellId = (cellRes.body as { id: number }).id;
+
+      const res = await request(app.getHttpServer())
+        .patch(`/api/v1/units/${unitId}`)
+        .set('Authorization', `Bearer ${scopedToken}`)
+        .send({ active: false });
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ id: unitId, active: false });
+
+      const galleriesRes = await request(app.getHttpServer())
+        .get(`/api/v1/units/${unitId}/galleries`)
+        .set('Authorization', `Bearer ${scopedToken}`);
+      const gallery = (galleriesRes.body as { data: { id: number; active: boolean }[] }).data.find(
+        (g) => g.id === galleryId,
+      );
+      expect(gallery?.active).toBe(false);
+
+      const cellsRes = await request(app.getHttpServer())
+        .get(`/api/v1/galleries/${galleryId}/cells`)
+        .set('Authorization', `Bearer ${scopedToken}`);
+      const cell = (cellsRes.body as { data: { id: number; active: boolean }[] }).data.find(
+        (c) => c.id === cellId,
+      );
+      expect(cell?.active).toBe(false);
+    });
   });
 });

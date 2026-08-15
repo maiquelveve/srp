@@ -546,3 +546,83 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
   como antes; mais correto do que fingir que a rota existe. Verificado via Playwright: `/` →
   `/inicio` com `AppShell` completo; rota inválida → 404 standalone; botão "Voltar para o Início" →
   `/inicio` com `AppShell`; login → `/inicio`; clique em item de nav não implementado → 404.
+
+## 23. Desativação em cascata — Unidade → Galeria → Cela, bloqueada se houver preso ATIVO
+
+- **Decision** (2026-08-14, pedido explícito do usuário): desativar uma Unidade agora desativa em
+  cascata todas as suas Galerias e as Celas dessas Galerias; desativar uma Galeria desativa em
+  cascata suas Celas. A cascata **é bloqueada** (`409 Conflict`, transação revertida) se existir
+  qualquer preso com `status = ACTIVE` em qualquer Cela dentro do escopo sendo desativado — nesse
+  caso nada é alterado, nem o próprio registro que o usuário tentou desativar.
+- **Rationale — por que bloquear em vez de arrastar o preso junto**: `Inmate` não tem campo
+  `active` (só `status: InmateStatus`, ver enum em `inmates/entities/inmate.entity.ts`), e o
+  comentário no próprio código já deixa explícito que esse campo é uma projeção que só o módulo de
+  Movimentações (`POST /movements/final/*`, US2/US3, ainda não implementado) pode escrever —
+  "kept transactionally in sync with movements/inmate_cell_history... never written by an
+  independent flow". Escrever `status` a partir de uma cascata de desativação estrutural violaria
+  essa regra e não tem um valor de enum que signifique corretamente "preso cuja cela foi
+  desativada" (`RELEASED`/`ANKLE_MONITOR`/`TRANSFERRED`/`DECEASED` são todos situações definitivas
+  reais, não um efeito colateral administrativo). Perguntado ao usuário via 3 opções — bloquear
+  (escolhida), cascata só estrutural ignorando o preso (deixaria um preso ACTIVE numa cela
+  inativa, estado inconsistente), ou mudar o modelo do Inmate (maior escopo, quebra a regra atual).
+  Bloquear é também o comportamento mais correto operacionalmente: não faz sentido desativar uma
+  ala/unidade que ainda tem gente alojada nela sem antes mover ou liberar essas pessoas.
+- **Implementação**: `UnitsService.update`/`GalleriesService.update` (`backend/src/units/`,
+  `backend/src/galleries/`) — ao detectar uma transição `active: true → false` (não em toda
+  atualização, só quando o PATCH efetivamente desativa), rodam dentro de uma
+  `DataSource.transaction()`: (1) conta presos `ACTIVE` em qualquer Cela do subtree via
+  `innerJoin` (Unit→Gallery→Cell→Inmate ou Gallery→Cell→Inmate); (2) se `count > 0`, lança
+  `ConflictException` (a exceção dentro do callback da transação já faz rollback automático); (3)
+  senão, atualiza em cascata (`manager.update`) as Galerias/Celas descendentes para `active:
+  false`, e só então a própria entidade. `CellsService.update` faz o mesmo check (sem cascata
+  further, é o nível folha da árvore estrutural) mas sem transação — é uma escrita de linha única,
+  mesmo padrão de race-window aceito em outras checagens deste service (ex.: capacidade em
+  `create()`).
+  - **Dependência circular evitada**: `UnitsModule` normalmente não conhece `Gallery`/`Cell`/
+    `Inmate`, e `GalleriesModule` não conhece `Cell`/`Inmate` — importar `GalleriesModule`/
+    `CellsModule`/`InmatesModule` de volta em `UnitsModule`/`GalleriesModule` criaria um ciclo
+    (`GalleriesModule` já importa `UnitsModule`; `CellsModule` já importa `GalleriesModule`). Fix:
+    registrar essas entidades via `TypeOrmModule.forFeature([...])` direto em `UnitsModule`/
+    `GalleriesModule` (acesso a repositório, sem importar o módulo de feature inteiro) — dá acesso
+    de dados sem criar dependência de módulo circular.
+  - Reativação **não** é afetada por nada disso — continua um update de linha única, sem cascata
+    nos dois sentidos (reativar uma Unidade não reativa Galerias/Celas que foram desativadas por
+    outro motivo).
+- **Frontend**: `DeactivateAlert` (`frontend/src/features/settings/components/DeactivateAlert/`)
+  agora extrai `error.response.data.message` de um `409` e mostra a mensagem real do backend no
+  toast, em vez do "Tente novamente" genérico — que seria enganoso aqui (tentar de novo não
+  resolve, é preciso mover/liberar o preso primeiro). Único lugar do app que faz esse tipo de
+  extração hoje; todo o resto continua com mensagens de erro genéricas fixas, de propósito.
+- **Verificado**: 6 testes de integração novos em `backend/test/integration/structure.spec.ts`
+  (`describe('cascading deactivation')`) — bloqueia Cela/Galeria/Unidade com preso ativo,
+  cascateia Galeria→Celas e Unidade→Galerias→Celas quando não há preso ativo. `tsc`/
+  `eslint --max-warnings=0`/testes unitários+integração (13/13) no backend, `tsc`/
+  `eslint --max-warnings=0`/`vite build` no frontend, todos verdes. Testado ao vivo via Playwright:
+  tentar desativar a Cela 01 (Galeria A, com presos ativos) rejeita e mostra a mensagem específica
+  no toast; a Cela continua "Ativo" na tabela.
+- **Refatoração (2026-08-15, feedback do usuário)**: a query de contagem estava repetida (com
+  pequenas variações de nível) em `UnitsService`/`GalleriesService`/`CellsService`. Extraída pra
+  `backend/src/inmates/helpers/countActiveInmatesInScope.ts` (com `index.ts` barrel, pasta
+  `helpers/`, convenção pedida pelo usuário), uma função **pura** (não `@Injectable`, não entra em
+  nenhum `Module`) parametrizada por `ActiveInmateScope = { level: 'unit'|'gallery'|'cell' }`, com
+  `switch (scope.level)` escolhendo o filtro certo. Não é um método de `InmatesService` de
+  propósito: importar `InmatesModule` em `UnitsModule`/`GalleriesModule` recriaria o mesmo ciclo de
+  módulos (`InmatesModule` já depende de `Cells → Galleries → Units`), e essa contagem não tem
+  efeito colateral nem regra de negócio que justificasse `forwardRef()` só pra isso. Descoberta ao
+  migrar: `Gallery`/`Cell`/`Inmate` no `TypeOrmModule.forFeature(...)` de `UnitsModule`/
+  `GalleriesModule` (adicionados quando a cascata foi implementada) **não eram necessários** —
+  nenhum dos dois services usa `@InjectRepository()` pra essas entidades, só o `manager` da
+  transação via `@InjectDataSource()`, que já enxerga qualquer entidade do `DataSource` global
+  independente de `forFeature` por módulo (isso só cria token de injeção pra `@InjectRepository`).
+  Revertidos os dois módulos pro `forFeature` original (só a própria entidade) — confirmado via
+  `tsc`, boot real do `AppModule` e os 13 testes de integração passando igual.
+- **Bug encontrado e corrigido (2026-08-15, feedback do usuário)**: ao desativar Unidade/Galeria em
+  `/configuracoes`, a cascata acontecia certo no backend, mas a tela só refletia as Galerias/Celas
+  afetadas depois de um F5 — `DeactivateAlert.onSuccess` só invalidava a query da própria linha
+  clicada (`['units']`, ou `['galleries', unitId]`), nunca as dos descendentes que o backend também
+  mudou. Fix: ao desativar `unit`, invalida `['units']` + `['galleries']` + `['cells']` (sem
+  `unitId`/`galleryId`, casando com qualquer query já em cache — React Query invalida por prefixo);
+  ao desativar `gallery`, invalida `['galleries', unitId]` + `['cells']`. Efeito colateral bom, de
+  graça: como `/mapa-da-unidade` usa a mesma forma de chave (`['cells', galleryId]`), ele também
+  atualiza sozinho se estiver montado. Verificado ao vivo: criada uma galeria + cela de teste,
+  desativada a galeria, cela apareceu "Inativo" na aba Celas sem reload (só trocando de aba).
