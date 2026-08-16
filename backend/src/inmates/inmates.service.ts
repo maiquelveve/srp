@@ -7,7 +7,7 @@ import { MovementCategory } from '../movements/entities/movement-type.entity';
 import { CreateInmateDto } from './dto/create-inmate.dto';
 import { UpdateInmateDto } from './dto/update-inmate.dto';
 import { ListInmatesQueryDto } from './dto/list-inmates-query.dto';
-import { InmateResponseDto } from './dto/inmate-response.dto';
+import { InmateResponseDto, OpenMovementInfo } from './dto/inmate-response.dto';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { CellsService } from '../cells/cells.service';
 
@@ -27,35 +27,38 @@ export class InmatesService {
       return new PaginatedResponseDto([], 0);
     }
 
-    const qb = this.inmateRepository
+    const inmatesQuery = this.inmateRepository
       .createQueryBuilder('inmate')
       .leftJoinAndSelect('inmate.currentCell', 'cell')
       .leftJoin('cell.gallery', 'gallery')
       .where('gallery.unit_id IN (:...callerUnitIds)', { callerUnitIds });
 
+    if (query.unitId) {
+      inmatesQuery.andWhere('gallery.unit_id = :unitId', { unitId: query.unitId });
+    }
     if (query.galleryId) {
-      qb.andWhere('gallery.id = :galleryId', { galleryId: query.galleryId });
+      inmatesQuery.andWhere('gallery.id = :galleryId', { galleryId: query.galleryId });
     }
     if (query.cellId) {
-      qb.andWhere('cell.id = :cellId', { cellId: query.cellId });
+      inmatesQuery.andWhere('cell.id = :cellId', { cellId: query.cellId });
     }
     if (query.status) {
-      qb.andWhere('inmate.status = :status', { status: query.status });
+      inmatesQuery.andWhere('inmate.status = :status', { status: query.status });
     }
 
-    const [inmates, total] = await qb.getManyAndCount();
-    const openMovementInmateIds = await this.openMovementInmateIds(inmates.map((i) => i.id));
+    const [inmates, total] = await inmatesQuery.getManyAndCount();
+    const openMovementByInmateId = await this.openMovementByInmateId(inmates.map((i) => i.id));
 
     return new PaginatedResponseDto(
-      inmates.map((i) => InmateResponseDto.fromEntity(i, openMovementInmateIds.has(i.id))),
+      inmates.map((i) => InmateResponseDto.fromEntity(i, openMovementByInmateId.get(i.id) ?? null)),
       total,
     );
   }
 
   async findById(id: number, callerUnitIds: number[]): Promise<InmateResponseDto> {
     const inmate = await this.findEntityInScope(id, callerUnitIds);
-    const openMovementInmateIds = await this.openMovementInmateIds([inmate.id]);
-    return InmateResponseDto.fromEntity(inmate, openMovementInmateIds.has(inmate.id));
+    const openMovementByInmateId = await this.openMovementByInmateId([inmate.id]);
+    return InmateResponseDto.fromEntity(inmate, openMovementByInmateId.get(inmate.id) ?? null);
   }
 
   async create(dto: CreateInmateDto, callerUnitIds: number[]): Promise<InmateResponseDto> {
@@ -78,7 +81,7 @@ export class InmatesService {
       }),
     );
     inmate.currentCell = cell;
-    return InmateResponseDto.fromEntity(inmate, false);
+    return InmateResponseDto.fromEntity(inmate, null);
   }
 
   async update(
@@ -89,11 +92,12 @@ export class InmatesService {
     const inmate = await this.findEntityInScope(id, callerUnitIds);
     Object.assign(inmate, dto);
     await this.inmateRepository.save(inmate);
-    const openMovementInmateIds = await this.openMovementInmateIds([inmate.id]);
-    return InmateResponseDto.fromEntity(inmate, openMovementInmateIds.has(inmate.id));
+    const openMovementByInmateId = await this.openMovementByInmateId([inmate.id]);
+    return InmateResponseDto.fromEntity(inmate, openMovementByInmateId.get(inmate.id) ?? null);
   }
 
-  private async findEntityInScope(id: number, callerUnitIds: number[]): Promise<Inmate> {
+  /** Used by MovementsService to validate an inmateId is real and resolve scope (T038). */
+  async findEntityInScope(id: number, callerUnitIds: number[]): Promise<Inmate> {
     const inmate = await this.inmateRepository
       .createQueryBuilder('inmate')
       .leftJoinAndSelect('inmate.currentCell', 'cell')
@@ -111,11 +115,17 @@ export class InmatesService {
   /**
    * "Em movimentação" only applies to open TEMPORARY movements — a PERMANENT
    * movement (situação definitiva, US3) also leaves returnDateTime null
-   * forever, but that is not "em trânsito", it is a terminal state.
+   * forever, but that is not "em trânsito", it is a terminal state. Read live
+   * off `movements` on every request rather than a stored flag on `Inmate` —
+   * the movement's own create/return timestamps are already the single
+   * source of truth for "is this inmate currently out" (FR-011), so a
+   * derived read avoids a second place that could drift out of sync.
    */
-  private async openMovementInmateIds(inmateIds: number[]): Promise<Set<number>> {
+  private async openMovementByInmateId(
+    inmateIds: number[],
+  ): Promise<Map<number, OpenMovementInfo>> {
     if (inmateIds.length === 0) {
-      return new Set();
+      return new Map();
     }
     const openMovements = await this.movementRepository
       .createQueryBuilder('movement')
@@ -123,8 +133,25 @@ export class InmatesService {
       .where('movement.inmate_id IN (:...inmateIds)', { inmateIds })
       .andWhere('movement.return_datetime IS NULL')
       .andWhere('movementType.category = :category', { category: MovementCategory.TEMPORARY })
-      .select('movement.inmate_id', 'inmateId')
-      .getRawMany<{ inmateId: number }>();
-    return new Set(openMovements.map((m) => m.inmateId));
+      .select('movement.id', 'movementId')
+      .addSelect('movement.inmate_id', 'inmateId')
+      .addSelect('movementType.name', 'movementTypeName')
+      .addSelect('movement.exit_datetime', 'exitDateTime')
+      .getRawMany<{
+        movementId: number;
+        inmateId: number;
+        movementTypeName: string;
+        exitDateTime: Date;
+      }>();
+    return new Map(
+      openMovements.map((m) => [
+        m.inmateId,
+        {
+          movementId: m.movementId,
+          movementTypeName: m.movementTypeName,
+          exitDateTime: m.exitDateTime,
+        },
+      ]),
+    );
   }
 }

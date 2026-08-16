@@ -18,12 +18,19 @@ export interface Cell {
   occupancy: number;
 }
 
+export interface CurrentMovement {
+  movementId: number;
+  movementTypeName: string;
+  exitDateTime: string;
+}
+
 export interface Inmate {
   id: number;
   name: string;
   status: string;
   currentCellId: number;
   inMovement: boolean;
+  currentMovement: CurrentMovement | null;
 }
 
 export interface Paginated<T> {

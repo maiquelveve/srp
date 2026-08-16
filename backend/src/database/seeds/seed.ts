@@ -44,12 +44,14 @@ async function seed(): Promise<void> {
     cellRepo.create({ gallery, code: '02', capacity: 1, type: CellType.INDIVIDUAL, active: true }),
   ]);
 
+  // Pátio/corre/faxina NÃO entram aqui — são atividades coletivas por galeria
+  // (Rotina, US4), nunca uma Movimentação individual por preso (research.md #26).
   await movementTypeRepo.save([
-    movementTypeRepo.create({ name: 'Pátio', category: MovementCategory.TEMPORARY }),
     movementTypeRepo.create({
       name: 'Atendimento médico interno',
       category: MovementCategory.TEMPORARY,
     }),
+    movementTypeRepo.create({ name: 'Parlatório', category: MovementCategory.TEMPORARY }),
     movementTypeRepo.create({ name: 'Liberdade', category: MovementCategory.PERMANENT }),
   ]);
 

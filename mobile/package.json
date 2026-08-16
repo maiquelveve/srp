@@ -11,6 +11,15 @@
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "test": "jest"
   },
+  "jest": {
+    "preset": "jest-expo",
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/src/$1"
+    },
+    "testMatch": [
+      "<rootDir>/tests/**/*.spec.ts"
+    ]
+  },
   "dependencies": {
     "expo": "~51.0.28",
     "expo-sqlite": "~14.0.6",
@@ -30,6 +39,7 @@
   "devDependencies": {
     "@babel/core": "^7.24.0",
     "babel-preset-expo": "~11.0.0",
+    "@types/jest": "^29.5.12",
     "@types/react": "^18.3.3",
     "@typescript-eslint/eslint-plugin": "^7.15.0",
     "@typescript-eslint/parser": "^7.15.0",

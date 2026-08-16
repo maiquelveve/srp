@@ -5,6 +5,7 @@ import * as argon2 from 'argon2';
 import { Role, RoleName } from '../../src/roles/entities/role.entity';
 import { Unit } from '../../src/units/entities/unit.entity';
 import { User } from '../../src/users/entities/user.entity';
+import { MovementType, MovementCategory } from '../../src/movements/entities/movement-type.entity';
 import { TEST_FIXTURE } from './fixtures';
 
 /**
@@ -76,6 +77,7 @@ async function main(): Promise<void> {
   const roleRepo = AppDataSource.getRepository(Role);
   const unitRepo = AppDataSource.getRepository(Unit);
   const userRepo = AppDataSource.getRepository(User);
+  const movementTypeRepo = AppDataSource.getRepository(MovementType);
 
   const [officerRole, supervisorRole, wardenRole] = await roleRepo.save([
     { name: RoleName.PRISON_OFFICER, description: 'Policial Penal' },
@@ -113,6 +115,21 @@ async function main(): Promise<void> {
       active: true,
     },
   ]);
+
+  // 'Pátio' não é usado aqui de propósito — é uma Rotina (galeria inteira), não
+  // um MovementType individual (research.md #26).
+  const [temporaryMovementType, permanentMovementType] = await movementTypeRepo.save([
+    { name: 'Atendimento médico interno', category: MovementCategory.TEMPORARY },
+    { name: 'Liberdade', category: MovementCategory.PERMANENT },
+  ]);
+  if (
+    temporaryMovementType.id !== TEST_FIXTURE.temporaryMovementTypeId ||
+    permanentMovementType.id !== TEST_FIXTURE.permanentMovementTypeId
+  ) {
+    throw new Error(
+      `Movement type ids drifted from fixtures.ts (got temporary=${temporaryMovementType.id}, permanent=${permanentMovementType.id}) — update TEST_FIXTURE to match.`,
+    );
+  }
 
   // eslint-disable-next-line no-console
   console.log(`Test DB "${TEST_DB_NAME}" ready — unitA=${unitA.id}, unitB=${unitB.id}`);

@@ -670,3 +670,90 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
     testar o bloqueio — resquícios de testes anteriores a essa validação existir. Não fiz limpeza
     automática desses dados (decisão do usuário, não minha), só documentando que "Galeria B"
     continua nesse estado inconsistente até alguém desativar ou o usuário decidir o que fazer.
+
+## 24. US2 — status "fora da cela" como projeção derivada em leitura, não coluna transacional
+
+- **Decision** (Fase 4, T038–T042): ao registrar/retornar uma movimentação temporária,
+  `inmates.status` **não é alterado**. `inmates.status` continua reservado às transições
+  transacionais de #9 (situações definitivas — `RELEASED`/`ANKLE_MONITOR`/`TRANSFERRED`, US3, ainda
+  não implementadas). "Fora da cela"/"na cela" (FR-011) é servido por um par derivado no
+  `InmateResponseDto` — `inMovement: boolean` + `currentMovement: { movementId, movementTypeName,
+  exitDateTime } | null` — calculado a cada leitura via `JOIN` contra `movements` filtrando
+  `return_datetime IS NULL` e `movementType.category = TEMPORARY`
+  (`InmatesService.openMovementByInmateId`).
+- **Rationale**: essa leitura derivada já existia (como `inMovement: boolean` simples) desde o
+  scaffolding da US1 — este trabalho só estendeu o mesmo padrão para carregar o tipo/horário do
+  movimento aberto, sem introduzir uma segunda fonte de verdade. Escrever um novo valor de status
+  para "fora da cela" duplicaria a informação que `movements` já guarda (uma linha aberta É "fora
+  da cela") e criaria uma segunda escrita para manter sincronizada com create/return — exatamente o
+  risco de divergência que #9 rejeitou para o caso das situações definitivas. A ressalva de
+  performance de #9 (JOIN não escalaria) foi avaliada e aceita como ok neste caso porque a listagem
+  já é sempre escopada por unidade/galeria/cela (nunca uma varredura de toda a tabela) e o filtro é
+  sobre um índice natural (`inmate_id`, `return_datetime IS NULL`).
+- **Idempotência do retorno — coluna própria**: `PATCH /movements/:id/return` aceita
+  `Idempotency-Key` como o `POST`, mas não pode reusar a coluna `movements.idempotency_key` — essa
+  já foi consumida para identificar a linha na criação. Uma segunda coluna,
+  `return_idempotency_key` (nullable, índice único parcial, migration
+  `1786896816132-AddMovementReturnIdempotencyKey`), guarda a chave do retorno; um replay com a
+  mesma chave numa movimentação já retornada responde `200` em vez do `409` que o contrato exige
+  para um segundo retorno genuíno (FR-009 edge case) — mesma semântica de idempotência do `POST`,
+  aplicada de forma consistente à outra ponta do fluxo.
+
+## 25. Fila offline do mobile estendida para cobrir retorno, não só saída (T043/T045)
+
+- **Decision**: o scaffolding original da fila offline (T025) só cobria a saída de uma
+  movimentação temporária (`pending_movements`, uma linha por saída). Para registrar o retorno
+  (FR-009) também offline, foi adicionada uma segunda tabela `pending_returns` (mesmo formato —
+  `idempotency_key` própria, nunca reaproveitando a da saída) em vez de tentar encaixar o retorno
+  na tabela existente.
+- **Rationale**: a saída e o retorno de uma movimentação já são duas requisições HTTP distintas no
+  backend (`POST /movements` vs `PATCH /movements/:id/return`, cada uma com sua própria coluna de
+  idempotência — ver #24) — espelhar essa mesma separação client-side evita ter que decidir, numa
+  única tabela, o que uma linha "significa" dependendo de quais colunas estão preenchidas.
+  `sync-service.ts` sincroniza todas as saídas pendentes antes de tentar qualquer retorno pendente,
+  preservando a ordem em que normalmente aconteceriam de qualquer forma.
+- **Escopo aceito, não implementado**: um retorno só pode ser enfileirado offline contra um
+  `movementId` **real** (vindo de um `GET /inmates` já sincronizado anteriormente) — não existe
+  caminho na UI para registrar saída e retorno do mesmo preso inteiramente offline na mesma sessão
+  (a tela de presos em si já exige rede para saber quem está `inMovement`). Resolver isso exigiria
+  o retorno referenciar tanto um id de servidor quanto o id local de uma saída ainda não
+  sincronizada — decisão explicitamente adiada por não ter um caminho de UI que a exercite hoje.
+
+## 26. Movimentação vs. Rotina — pátio/corre/faxina são Rotina, nunca Movimentação (correção)
+
+- **Decision** (2026-08-16, correção pós-implementação da Fase 4, feedback do usuário): `pátio`,
+  `corre` e `faxina` foram **removidos** da lista de `MovementType` (`seed.ts`,
+  `data-model.md`, `spec.md`) e do texto de exemplo de US2. Eles pertencem exclusivamente a
+  Rotina (US4) — nunca geram um registro de `Movement` por preso.
+- **Rationale**: `Movement` sempre referencia um `inmate` específico (`inmate` é obrigatório na
+  entidade) — é, por definição, um registro individual, de UM preso, com seu próprio
+  `exitDateTime`/`returnDateTime`. Pátio/corre/faxina são liberações **coletivas**: a galeria
+  inteira é liberada para o pátio (ou corre, ou faxina) num horário fixo, todo dia, em toda
+  unidade do estado. Modelá-los como `MovementType` exigiria criar um `Movement` por preso, por
+  galeria, por unidade, 1–2× por dia — volume de escrita absurdo para informação que já é
+  inteiramente capturada por uma única `Routine` com escopo de galeria/unidade e horário(s) via
+  `RoutineSchedule` (nenhuma referência a preso). Corre e faxina, especificamente, nem chegam a
+  mudar a localização do preso (ele não sai fisicamente da galeria) — não haveria nem o que
+  registrar como "deslocamento" no sentido do glossário (`spec.md`: Movimentação = "registro de
+  **deslocamento**... de um preso").
+- **O que continua sendo Movimentação (individual)**: atendimento médico interno/externo, visita
+  (o ato de levar **este** preso específico até a visita dele, distinto do dia/horário de visita
+  em si, que é Rotina — `Routine.type = VISIT_DAY`, já existente no modelo), e as situações
+  definitivas (liberdade, tornozeleira, transferência, troca de cela — US3).
+- **Regra prática pra decidir "é Movimentação ou Rotina?"**: se a atividade libera a galeria
+  inteira de uma vez, num horário programado, é Rotina. Se é sobre um preso específico saindo
+  (por um motivo que não se aplica aos outros presos da galeria ao mesmo tempo), é Movimentação.
+- **Impacto**: `seed.ts`/`setup-test-db.ts` corrigidos (pátio removido dos `MovementType`
+  seedados); `spec.md` (US2, glossário Movimentação/Tipo de Movimentação/Rotina) e
+  `data-model.md` (`MovementType.name`) atualizados com a distinção explícita, pra não haver
+  confusão no futuro. US4 (Rotinas, Fase 6, ainda não implementada) é onde pátio/corre/faxina
+  efetivamente serão modelados — `tasks.md`'s Independent Test de US4 já usava "Pátio" como
+  exemplo de Rotina antes mesmo desta correção, então a Fase 6 já estava alinhada com o conceito
+  certo.
+- **Decisão relacionada, mesma conversa**: `Movement.destinationLocation` deixou de ser opcional
+  — agora é **obrigatório** em `POST /movements` (rastreabilidade de para onde o preso foi é o
+  propósito central da Movimentação; deixá-lo opcional permitia registrar uma saída sem destino
+  algum, o que não faz sentido operacionalmente). `reason`/`notes` continuam opcionais por ora
+  (pode ser revisto). Migration `AddMovementReturnIdempotencyKey`'s follow-up
+  (`RequireMovementDestinationLocation`) altera a coluna pra `NOT NULL` — sem necessidade de
+  backfill, único dado existente no ambiente de dev já tinha o campo preenchido.

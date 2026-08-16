@@ -31,7 +31,7 @@ Chefia/Diretor e Supervisor cadastram e mantêm atualizados os dados estruturais
 
 ### User Story 2 - Registro de Movimentações Temporárias e Status em Tempo Real (Priority: P2)
 
-Policiais penais registram a saída e o retorno de presos em relação à sua cela/galeria (pátio, corre, faxina, atendimento médico interno/externo, visita, etc.), substituindo o controle em papel. O sistema mantém e exibe o status atual de cada preso (na cela, em rotina, em atendimento, em visita) em tempo real, filtrável por unidade, galeria e cela.
+Policiais penais registram a saída e o retorno individual de presos em relação à sua cela/galeria (atendimento médico interno/externo, visita, etc.), substituindo o controle em papel. Atividades coletivas aplicadas à galeria inteira (pátio, corre, faxina) não geram registro de movimentação por preso — são Rotinas (User Story 4). O sistema mantém e exibe o status atual de cada preso (na cela, em rotina, em atendimento, em visita) em tempo real, filtrável por unidade, galeria e cela.
 
 **Why this priority**: É o principal objetivo declarado do sistema — aumentar segurança e rastreabilidade das movimentações no dia a dia — e a funcionalidade de maior frequência de uso pelos policiais penais em plantão.
 
@@ -197,9 +197,9 @@ Supervisor e chefia/diretor consultam relatórios operacionais (movimentações 
 - **Cela**: espaço físico dentro de uma galeria, com capacidade e tipo; contém presos.
 - **Preso**: pessoa custodiada; possui dados pessoais, regime, cela atual e status (ativo, liberdade, tornozeleira, transferido).
 - **Histórico de Cela**: registro histórico de qual cela um preso ocupou em cada período, usado para reconstruir a linha do tempo de localização.
-- **Movimentação**: registro de deslocamento (temporário ou definitivo) de um preso, com origem, destino, motivo, horários de saída/retorno e usuário responsável.
-- **Tipo de Movimentação**: categoria de movimentação (pátio, corre, faxina, atendimento médico interno/externo, visita, transferência, liberdade, tornozeleira, troca de cela) e se é temporária ou definitiva.
-- **Rotina**: atividade programada (nome, tipo, horários, escopo, status) aplicada a uma ou mais galerias/unidades.
+- **Movimentação**: registro **individual** de deslocamento (temporário ou definitivo) de **um** preso específico, com origem, destino, motivo, horários de saída/retorno e usuário responsável. Só existe Movimentação quando a atividade tira aquele preso especificamente de sua cela/galeria em um horário próprio dele (ex.: atendimento médico, visita, transferência, liberdade) — nunca para uma atividade coletiva aplicada à galeria inteira de uma vez (ver Rotina).
+- **Tipo de Movimentação**: categoria de movimentação individual (atendimento médico interno/externo, visita, transferência, liberdade, tornozeleira, troca de cela) e se é temporária ou definitiva. Não inclui pátio/corre/faxina — ver Rotina.
+- **Rotina**: atividade **coletiva** programada (nome, tipo, horários, escopo, status) aplicada a uma galeria/unidade inteira, sem gerar nenhum registro por preso individual (ex.: horário de pátio, horário de corre, horário de faxina, dias/horários de visita). Diferença-chave para Movimentação: Rotina define **quando a galeria é liberada** para a atividade; Movimentação (quando aplicável, ex.: levar um preso específico até sua visita) registra **o deslocamento daquele preso** dentro desse horário.
 - **Horário de Rotina**: um horário específico associado a uma rotina, podendo variar por dia da semana.
 - **Escala de Efetivo**: alocação de um policial penal a um turno, data e setor, incluindo presença/faltas/abonos/horas extras.
 - **Log de Auditoria**: registro imutável de uma operação de criação/alteração/remoção, com autor, data/hora, entidade afetada e valores antigos/novos.

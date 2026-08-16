@@ -45,7 +45,7 @@ export class UsersService {
     query: ListUsersQueryDto,
     callerUnitIds: number[],
   ): Promise<PaginatedResponseDto<UserResponseDto>> {
-    const qb = this.userRepository
+    const usersQuery = this.userRepository
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.role', 'role')
       .leftJoinAndSelect('user.units', 'unit')
@@ -53,14 +53,14 @@ export class UsersService {
       .where('unit.id IN (:...callerUnitIds)', { callerUnitIds });
 
     if (query.role) {
-      qb.andWhere('role.name = :role', { role: query.role });
+      usersQuery.andWhere('role.name = :role', { role: query.role });
     }
     if (query.unitId) {
       assertUnitScope(callerUnitIds, [query.unitId]);
-      qb.andWhere('unit.id = :unitId', { unitId: query.unitId });
+      usersQuery.andWhere('unit.id = :unitId', { unitId: query.unitId });
     }
 
-    const [users, total] = await qb.getManyAndCount();
+    const [users, total] = await usersQuery.getManyAndCount();
     return new PaginatedResponseDto(
       users.map((u) => UserResponseDto.fromEntity(u)),
       total,

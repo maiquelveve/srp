@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { forwardRef, useState, type ButtonHTMLAttributes, type HTMLAttributes } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeftRight,
@@ -6,11 +6,13 @@ import {
   ChevronRightIcon,
   PlusIcon,
   RefreshCcw,
+  Undo2Icon,
   type LucideIcon,
 } from 'lucide-react';
 import { structureApi } from '../../api';
 import type { Gallery } from '../../types';
 import InmateDialog from '../InmateDialog';
+import MovementDialog from '../../../movements/components/MovementDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,35 +43,73 @@ const CELL_ROW_GRID = 'grid grid-cols-[20px_2.5rem_1fr_1fr_7.5rem] items-center 
 const INMATE_ROW_GRID = 'grid grid-cols-[1fr_1fr_4.5rem] items-center gap-2';
 
 /**
- * Botão só-ícone sem ação ainda (mover preso / alterar status — depende de
- * telas de movimentação que ainda não existem); usa o `Button` do design
- * system (não um `<button>` cru) pra parecer um botão de verdade — borda
- * visível e o efeito de clique padrão (`active:scale-95`, research.md #20)
- * que todo `Button` já ganha automaticamente. Hover em amarelo (`primary`),
- * não o cinza padrão do `outline` — a linha inteira também fica cinza no
- * hover (`hover:bg-accent`), então um botão cinza-no-cinza some visualmente
- * quando o mouse passa por cima dele. `stopPropagation` evita que o clique
- * "vaze" pro `InmateDialog` (modo edição) que envolve a linha inteira.
+ * Botão só-ícone usado tanto solto (alterar situação, ainda sem ação — US3
+ * não implementada) quanto como filho direto de `MovementDialog`'s
+ * `DialogTrigger asChild` (mover preso) — por isso `forwardRef`, mesmo
+ * motivo do `RowActionButton` em `/configuracoes` (tasks.md T034h): um
+ * componente de função simples dispara o aviso do React de "Function
+ * components cannot be given refs" quando usado como `asChild`. Usa o
+ * `Button` do design system (não um `<button>` cru) pra parecer um botão de
+ * verdade — borda visível e o efeito de clique padrão (`active:scale-95`,
+ * research.md #20) que todo `Button` já ganha automaticamente. Hover em
+ * amarelo (`primary`), não o cinza padrão do `outline` — a linha inteira
+ * também fica cinza no hover (`hover:bg-accent`), então um botão
+ * cinza-no-cinza some visualmente quando o mouse passa por cima dele.
+ * `stopPropagation` evita que o clique "vaze" pro `InmateDialog` (modo
+ * edição) que envolve a linha inteira.
  */
-function InmateActionButton({ label, icon: Icon }: { label: string; icon: LucideIcon }): JSX.Element {
-  return (
+const InmateActionButton = forwardRef<
+  HTMLButtonElement,
+  { label: string; icon: LucideIcon } & ButtonHTMLAttributes<HTMLButtonElement>
+>(({ label, icon: Icon, onClick, ...props }, ref) => (
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <Button
+        ref={ref}
+        type="button"
+        variant="outline"
+        size="icon"
+        className="h-7 w-7 hover:border-primary hover:bg-primary hover:text-primary-foreground"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick?.(e);
+        }}
+        {...props}
+      >
+        <Icon className="size-3.5" />
+        <span className="sr-only">{label}</span>
+      </Button>
+    </TooltipTrigger>
+    <TooltipContent>{label}</TooltipContent>
+  </Tooltip>
+));
+InmateActionButton.displayName = 'InmateActionButton';
+
+/**
+ * O texto amarelo "(Tipo da movimentação)" ao lado do nome do preso — igual
+ * ao `InmateActionButton`, precisa ser `forwardRef` pra funcionar como filho
+ * direto de `MovementDialog`'s `DialogTrigger asChild` (mode="edit"). Clicar
+ * abre a movimentação aberta pra edição, sem passar pelo `InmateDialog` (modo
+ * edição de cadastro) que envolve a linha inteira — o `stopPropagation`
+ * central que resolve isso já vive dentro do próprio `MovementDialog`.
+ */
+const MovementBadge = forwardRef<HTMLSpanElement, { label: string } & HTMLAttributes<HTMLSpanElement>>(
+  ({ label, className, ...props }, ref) => (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="h-7 w-7 hover:border-primary hover:bg-primary hover:text-primary-foreground"
-          onClick={(e) => e.stopPropagation()}
+        <span
+          ref={ref}
+          className={cn('ml-1.5 cursor-pointer text-xs text-warning hover:underline', className)}
+          {...props}
         >
-          <Icon className="size-3.5" />
-          <span className="sr-only">{label}</span>
-        </Button>
+          ({label})
+        </span>
       </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
+      <TooltipContent>Clique para alterar/editar a movimentação</TooltipContent>
     </Tooltip>
-  );
-}
+  ),
+);
+MovementBadge.displayName = 'MovementBadge';
 
 function CellRowInmates({
   cellId,
@@ -115,16 +155,24 @@ function CellRowInmates({
               >
                 <span className="truncate">
                   {inmate.name}
-                  {inmate.inMovement && <span className="ml-1.5 text-xs text-warning">(fora da cela)</span>}
+                  {inmate.inMovement && (
+                    <MovementDialog inmate={inmate} cellId={cellId} mode="edit">
+                      <MovementBadge label={inmate.currentMovement?.movementTypeName ?? 'fora da cela'} />
+                    </MovementDialog>
+                  )}
                 </span>
                 <span className="truncate text-center text-muted-foreground">{inmate.registrationId ?? '—'}</span>
                 <span className="flex items-center justify-center gap-1">
-                  {isWarden && (
-                    <>
-                      <InmateActionButton label="Mover preso" icon={ArrowLeftRight} />
-                      <InmateActionButton label="Alterar situação" icon={RefreshCcw} />
-                    </>
-                  )}
+                  {/* Mover preso é para qualquer autenticado (PRISON_OFFICER,
+                      SUPERVISOR, WARDEN — contracts/movements.md), não só
+                      WARDEN como o resto das ações desta linha. */}
+                  <MovementDialog inmate={inmate} cellId={cellId}>
+                    <InmateActionButton
+                      label={inmate.inMovement ? 'Registrar retorno' : 'Mover preso'}
+                      icon={inmate.inMovement ? Undo2Icon : ArrowLeftRight}
+                    />
+                  </MovementDialog>
+                  {isWarden && <InmateActionButton label="Alterar situação" icon={RefreshCcw} />}
                 </span>
               </div>
             );

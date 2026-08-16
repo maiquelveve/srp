@@ -35,7 +35,7 @@ Guia para validar, de ponta a ponta, que o sistema atende às User Stories de
 ## Cenário 2 — Movimentação temporária e status em tempo real (User Story 2)
 
 1. Login como `PRISON_OFFICER`.
-2. `POST /api/v1/movements` para o preso criado no Cenário 1 (categoria temporária, ex.: pátio).
+2. `POST /api/v1/movements` para o preso criado no Cenário 1 (categoria temporária, ex.: atendimento médico interno).
    **Esperado**: `201`, e `GET /api/v1/inmates/:id` passa a mostrar o preso como fora da cela
    (`inMovement=true`).
 3. Repetir o passo 2 para o mesmo preso sem registrar retorno.

@@ -11,4 +11,6 @@ export const TEST_FIXTURE = {
   wardenEmail: 'warden@test.srp.rs.gov.br',
   supervisorEmail: 'supervisor@test.srp.rs.gov.br',
   officerEmail: 'officer@test.srp.rs.gov.br',
+  temporaryMovementTypeId: 1,
+  permanentMovementTypeId: 2,
 };

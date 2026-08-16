@@ -165,7 +165,7 @@ Linha do tempo de ocupação de celas por um Inmate, usada para reconstruir loca
 
 | Campo | Tipo/Regra |
 |---|---|
-| `name` | único (pátio, corre, faxina, atendimento médico interno/externo, visita, transferência, liberdade, tornozeleira, troca de cela, ...) |
+| `name` | único (atendimento médico interno/externo, visita, transferência, liberdade, tornozeleira, troca de cela, ...) — **não inclui pátio/corre/faxina**, atividades coletivas por galeria representadas como `Routine`, nunca como `MovementType` (research.md #26) |
 | `category` | `TEMPORARY` \| `PERMANENT` |
 
 ### Movement (`movements`)
@@ -175,7 +175,8 @@ Linha do tempo de ocupação de celas por um Inmate, usada para reconstruir loca
 | `inmate`, `movementType` | referências obrigatórias |
 | `originCell` | obrigatória |
 | `destinationCell` | apenas para troca de cela |
-| `destinationLocation`, `reason`, `notes` | texto livre opcional |
+| `destinationLocation` | texto livre **obrigatório** — rastreabilidade de para onde o preso foi é o propósito central da Movimentação (research.md #26) |
+| `reason`, `notes` | texto livre opcional (pode ser revisto no futuro) |
 | `exitDateTime` | obrigatória |
 | `returnDateTime` | obrigatória apenas para `category = TEMPORARY`, nula até o retorno |
 | `user` | responsável pelo registro |

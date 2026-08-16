@@ -34,8 +34,8 @@ export class Movement {
   @JoinColumn({ name: 'destination_cell_id' })
   destinationCell: Cell | null;
 
-  @Column({ type: 'text', nullable: true })
-  destinationLocation: string | null;
+  @Column({ type: 'text' })
+  destinationLocation: string;
 
   @Column({ type: 'text', nullable: true })
   reason: string | null;
@@ -50,10 +50,20 @@ export class Movement {
   @Column({ type: 'text', nullable: true })
   notes: string | null;
 
-  /** Client-generated UUID for offline idempotency (FR-011a). */
+  /** Client-generated UUID for offline idempotency of the exit (FR-011a). */
   @Index({ unique: true, where: 'idempotency_key IS NOT NULL' })
   @Column({ type: 'uuid', nullable: true })
   idempotencyKey: string | null;
+
+  /**
+   * Separate key for the return action (PATCH .../return) — the exit's
+   * idempotencyKey is already spent identifying this row, so a retried
+   * return needs its own key to be told apart from a genuine second
+   * (rejected, FR-009) return attempt on the same movement.
+   */
+  @Index({ unique: true, where: 'return_idempotency_key IS NOT NULL' })
+  @Column({ type: 'uuid', nullable: true })
+  returnIdempotencyKey: string | null;
 
   @ManyToOne(() => User, { nullable: false })
   @JoinColumn({ name: 'user_id' })

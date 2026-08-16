@@ -2,6 +2,12 @@
 
 Cobre User Story 4 (FR-017…FR-020).
 
+Rotina é uma atividade **coletiva**, aplicada a uma galeria/unidade inteira num horário
+programado (ex.: pátio, corre, faxina, dias de visita) — nunca referencia um preso individual.
+Contraste com Movimentação (`contracts/movements.md`), que é sempre o registro individual de UM
+preso saindo/retornando (ex.: levar um preso específico até sua visita, atendimento médico).
+Ver research.md #26 para a distinção completa.
+
 | Método | Rota | Perfis | Descrição |
 |---|---|---|---|
 | GET | `/api/v1/routines?galleryId=&shift=today` | qualquer autenticado | Lista rotinas programadas, com filtro por galeria/turno atual (FR-020). |

@@ -1,14 +1,23 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
+import { useFocusEffect } from '@react-navigation/native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@/hooks/useAuth';
 import { structureApi } from '@/features/structure/api';
+import { countPending } from '@/offline/offline-queue';
+import type { RootStackParamList } from '@/navigation/types';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'InmatesLookup'>;
 
 /**
- * FR-007 — consultar lista de presos por cela/galeria, somente leitura.
- * Policial Penal never writes structure data from mobile (contracts/structure.md).
+ * FR-007 — consultar lista de presos por cela/galeria (leitura) + FR-008/
+ * FR-009 — registrar movimentação temporária a partir de um preso da lista
+ * (navega para `MovementRegister`). Estrutura (unidade/galeria/cela/preso)
+ * continua somente leitura aqui — só a movimentação é escrita do mobile
+ * (contracts/structure.md).
  */
-export default function InmatesLookup(): JSX.Element {
+export default function InmatesLookup({ navigation }: Props): JSX.Element {
   const { user, logout } = useAuth();
 
   const [unitId, setUnitId] = useState<number | null>(null);
@@ -32,6 +41,16 @@ export default function InmatesLookup(): JSX.Element {
     enabled: cellId !== null,
   });
 
+  const pendingQuery = useQuery({ queryKey: ['pending-sync-count'], queryFn: countPending });
+  // Refetch when coming back from MovementRegister — enqueuing there changes
+  // the count, but that screen has no reason to know about this query.
+  useFocusEffect(
+    useCallback(() => {
+      void pendingQuery.refetch();
+    }, [pendingQuery]),
+  );
+  const pendingCount = pendingQuery.data ?? 0;
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -40,6 +59,15 @@ export default function InmatesLookup(): JSX.Element {
           <Text style={styles.logout}>Sair</Text>
         </Pressable>
       </View>
+
+      {pendingCount > 0 && (
+        <View style={styles.pendingBanner}>
+          <Text style={styles.pendingBannerText}>
+            {pendingCount} {pendingCount === 1 ? 'movimentação pendente' : 'movimentações pendentes'} de
+            sincronização
+          </Text>
+        </View>
+      )}
 
       {cellId === null ? (
         galleryId === null ? (
@@ -87,13 +115,21 @@ export default function InmatesLookup(): JSX.Element {
           data={inmatesQuery.data?.data ?? []}
           keyExtractor={(item) => String(item.id)}
           renderItem={({ item }) => (
-            <View style={styles.row}>
+            <Pressable
+              style={styles.row}
+              onPress={() => navigation.navigate('MovementRegister', { inmate: item, cellId: cellId as number })}
+            >
               <Text style={styles.rowText}>{item.name}</Text>
               <Text style={styles.rowSubtext}>
                 {item.status}
-                {item.inMovement ? ' — fora da cela' : ''}
+                {item.inMovement
+                  ? ` — fora da cela (${item.currentMovement?.movementTypeName ?? '—'})`
+                  : ''}
               </Text>
-            </View>
+              <Text style={styles.rowAction}>
+                {item.inMovement ? 'Toque para registrar retorno' : 'Toque para registrar saída'}
+              </Text>
+            </Pressable>
           )}
           ListHeaderComponent={<BackHeader title="Presos" onBack={() => setCellId(null)} />}
           ListEmptyComponent={<Text style={styles.empty}>Nenhum preso nesta cela.</Text>}
@@ -136,5 +172,8 @@ const styles = StyleSheet.create({
   },
   rowText: { fontSize: 15 },
   rowSubtext: { fontSize: 13, color: '#666', marginTop: 2 },
+  rowAction: { fontSize: 12, color: '#0f172a', marginTop: 4, fontWeight: '500' },
   empty: { padding: 16, color: '#666' },
+  pendingBanner: { backgroundColor: '#fef3c7', paddingVertical: 8, paddingHorizontal: 16 },
+  pendingBannerText: { fontSize: 13, color: '#92400e' },
 });

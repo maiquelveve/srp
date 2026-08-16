@@ -18,6 +18,13 @@ export function getDatabase(): Promise<SQLite.SQLiteDatabase> {
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         synced_at TEXT
       );
+      CREATE TABLE IF NOT EXISTS pending_returns (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        idempotency_key TEXT NOT NULL UNIQUE,
+        movement_id INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        synced_at TEXT
+      );
     `);
     return db;
   })();
