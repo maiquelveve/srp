@@ -9,5 +9,5 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src", "App.tsx", "tests"]
+  "include": ["src", "App.tsx", "tests", "nativewind-env.d.ts"]
 }

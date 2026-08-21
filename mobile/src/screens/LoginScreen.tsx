@@ -1,78 +1,45 @@
-import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useAuth } from '@/hooks/useAuth';
+import { ActivityIndicator, View } from 'react-native';
+import { colors } from '@/theme/colors';
+import { Text } from '@/components/ui/text';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { useLoginScreenViewModel } from './LoginScreen.viewmodel';
 
 export default function LoginScreen(): JSX.Element {
-  const { login } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  async function handleSubmit(): Promise<void> {
-    setError(null);
-    setIsSubmitting(true);
-    try {
-      await login(email, password);
-      // Navigation happens automatically via RootNavigator watching `user`.
-    } catch {
-      setError('Credenciais inválidas');
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
+  const vm = useLoginScreenViewModel();
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>SRP — Entrar</Text>
+    <View className="flex-1 justify-center gap-3 bg-background p-6">
+      <Text variant="h3" className="mb-3 text-left">
+        SRP — Entrar
+      </Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="E-mail"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Senha"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
+      <View className="gap-1.5">
+        <Label>E-mail</Label>
+        <Input
+          placeholder="E-mail"
+          autoCapitalize="none"
+          keyboardType="email-address"
+          value={vm.email}
+          onChangeText={vm.setEmail}
+        />
+      </View>
 
-      {error && <Text style={styles.error}>{error}</Text>}
+      <View className="gap-1.5">
+        <Label>Senha</Label>
+        <Input placeholder="Senha" secureTextEntry value={vm.password} onChangeText={vm.setPassword} />
+      </View>
 
-      <Pressable
-        style={[styles.button, isSubmitting && styles.buttonDisabled]}
-        onPress={() => void handleSubmit()}
-        disabled={isSubmitting}
-      >
-        {isSubmitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Entrar</Text>}
-      </Pressable>
+      {vm.error && (
+        <Text variant="small" className="text-destructive">
+          {vm.error}
+        </Text>
+      )}
+
+      <Button className="mt-2" onPress={() => void vm.handleSubmit()} disabled={vm.isSubmitting}>
+        {vm.isSubmitting ? <ActivityIndicator color={colors.primaryForeground} /> : <Text>Entrar</Text>}
+      </Button>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#fff' },
-  title: { fontSize: 20, fontWeight: '600', marginBottom: 24 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 6,
-    padding: 12,
-    marginBottom: 12,
-  },
-  button: {
-    backgroundColor: '#0f172a',
-    borderRadius: 6,
-    padding: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: '#fff', fontWeight: '600' },
-  error: { color: '#dc2626', marginBottom: 8 },
-});

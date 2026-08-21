@@ -31,6 +31,7 @@ export interface Inmate {
   currentCellId: number;
   inMovement: boolean;
   currentMovement: CurrentMovement | null;
+  photoUrl: string | null;
 }
 
 export interface Paginated<T> {

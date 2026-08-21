@@ -10,4 +10,5 @@ export const structureApi = {
     apiClient.get<Paginated<Cell>>(`/galleries/${galleryId}/cells`).then((r) => r.data),
   listInmates: (cellId: number) =>
     apiClient.get<Paginated<Inmate>>('/inmates', { params: { cellId } }).then((r) => r.data),
+  getInmateById: (id: number) => apiClient.get<Inmate>(`/inmates/${id}`).then((r) => r.data),
 };

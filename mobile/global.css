@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * Tema escuro (único, não opcional — research.md #16) + preto/dourado da
+ * Polícia Penal RS. Mesmos valores HSL do bloco `.dark` de
+ * frontend/src/index.css (research.md #28) — fonte compartilhada entre os
+ * dois clientes; mudar aqui não propaga pro frontend automaticamente.
+ */
+:root {
+  --background: 240 10% 4%;
+  --foreground: 240 5% 96%;
+
+  --card: 240 6% 8%;
+  --card-foreground: 240 5% 96%;
+
+  --popover: 240 6% 8%;
+  --popover-foreground: 240 5% 96%;
+
+  --primary: 43 96% 56%;
+  --primary-foreground: 240 10% 4%;
+
+  --secondary: 240 4% 16%;
+  --secondary-foreground: 240 5% 96%;
+
+  --muted: 240 4% 16%;
+  --muted-foreground: 240 5% 65%;
+
+  --accent: 240 4% 16%;
+  --accent-foreground: 43 96% 56%;
+
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  --success: 142 71% 45%;
+  --success-foreground: 0 0% 100%;
+
+  --warning: 38 92% 50%;
+  --warning-foreground: 240 10% 4%;
+
+  --info: 217 91% 60%;
+  --info-foreground: 0 0% 100%;
+
+  --border: 240 4% 18%;
+  --input: 240 4% 18%;
+  --ring: 43 96% 56%;
+}

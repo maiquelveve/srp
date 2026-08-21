@@ -155,7 +155,29 @@
       "Bash(./node_modules/.bin/vite build *)",
       "Bash(command -v lsof)",
       "Bash(sudo -n lsof -i :3000)",
-      "Bash(netstat -ltnp)"
+      "Bash(netstat -ltnp)",
+      "Bash(where adb *)",
+      "Read(//c/Users/maiquel/AppData/Local/Android/Sdk/platform-tools/**)",
+      "Read(//c/Users/maiquel/AppData/Local/Android/Sdk/emulator/**)",
+      "Read(//c/Users/maiquel/.android/avd/**)",
+      "PowerShell(npm *)",
+      "PowerShell(adb devices *)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:3000/api/v1/docs\" -UseBasicParsing -TimeoutSec 5 | Select-Object StatusCode)",
+      "PowerShell(adb reverse *)",
+      "Bash(powershell.exe *)",
+      "PowerShell(Get-Process *)",
+      "PowerShell(Get-NetTCPConnection *)",
+      "PowerShell(adb *)",
+      "PowerShell(adb shell *)",
+      "PowerShell(wsl hostname -I)",
+      "PowerShell(try { \\(Invoke-WebRequest -Uri \"http://172.27.11.74:3000/api/v1/docs\" -UseBasicParsing -TimeoutSec 5\\).StatusCode } catch { $_.Exception.Message })",
+      "WebSearch",
+      "WebFetch(domain:www.nativewind.dev)",
+      "WebFetch(domain:reactnativereusables.com)",
+      "Bash(npm view *)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh api *)",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);console.log\\(JSON.stringify\\({dependencies:j.dependencies,peerDependencies:j.peerDependencies,peerDependenciesMeta:j.peerDependenciesMeta},null,2\\)\\)}\\)\")"
     ]
   }
 }

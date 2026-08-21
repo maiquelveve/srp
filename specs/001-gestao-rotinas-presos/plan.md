@@ -135,14 +135,20 @@ frontend/                    # painel web para Supervisor e Chefia/Diretor
 └── tests/
 
 mobile/                       # app operacional para Policial Penal
+├── global.css                 # tokens de cor (custom properties HSL, research.md #16/#28) — fonte primária de estilo, mesmos valores de frontend/src/index.css
+├── tailwind.config.js, metro.config.js, nativewind-env.d.ts   # NativeWind v4 (research.md #28)
 ├── src/
-│   ├── screens/               # registro de movimentação, consulta de presos, rotinas do turno
+│   ├── screens/               # MVVM (research.md #29): <Screen>.tsx (View, só JSX) + <Screen>.viewmodel.ts (hook com toda lógica/estado/navegação) colocados lado a lado, 1 par por tela
 │   ├── offline/                 # fila local de movimentações pendentes + sincronização
-│   ├── components/, hooks/, services/
+│   ├── theme/                    # colors.ts — tokens de cor só pra props nativas que não aceitam className (ex.: ActivityIndicator.color); estilo de componente usa global.css/Tailwind (research.md #28)
+│   ├── lib/                        # utils.ts — cn() (clsx + tailwind-merge); toast.ts — store de toast própria (research.md #29)
+│   ├── components/ui/                # react-native-reusables vendorizado (button/input/text/card/label/avatar/badge/icon) — arquivo plano, exceção à pasta-por-componente igual frontend/src/components/ui/ (research.md #28)
+│   ├── components/                     # componentes próprios compartilhados entre telas — pasta-por-componente (research.md #27): ScreenHeader/, ConfirmSheet/, Toaster/, etc.
+│   ├── contexts/, hooks/, services/, navigation/, features/    # UnitContext/useUnit (unidade global, research.md #29) segue o mesmo split de AuthContext/useAuth
 └── tests/
 ```
 
-**Structure Decision**: Três projetos independentes compartilhando um único backend/API (`backend/`), conforme exigido por `docs/srp_plan.md` (web para administração/gestão, mobile para operação de plantão). Nenhum dos três acessa o PostgreSQL diretamente — toda persistência passa pela API REST do `backend/`. Módulos do backend seguem exatamente a lista de `docs/srp_plan.md` (auth, users, roles, units, galleries, cells, inmates, movements, routines, staff, reports, audit, common, config), cada um com Controller/Service/Repository/DTOs/Entities/Validators/Tests próprios (Constituição V). No `frontend/`, toda página e todo componente — de feature ou compartilhado, com um arquivo só ou vários — vive em sua própria pasta nomeada pelo conceito, com `index.tsx` como ponto de entrada único, sem exceção por tamanho (research.md #17); `types.ts`/`api.ts` de uma feature ficam soltos ao lado do `index.tsx` da feature, não dentro de pasta própria.
+**Structure Decision**: Três projetos independentes compartilhando um único backend/API (`backend/`), conforme exigido por `docs/srp_plan.md` (web para administração/gestão, mobile para operação de plantão). Nenhum dos três acessa o PostgreSQL diretamente — toda persistência passa pela API REST do `backend/`. Módulos do backend seguem exatamente a lista de `docs/srp_plan.md` (auth, users, roles, units, galleries, cells, inmates, movements, routines, staff, reports, audit, common, config), cada um com Controller/Service/Repository/DTOs/Entities/Validators/Tests próprios (Constituição V). Em `frontend/` e `mobile/`, todo componente compartilhado — de feature ou de uso geral, com um arquivo só ou vários — vive em sua própria pasta nomeada pelo conceito, com `index.tsx` como ponto de entrada único, sem exceção por tamanho (research.md #17, estendida ao mobile pela #27); `components/ui/` é a única exceção nos dois clientes, por ser código vendorizado do shadcn/ui (`frontend/`) / react-native-reusables (`mobile/`) — arquivo plano, não editar a lógica de variantes manualmente além de extensões pontuais (research.md #28); `types.ts`/`api.ts` de uma feature ficam soltos ao lado do `index.tsx` da feature, não dentro de pasta própria. Telas de rota (`frontend/src/pages/`, `mobile/src/screens/`) seguem a mesma regra de pasta própria no frontend; no mobile permanecem arquivo único por tela por ora (navegação por nome de arquivo, sem subcomponente/teste dedicado até hoje). Tema escuro + paleta preto/dourado (research.md #16) é compartilhado pelos dois clientes; no mobile, a fonte primária é `mobile/global.css` (NativeWind/Tailwind, research.md #28) — `mobile/src/theme/colors.ts` sobrevive só pras poucas props nativas que não aceitam `className`.
 
 ## Complexity Tracking
 

@@ -757,3 +757,147 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
   (pode ser revisto). Migration `AddMovementReturnIdempotencyKey`'s follow-up
   (`RequireMovementDestinationLocation`) altera a coluna pra `NOT NULL` — sem necessidade de
   backfill, único dado existente no ambiente de dev já tinha o campo preenchido.
+
+## 27. Convenção de pastas — folder-per-component (`index.tsx`) estendida ao `mobile/`, e tema escuro/dourado (#16) aplicado
+
+- **Decision** (2026-08-17): a convenção #17 (toda tela/componente vive em pasta própria nomeada
+  pelo conceito, `index.tsx` como ponto de entrada único, sem exceção por tamanho) passa a valer
+  também para `mobile/`, não só `frontend/` — mesmo formato, mesma regra sem exceção. `screens/`
+  segue como está (telas de rota, já nomeadas por conceito, ex.: `LoginScreen.tsx`); componentes
+  compartilhados entre telas passam a nascer em `mobile/src/components/<Nome>/index.tsx` desde o
+  primeiro momento (a pasta estava vazia — nenhum componente compartilhado existia ainda). Ao
+  mesmo tempo, o tema escuro + preto/dourado que a #16 já definia para os **dois** clientes
+  (`frontend/` e `mobile/`) foi efetivamente aplicado no mobile pela primeira vez — até aqui as
+  telas usavam cores claras fixas (`#fff`/`#0f172a`), divergindo da decisão já registrada. Os
+  tokens de cor vivem em `mobile/src/theme/colors.ts`, com os mesmos valores HSL do bloco `.dark`
+  de `frontend/src/index.css` (fonte única de verdade compartilhada — mudar a cor num lugar exige
+  mudar no outro conscientemente, não há mecanismo de sincronização automática entre CSS custom
+  properties e um módulo RN).
+- **Rationale**: manter uma única convenção de organização de componente nos dois clientes evita
+  que um desenvolvedor precise lembrar "regra X no frontend, regra Y no mobile" sem motivo técnico
+  — RN suporta pasta-por-componente tão bem quanto React web, então não há razão pra divergir
+  (mesmo racional da #17: elimina julgamento caso a caso sobre quando criar pasta). Aplicar o tema
+  da #16 corrige uma divergência entre spec e implementação (Constituição I — Domain First: a
+  especificação já definida deveria ter sido seguida desde a primeira tela mobile).
+- **Alternatives considered**: manter mobile com arquivo plano (`components/StatusBadge.tsx`) —
+  rejeitado, reintroduz exatamente a inconsistência que a #17 eliminou no frontend, agora entre
+  clientes em vez de entre componentes; converter os tokens de cor pra hex fixo no mobile em vez
+  de reusar a string `hsl(...)` — rejeitado por ora, RN (0.71+) já aceita `hsl()`/`hsla()` como
+  string de cor válida em `StyleSheet`, então copiar o valor HSL literal do CSS mantém os dois
+  arquivos comparáveis lado a lado sem conversão manual sujeita a erro de arredondamento.
+
+## 28. Biblioteca de UI do mobile — NativeWind + react-native-reusables (vendorizado manualmente, não via CLI)
+
+- **Decision** (2026-08-17): adotado **NativeWind v4** (Tailwind pra React Native) como motor de
+  estilo do `mobile/`, com os componentes de **react-native-reusables** (porte do shadcn/ui pra
+  RN, construído sobre NativeWind) vendorizados manualmente em
+  `mobile/src/components/ui/{button,input,text,card,label}.tsx` — mesma filosofia "copiar o
+  código-fonte, não instalar como dependência de runtime" que `frontend/src/components/ui/` já
+  usa pro shadcn/ui (mesma exceção à convenção #17/#27 de pasta-por-componente: `components/ui/`
+  é arquivo plano nos dois clientes, por ser código vendorizado). **Não foi usado o CLI oficial**
+  (`npx @react-native-reusables/cli@latest init`) — o registry oficial hoje mira Expo SDK 56/
+  React 19.2/RN 0.85 (`react-native-reanimated@4.x`, que exige New Architecture), muito à frente
+  do nosso Expo SDK 51/React 18.2/RN 0.74.5 (old architecture); rodar o `init` scaffoldaria um
+  projeto novo nessa stack por cima do nosso app existente. Os pacotes reais por trás dos
+  componentes que usamos (`class-variance-authority`, `clsx`, `tailwind-merge`,
+  `@rn-primitives/slot`, `@rn-primitives/label`) declaram peer deps abertos (`react: "*"`) e
+  `nativewind@4.2.6` só exige `react-native-reanimated >=3.6.2` — compatível com Expo SDK 51 sem
+  precisar de New Architecture — então copiamos o código-fonte de cada componente (via GitHub,
+  `packages/registry/src/nativewind/components/ui/*.tsx` do repo `founded-labs/
+  react-native-reusables`) ajustando só os imports pro nosso alias `@/*` (`@/lib/utils` em vez de
+  `@/registry/nativewind/lib/utils`) e removendo classes `dark:`/`web:` mortas onde não fazem
+  sentido no nosso caso (tema único, sem toggle claro/escuro, research.md #16).
+- **Setup**: `nativewind`, `tailwindcss@^3.4.17`, `react-native-reanimated` (via `expo install`,
+  versão SDK 51), `class-variance-authority`, `clsx`, `tailwind-merge`, `@rn-primitives/slot`,
+  `@rn-primitives/label`. `mobile/global.css` — os mesmos custom properties HSL de
+  `frontend/src/index.css` (bloco `.dark`), agora como **fonte primária** dos tokens de cor
+  (substitui `mobile/src/theme/colors.ts` da #27 pra tudo que é `style`/`className` de
+  componente). `tailwind.config.js` mapeia `bg-background`/`text-foreground`/`bg-primary`/etc. pra
+  `hsl(var(--nome))`, mesma convenção do `frontend/`. `babel.config.js` ganhou o preset
+  `nativewind/babel` + `jsxImportSource: 'nativewind'`, e o plugin `react-native-reanimated/plugin`
+  (precisa ser o último da lista). `metro.config.js` (não existia — Metro do Expo usava só o
+  default implícito) agora existe explicitamente com `withNativeWind(getDefaultConfig(__dirname),
+  { input: './global.css' })`. `mobile/src/theme/colors.ts` (#27) **não foi removido** — continua
+  sendo a única fonte pros poucos casos de prop nativa que não aceita `className` (ex.:
+  `ActivityIndicator`'s `color`, que é uma prop de cor direta, não um estilo).
+- **Rationale**: o time já pensa em classes utilitárias Tailwind no `frontend/` (shadcn/ui) —
+  NativeWind elimina o custo de trocar de modelo mental entre os dois códigos, e os nomes de
+  classe (`bg-primary`, `text-muted-foreground`) são literalmente os mesmos dos dois lados.
+  Vendorizar em vez de instalar como lib (mesmo racional do shadcn/ui no frontend, já implícito na
+  Estrutura do `plan.md`) mantém o componente 100% editável sem esperar por uma versão upstream, e
+  evita puxar a árvore de dependências pesada do template oficial (expo-router, clerk, reanimated
+  v4) que a gente não usa (`mobile/` usa React Navigation, não expo-router — trocar de navegação
+  não fazia parte do escopo pedido).
+- **Alternatives considered**: `react-native-reusables` via CLI oficial — rejeitado pelo motivo
+  acima (stack alvo incompatível, risco de quebrar o app existente); **React Native Paper** —
+  rejeitado, o resultado visual é Material Design, colidiria com a identidade preto/dourado da
+  #16 e exigiria sobrescrever a maior parte do tema por padrão; manter `StyleSheet.create` puro
+  (sem lib) — rejeitado, decisão explícita do usuário do projeto (2026-08-17) de padronizar o
+  mobile com o mesmo vocabulário de componente do `frontend/` antes de seguir com ajustes de
+  layout, pra não reinventar `Button`/`Input`/`Card` tela a tela.
+- **Pin de versão — `nativewind` travado em `4.1.23` exato (sem `^`)**: `nativewind@4.2.0+`
+  (a partir de `react-native-css-interop@0.2.0`) passou a incluir incondicionalmente o plugin
+  babel `react-native-worklets/plugin` — pacote que só existe junto do Reanimated v4/New
+  Architecture — mesmo com Reanimated v3 instalado, quebrando o bundle com `Cannot find module
+  'react-native-worklets/plugin'`. `react-native-css-interop@0.1.22` (última versão antes dessa
+  mudança, usada por `nativewind@4.1.x`) referencia corretamente `react-native-reanimated/plugin`,
+  compatível com o v3.10.1 que o `expo install` resolveu pro SDK 51. Por isso `package.json` fixa
+  `"nativewind": "4.1.23"` sem `^` — um `npm install` normal NÃO deve subir sozinho pra `4.2.x`
+  enquanto o projeto não migrar pra Expo SDK/Reanimated v4 com New Architecture habilitada.
+
+## 29. Redesign de navegação/layout do mobile — telas de pilha reais, MVVM, unidade global, confirm sheet e toast próprio
+
+- **Decision** (2026-08-17, a partir de 5 imagens de referência trazidas pelo usuário —
+  fintech/ride-hailing, tema escuro+dourado): `InmatesLookup.tsx` (um único componente que
+  simulava navegação trocando `unitId`/`galleryId`/`cellId` em estado local, sem pilha de
+  navegação real — causa raiz do "não sei em qual tela estou nem pra onde volto") foi
+  **removido** e dividido em telas de pilha reais do React Navigation:
+  `HomeScreen` → `SelectUnitScreen` / `GalleriesScreen` → `CellsScreen` → `InmatesScreen` →
+  `InmateDetailScreen` (situação, somente leitura) / `MovementRegister`, mais `ProfileScreen`.
+  Cada uma ganha voltar de verdade (gesto/botão físico Android incluídos) de graça, em vez de um
+  "voltar" que só reseta `useState`.
+  - **MVVM**: toda tela agora é `<Screen>.tsx` (View — só JSX, zero `useQuery`/`useState` de
+    negócio) + `<Screen>.viewmodel.ts` (hook `use<Screen>ViewModel` com toda a lógica/estado/
+    navegação), colocados lado a lado em `src/screens/` — mesmo split que `contexts/
+    AuthContext.tsx` + `contexts/auth-context.ts` já usavam, agora generalizado como o padrão de
+    arquitetura do mobile inteiro.
+  - **Unidade global**: `UnitContext`/`UnitProvider` (mesmo formato do `AuthContext`, persistido
+    em AsyncStorage) guarda a unidade escolhida uma vez em `SelectUnitScreen`; o card
+    "Movimentação" da Home pula direto pra `GalleriesScreen` se já houver unidade selecionada, só
+    volta a perguntar se não houver.
+  - **Header padrão**: `components/ScreenHeader/index.tsx` — botão circular dourado (ícone
+    `ChevronLeft` via `lucide-react-native`, vendorizado como `components/ui/icon.tsx`) +
+    título, usado em toda tela não-raiz (`navigation.canGoBack()` decide se renderiza o botão).
+    O header nativo do `MovementRegister` (único que ainda o usava) saiu — `headerShown: false`
+    em toda a `Stack.Navigator` agora, pra não ter dois padrões de navegação coexistindo.
+  - **Confirmação como bottom sheet**: `components/ConfirmSheet/index.tsx` usa o `Modal` nativo
+    do React Native (`transparent` + `animationType="slide"`, cantos superiores arredondados) —
+    **não** `@rn-primitives/alert-dialog`/`@rn-primitives/portal` (que exigiriam montar
+    `<PortalHost />` na raiz + `zustand` + animações do Reanimated só pra isso). Usado antes de
+    registrar saída/retorno (`MovementRegister`) e antes de sair do app (`HomeScreen`).
+  - **Toast próprio**: `lib/toast.ts` — store mínima (array + subscribers, sem lib externa)
+    expondo `toast.success/error/warning/info(mensagem)`, renderizada por
+    `components/Toaster/index.tsx` (montado uma vez em `App.tsx`). Substitui os dois
+    `Alert.alert(...)` de sucesso que existiam em `MovementRegister` — mesmo espírito do
+    `notify()` do `frontend/` (#19), sem `sonner` (não existe versão RN).
+  - **Botão "Situação" é somente leitura**: `InmateDetailScreen` não ganha nenhuma ação de
+    escrita — registrar situação definitiva (liberdade, tornozeleira, transferência, troca de
+    cela) continua exclusivo da Chefia/Diretor no web (US3, RBAC), decisão confirmada com o
+    usuário do projeto nesta sessão, não expandida por conta própria.
+  - `Inmate.photoUrl` (mobile) — o backend já retornava esse campo em `GET /inmates` (mesmo
+    `InmateResponseDto` da lista e do detalhe), só não estava tipado no lado mobile; `InmatesScreen`/
+    `InmateDetailScreen` mostram a foto quando existe, e iniciais do nome (via `Avatar`/
+    `AvatarFallback`, `@rn-primitives/avatar`) quando não.
+- **Rationale**: o problema relatado ("ruim de navegar... não sei pra onde volto") é
+  estrutural — estado local simulando navegação nunca vai se comportar como navegação de
+  verdade (gesto de voltar do iOS, botão físico do Android, animação de transição, deep link
+  futuro). Resolver só trocando o header manteria o bug de fundo. MVVM foi decisão explícita do
+  usuário do projeto (2026-08-17) — força a tela a ficar "burra" (só apresentação), o que já é
+  meio caminho andado pra qualquer teste de componente futuro (Constituição VIII).
+- **Alternatives considered**: manter `InmatesLookup` como um componente só e apenas trocar o
+  header visual — rejeitado, não resolve a causa raiz (ausência de pilha de navegação real);
+  `@rn-primitives/alert-dialog` pro confirm sheet — rejeitado por complexidade desproporcional ao
+  problema (ver acima), risco de repetir o tipo de incompatibilidade de versão já visto com
+  NativeWind 4.2/Reanimated 4 (#28); expandir o botão "Situação" pra permitir registrar situação
+  definitiva pelo mobile — rejeitado por ora, exigiria alterar `spec.md`/RBAC (US3), não pedido
+  pelo usuário nesta rodada.
