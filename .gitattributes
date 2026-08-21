@@ -1,0 +1,16 @@
+# Repositório usa LF sempre (dev acontece em Windows e Linux/WSL) — Git
+# normaliza qualquer CRLF pra LF ao commitar e faz checkout em LF nos dois
+# SOs, então nenhum editor/terminal reclama de fim de linha "errado".
+* text=auto eol=lf
+
+# Binários — nunca passam por normalização de texto.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
