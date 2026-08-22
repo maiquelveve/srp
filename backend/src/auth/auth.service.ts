@@ -81,6 +81,9 @@ export class AuthService {
     dto.user = {
       id: user.id,
       name: user.name,
+      email: user.email,
+      badgeNumber: user.badgeNumber,
+      jobTitle: user.jobTitle,
       role: user.role.name,
       units: (user.units ?? []).map((unit) => unit.id),
     };

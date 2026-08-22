@@ -14,6 +14,9 @@ export function useProfileScreenViewModel() {
 
   return {
     name: user?.name ?? '',
+    email: user?.email ?? '',
+    badgeNumber: user?.badgeNumber ?? null,
+    jobTitle: user?.jobTitle ?? null,
     roleLabel: user ? roleLabel(user.role) : '',
     unitNames,
   };
