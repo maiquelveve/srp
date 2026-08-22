@@ -6,48 +6,53 @@ import { colors } from '@/theme/colors';
 import { Text } from '@/components/ui/text';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import ScreenHeader from '@/components/ScreenHeader';
-import { useInmateDetailScreenViewModel } from './InmateDetailScreen.viewmodel';
+import { initials } from '@/lib/initials';
+import { useInmateDetailScreenViewModel } from './viewmodel';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InmateDetail'>;
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  const first = parts[0]?.[0] ?? '';
-  const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
-  return (first + last).toUpperCase();
-}
-
 export default function InmateDetailScreen({ route }: Props): JSX.Element {
-  const vm = useInmateDetailScreenViewModel(route);
+  const viewModel = useInmateDetailScreenViewModel(route);
 
   return (
-    <SafeAreaView style={{ backgroundColor: colors.background }} className="flex-1" edges={['top', 'left', 'right']}>
+    <SafeAreaView
+      style={{ backgroundColor: colors.background }}
+      className="flex-1"
+      edges={['top', 'left', 'right']}
+    >
       <ScreenHeader title="Situação" />
 
-      {vm.isLoading || !vm.inmate ? (
+      {viewModel.isLoading || !viewModel.inmate ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : (
         <View className="items-center gap-4 p-6">
-          <Avatar alt={`Foto de ${vm.inmate.name}`} className="h-20 w-20">
-            {vm.inmate.photoUrl && <AvatarImage source={{ uri: vm.inmate.photoUrl }} />}
+          <Avatar alt={`Foto de ${viewModel.inmate.name}`} className="h-20 w-20">
+            {viewModel.inmate.photoUrl && (
+              <AvatarImage source={{ uri: viewModel.inmate.photoUrl }} />
+            )}
             <AvatarFallback>
-              <Text variant="h4">{initials(vm.inmate.name)}</Text>
+              <Text variant="h4">{initials(viewModel.inmate.name)}</Text>
             </AvatarFallback>
           </Avatar>
           <Text variant="h4" className="text-center">
-            {vm.inmate.name}
+            {viewModel.inmate.name}
           </Text>
 
           <View className="bg-muted w-full gap-3 rounded-md p-4">
-            <DetailRow label="Status" value={vm.inmate.status} />
-            {vm.inmate.inMovement && vm.inmate.currentMovement && (
+            <DetailRow label="Status" value={viewModel.inmate.status} />
+            {viewModel.inmate.inMovement && viewModel.inmate.currentMovement && (
               <>
-                <DetailRow label="Tipo de movimentação" value={vm.inmate.currentMovement.movementTypeName} />
+                <DetailRow
+                  label="Tipo de movimentação"
+                  value={viewModel.inmate.currentMovement.movementTypeName}
+                />
                 <DetailRow
                   label="Saída registrada em"
-                  value={new Date(vm.inmate.currentMovement.exitDateTime).toLocaleString('pt-BR')}
+                  value={new Date(viewModel.inmate.currentMovement.exitDateTime).toLocaleString(
+                    'pt-BR',
+                  )}
                 />
               </>
             )}

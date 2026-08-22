@@ -4,6 +4,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '@/hooks/useAuth';
 import { useUnit } from '@/hooks/useUnit';
 import { structureApi } from '@/features/structure/api';
+import { findUnitById } from '@/features/structure/model';
 import type { RootStackParamList } from '@/navigation/types';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Home'>;
@@ -14,7 +15,7 @@ export function useHomeScreenViewModel(navigation: Navigation) {
   const [confirmingLogout, setConfirmingLogout] = useState(false);
 
   const unitsQuery = useQuery({ queryKey: ['units'], queryFn: structureApi.listUnits });
-  const currentUnitName = unitsQuery.data?.data.find((u) => u.id === unitId)?.name ?? null;
+  const currentUnitName = findUnitById(unitsQuery.data?.data ?? [], unitId)?.name ?? null;
 
   function goToSelectUnit(): void {
     navigation.navigate('SelectUnit');

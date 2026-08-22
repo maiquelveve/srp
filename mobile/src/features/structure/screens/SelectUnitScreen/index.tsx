@@ -7,30 +7,36 @@ import { colors } from '@/theme/colors';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import ScreenHeader from '@/components/ScreenHeader';
-import { useSelectUnitScreenViewModel } from './SelectUnitScreen.viewmodel';
+import { useSelectUnitScreenViewModel } from './viewmodel';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SelectUnit'>;
 
 export default function SelectUnitScreen({ navigation }: Props): JSX.Element {
-  const vm = useSelectUnitScreenViewModel(navigation);
+  const viewModel = useSelectUnitScreenViewModel(navigation);
 
   return (
-    <SafeAreaView style={{ backgroundColor: colors.background }} className="flex-1" edges={['top', 'left', 'right']}>
+    <SafeAreaView
+      style={{ backgroundColor: colors.background }}
+      className="flex-1"
+      edges={['top', 'left', 'right']}
+    >
       <ScreenHeader title="Selecionar Unidade" />
       <FlatList
-        data={vm.units}
+        data={viewModel.units}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => (
           <Pressable
             className="border-border flex-row items-center justify-between border-b px-4 py-3.5"
-            onPress={() => void vm.selectUnit(item.id)}
+            onPress={() => void viewModel.selectUnit(item.id)}
           >
             <Text>{item.name}</Text>
-            {vm.currentUnitId === item.id && <Icon as={Check} size={18} color={colors.primary} />}
+            {viewModel.currentUnitId === item.id && (
+              <Icon as={Check} size={18} color={colors.primary} />
+            )}
           </Pressable>
         )}
         ListEmptyComponent={
-          !vm.isLoading ? (
+          !viewModel.isLoading ? (
             <View className="p-4">
               <Text variant="muted">Nenhuma unidade vinculada ao seu usuário.</Text>
             </View>

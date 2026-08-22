@@ -1,6 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
+import type {
+  NativeStackNavigationProp,
+  NativeStackScreenProps,
+} from '@react-navigation/native-stack';
 import { structureApi } from '@/features/structure/api';
+import { inmateMovementActionLabel, inmateStatusLine } from '@/features/structure/model';
 import type { Inmate } from '@/features/structure/types';
 import type { RootStackParamList } from '@/navigation/types';
 
@@ -15,15 +19,6 @@ export function useInmatesScreenViewModel(navigation: Navigation, route: Route) 
     queryFn: () => structureApi.listInmates(cellId),
   });
 
-  function statusLine(inmate: Inmate): string {
-    if (!inmate.inMovement) return inmate.status;
-    return `${inmate.status} — fora da cela (${inmate.currentMovement?.movementTypeName ?? '—'})`;
-  }
-
-  function movementActionLabel(inmate: Inmate): string {
-    return inmate.inMovement ? 'Retorno' : 'Saída';
-  }
-
   function goToDetail(inmateId: number): void {
     navigation.navigate('InmateDetail', { inmateId });
   }
@@ -34,12 +29,16 @@ export function useInmatesScreenViewModel(navigation: Navigation, route: Route) 
 
   return {
     title: `Cela ${cellCode}`,
-    dateLabel: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }),
+    dateLabel: new Date().toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    }),
     occupancyLabel: `${occupancy}/${capacity} presos`,
     inmates: inmatesQuery.data?.data ?? [],
     isLoading: inmatesQuery.isLoading,
-    statusLine,
-    movementActionLabel,
+    statusLine: inmateStatusLine,
+    movementActionLabel: inmateMovementActionLabel,
     goToDetail,
     goToMovementRegister,
   };

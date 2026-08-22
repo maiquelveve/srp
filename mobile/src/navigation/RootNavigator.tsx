@@ -1,15 +1,15 @@
 import { DarkTheme, NavigationContainer, type Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '@/hooks/useAuth';
-import LoginScreen from '@/screens/LoginScreen';
-import HomeScreen from '@/screens/HomeScreen';
-import SelectUnitScreen from '@/screens/SelectUnitScreen';
-import GalleriesScreen from '@/screens/GalleriesScreen';
-import CellsScreen from '@/screens/CellsScreen';
-import InmatesScreen from '@/screens/InmatesScreen';
-import InmateDetailScreen from '@/screens/InmateDetailScreen';
-import ProfileScreen from '@/screens/ProfileScreen';
-import MovementRegister from '@/screens/MovementRegister';
+import LoginScreen from '@/pages/LoginScreen';
+import HomeScreen from '@/pages/HomeScreen';
+import ProfileScreen from '@/pages/ProfileScreen';
+import SelectUnitScreen from '@/features/structure/screens/SelectUnitScreen';
+import GalleriesScreen from '@/features/structure/screens/GalleriesScreen';
+import CellsScreen from '@/features/structure/screens/CellsScreen';
+import InmatesScreen from '@/features/structure/screens/InmatesScreen';
+import InmateDetailScreen from '@/features/structure/screens/InmateDetailScreen';
+import MovementRegister from '@/features/movements/screens/MovementRegister';
 import { colors } from '@/theme/colors';
 import type { RootStackParamList } from './types';
 

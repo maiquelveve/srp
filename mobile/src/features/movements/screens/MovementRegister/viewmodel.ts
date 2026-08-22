@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { movementsApi } from '@/features/movements/api';
+import { canSubmitExitMovement, filterTemporaryMovementTypes } from '@/features/movements/model';
 import { enqueueMovement, enqueueReturn } from '@/offline/offline-queue';
 import { syncPendingMovements } from '@/offline/sync-service';
 import { toast } from '@/lib/toast';
@@ -9,7 +10,10 @@ import type { RootStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MovementRegister'>;
 
-export function useMovementRegisterViewModel(navigation: Props['navigation'], route: Props['route']) {
+export function useMovementRegisterViewModel(
+  navigation: Props['navigation'],
+  route: Props['route'],
+) {
   const { inmate, cellId } = route.params;
   const isReturning = inmate.inMovement;
 
@@ -24,9 +28,9 @@ export function useMovementRegisterViewModel(navigation: Props['navigation'], ro
     queryFn: movementsApi.listTypesWithOfflineCache,
     enabled: !isReturning,
   });
-  const temporaryTypes = (movementTypesQuery.data ?? []).filter((t) => t.category === 'TEMPORARY');
+  const temporaryTypes = filterTemporaryMovementTypes(movementTypesQuery.data ?? []);
 
-  const canSubmitExit = movementTypeId !== null && destinationLocation.trim() !== '';
+  const canSubmitExit = canSubmitExitMovement(movementTypeId, destinationLocation);
 
   async function handleConfirm(): Promise<void> {
     setConfirmingSubmit(false);

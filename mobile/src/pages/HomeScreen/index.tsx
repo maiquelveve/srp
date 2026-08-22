@@ -9,19 +9,23 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import ConfirmSheet from '@/components/ConfirmSheet';
-import { useHomeScreenViewModel } from './HomeScreen.viewmodel';
+import { useHomeScreenViewModel } from './viewmodel';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 export default function HomeScreen({ navigation }: Props): JSX.Element {
-  const vm = useHomeScreenViewModel(navigation);
+  const viewModel = useHomeScreenViewModel(navigation);
 
   return (
-    <SafeAreaView style={{ backgroundColor: colors.background }} className="flex-1" edges={['top', 'left', 'right']}>
+    <SafeAreaView
+      style={{ backgroundColor: colors.background }}
+      className="flex-1"
+      edges={['top', 'left', 'right']}
+    >
       <View className="p-6">
         <Text variant="muted">Bem-vindo,</Text>
         <Text variant="h3" className="text-left">
-          {vm.userName}
+          {viewModel.userName}
         </Text>
       </View>
 
@@ -29,27 +33,37 @@ export default function HomeScreen({ navigation }: Props): JSX.Element {
         <OptionCard
           icon={MapPin}
           label="Selecionar Unidade"
-          detail={vm.currentUnitName ?? 'Nenhuma selecionada'}
-          onPress={vm.goToSelectUnit}
+          detail={viewModel.currentUnitName ?? 'Nenhuma selecionada'}
+          onPress={viewModel.goToSelectUnit}
         />
-        <OptionCard icon={ClipboardList} label="Movimentação" detail="Consultar presos e registrar" onPress={vm.goToMovement} />
-        <OptionCard icon={User} label="Perfil" detail="Seus dados de acesso" onPress={vm.goToProfile} />
+        <OptionCard
+          icon={ClipboardList}
+          label="Movimentação"
+          detail="Consultar presos e registrar"
+          onPress={viewModel.goToMovement}
+        />
+        <OptionCard
+          icon={User}
+          label="Perfil"
+          detail="Seus dados de acesso"
+          onPress={viewModel.goToProfile}
+        />
       </View>
 
       <View className="mt-auto p-6">
-        <Button variant="destructive" onPress={vm.requestLogout}>
+        <Button variant="destructive" onPress={viewModel.requestLogout}>
           <Text>Sair</Text>
         </Button>
       </View>
 
       <ConfirmSheet
-        visible={vm.confirmingLogout}
+        visible={viewModel.confirmingLogout}
         title="Sair do aplicativo?"
         description="Você precisará entrar novamente com seu e-mail e senha."
         confirmLabel="Sair"
         destructive
-        onConfirm={() => void vm.confirmLogout()}
-        onCancel={vm.cancelLogout}
+        onConfirm={() => void viewModel.confirmLogout()}
+        onCancel={viewModel.cancelLogout}
       />
     </SafeAreaView>
   );

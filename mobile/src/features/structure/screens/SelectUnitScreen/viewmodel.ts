@@ -3,6 +3,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '@/hooks/useAuth';
 import { useUnit } from '@/hooks/useUnit';
 import { structureApi } from '@/features/structure/api';
+import { filterUnitsByIds } from '@/features/structure/model';
 import type { RootStackParamList } from '@/navigation/types';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'SelectUnit'>;
@@ -12,7 +13,7 @@ export function useSelectUnitScreenViewModel(navigation: Navigation) {
   const { unitId, setUnitId } = useUnit();
   const unitsQuery = useQuery({ queryKey: ['units'], queryFn: structureApi.listUnits });
 
-  const units = (unitsQuery.data?.data ?? []).filter((u) => user?.units.includes(u.id));
+  const units = filterUnitsByIds(unitsQuery.data?.data ?? [], user?.units ?? []);
 
   async function selectUnit(id: number): Promise<void> {
     await setUnitId(id);

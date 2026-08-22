@@ -5,29 +5,33 @@ import type { RootStackParamList } from '@/navigation/types';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/ui/text';
 import ScreenHeader from '@/components/ScreenHeader';
-import { useGalleriesScreenViewModel } from './GalleriesScreen.viewmodel';
+import { useGalleriesScreenViewModel } from './viewmodel';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Galleries'>;
 
 export default function GalleriesScreen({ navigation, route }: Props): JSX.Element {
-  const vm = useGalleriesScreenViewModel(navigation, route);
+  const viewModel = useGalleriesScreenViewModel(navigation, route);
 
   return (
-    <SafeAreaView style={{ backgroundColor: colors.background }} className="flex-1" edges={['top', 'left', 'right']}>
-      <ScreenHeader title={vm.title} />
+    <SafeAreaView
+      style={{ backgroundColor: colors.background }}
+      className="flex-1"
+      edges={['top', 'left', 'right']}
+    >
+      <ScreenHeader title={viewModel.title} />
       <FlatList
-        data={vm.galleries}
+        data={viewModel.galleries}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => (
           <Pressable
             className="border-border border-b px-4 py-3.5"
-            onPress={() => vm.goToCells(item.id, item.code)}
+            onPress={() => viewModel.goToCells(item.id, item.code)}
           >
             <Text>Galeria {item.code}</Text>
           </Pressable>
         )}
         ListEmptyComponent={
-          !vm.isLoading ? (
+          !viewModel.isLoading ? (
             <View className="p-4">
               <Text variant="muted">Nenhuma galeria cadastrada nesta unidade.</Text>
             </View>

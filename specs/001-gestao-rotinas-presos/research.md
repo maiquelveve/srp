@@ -900,4 +900,188 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
   problema (ver acima), risco de repetir o tipo de incompatibilidade de versão já visto com
   NativeWind 4.2/Reanimated 4 (#28); expandir o botão "Situação" pra permitir registrar situação
   definitiva pelo mobile — rejeitado por ora, exigiria alterar `spec.md`/RBAC (US3), não pedido
-  pelo usuário nesta rodada.
+
+## 30. Tela de Login (mobile) — polimento visual iterativo com o usuário do projeto
+
+- **Decision** (2026-08-21): `LoginScreen` recebeu uma rodada de ajustes visuais validados um a
+  um no emulador (screenshots reais via `adb shell screencap`), não um redesign de uma vez só:
+  - `components/ui/input.tsx` ganhou estado de foco controlado (`onFocus`/`onBlur` +
+    `useState`) — borda vira `border-primary` (dourada) ao focar, `border-destructive` (vermelha)
+    quando `error` está setado (erro tem prioridade sobre foco, igual ao CSS do `Input` web:
+    `aria-invalid:border-destructive` some depois de `focus-visible:border-ring` na cascata, logo
+    vence em empate). `cursorColor` é `colors.foreground` (branco) — testado com dourado primeiro,
+    trocado a pedido do usuário. Fundo do input é `bg-black` (preto puro), não `bg-background`
+    (que no tema escuro já é quase preto, `hsl(240,10%,4%)`) — a diferença sutil entre os dois tons
+    é o que dá contraste/destaque ao campo sobre o fundo da tela, efeito equivalente ao do
+    `frontend/` onde o input (`bg-background`) contrasta com o `Card` (`bg-card`) ao redor.
+  - Validação por campo (e-mail obrigatório/formato inválido via regex simples, senha
+    obrigatória) replicada do `LoginPage` web (que usa `zod` + `react-hook-form`) **sem** adicionar
+    essas duas libs ao mobile — validação manual no `LoginScreen.viewmodel.ts`, chamada só no
+    submit; erro por campo limpa sozinho no próximo keystroke daquele campo.
+  - `components/ui/alert.tsx` — novo componente vendorizado, mesma paleta "Custom Colors" do
+    `frontend/src/components/ui/alert.tsx` (cores cruas do Tailwind — `red-950`/`green-950`/
+    `amber-700`/`blue-700` — não os tokens semânticos do tema) para ficar visualmente idêntico.
+    Usado para o alerta de "Credenciais inválidas": **testado no topo da tela e na parte inferior**
+    a pedido do usuário — no topo colidia com a área da status bar/notificações; mantido embaixo,
+    centralizado, com dismiss automático (4s) e posicionado com `useSafeAreaInsets()` (mesmo padrão
+    do `ConfirmSheet`, #29).
+  - Dimensionamento ajustado em rodadas sucessivas e proporcionalmente entre si: `Input`
+    (`h-14`/`sm:h-12`) e `Button` variant `lg` (`h-14`/`sm:h-12`) — ambos vendorizados, únicos
+    usos de `size="lg"` no app hoje, então a alteração da variante não afeta outras telas; logo
+    (144px → 176px) e subtítulo (`text-lg` → `text-xl`) aumentados depois, para acompanhar
+    visualmente o aumento dos campos/botão; `Label` ganhou `font-bold`/`text-base` (só nas duas
+    instâncias do `LoginScreen`, sem alterar o vendorizado `components/ui/label.tsx`, que
+    continua `font-medium` por padrão pra qualquer uso futuro fora do login).
+  - Ativo Polícia Penal RS: `mobile/assets/logo-pp-rs.png` (cópia de
+    `frontend/src/assets/logo-pp-rs.png`) — primeiro asset de imagem estático do mobile.
+- **Rationale**: o usuário validou cada ajuste com screenshot antes de aprovar o próximo, incluindo
+  um teste A/B explícito (posição do alerta) que só faz sentido registrado com o resultado da
+  comparação, não só a decisão final — outra pessoa mexendo nisso depois pode ficar tentada a
+  "corrigir" o alerta pra cima achando mais consistente com o resto do app, sem saber que já foi
+  testado e descartado.
+- **Alternatives considered**: alerta de credenciais no topo da tela — testado, rejeitado (colide
+  com status bar); cursor dourado (igual à borda) — testado, trocado pra branco a pedido do
+  usuário; `zod`/`react-hook-form` no mobile pra replicar a validação do web 1:1 — rejeitado,
+  validação manual resolve o mesmo caso de uso sem duas dependências novas.
+
+## 31. `screens/` vs `features/<domínio>/screens/` — critério de organização de telas no mobile
+
+- **Decision** (2026-08-21): o mobile tinha 9 telas MVVM todas soltas em `src/screens/`
+  (`LoginScreen`, `HomeScreen`, `ProfileScreen`, `SelectUnitScreen`, `GalleriesScreen`,
+  `CellsScreen`, `InmatesScreen`, `InmateDetailScreen`, `MovementRegister`), misturando telas
+  genéricas com telas que já dependiam de um domínio de negócio (`structureApi`/`movementsApi`).
+  Reorganizado seguindo o critério real que o `frontend/` já usa (não "tela vs não-tela" — lá
+  `pages/*` e `features/<domínio>/index.tsx` são registrados exatamente do mesmo jeito no router;
+  a diferença é só onde o arquivo mora): **se a tela pertence a um domínio com `api.ts`/`types.ts`
+  próprios, a tela mora dentro de `features/<domínio>/`, do lado desse código; senão, mora em
+  `screens/`.**
+  - `screens/LoginScreen/`, `screens/HomeScreen/`, `screens/ProfileScreen/` — sem domínio de
+    negócio próprio (auth genérico, hub de cards, dados do `AuthContext`).
+  - `features/structure/screens/{SelectUnitScreen,GalleriesScreen,CellsScreen,InmatesScreen,
+    InmateDetailScreen}/` — todas consomem `structureApi`/tipos de `features/structure/types.ts`.
+  - `features/movements/screens/MovementRegister/` — consome `movementsApi` + fila offline.
+  - Diferença em relação ao `frontend/`: lá cada feature tem **uma** tela (`index.tsx`) porque a
+    navegação interna é filtro em uma página só; no mobile cada domínio tem **várias** telas em
+    sequência de pilha (Galerias → Celas → Presos → Situação), por isso existe o nível extra
+    `features/<domínio>/screens/<Tela>/` em vez de `features/<domínio>/index.tsx` direto.
+  - Toda tela, nos dois locais, agora é pasta-própria + `index.tsx` (a view) + `viewmodel.ts`
+    (colocado do lado, sem repetir o nome da tela no arquivo — o nome já vem da pasta), igual ao
+    padrão `pages/<Nome>/index.tsx` do `frontend/`. Único import externo por tela
+    (`RootNavigator.tsx`) atualizado para os novos caminhos; nenhuma outra tela importava outra
+    diretamente.
+- **Rationale**: pedido explícito do usuário do projeto após revisar o resultado do redesign
+  (#29) — "pasta SCREENS está uma bagunça". Migrar telas de domínio pra dentro do `features/` que
+  já existia (só com `api.ts`/`types.ts` até então) fecha o paralelo com o `frontend/`, que já era
+  a referência declarada de estrutura desde #17/#27.
+- **Alternatives considered**: manter tudo em `screens/` e só adicionar pastas — rejeitado, não
+  resolve a pergunta de fundo ("quando uso `screens/` vs `features/`"), só esconde a bagunça uma
+  pasta mais fundo; espelhar o frontend literalmente (uma tela só por feature) — não se aplica,
+  o mobile navega por pilha real (#29), não por filtro em página única.
+
+## 32. O "M" do MVVM (mobile) — `model.ts` como terceira peça, ao lado de `api.ts`/`types.ts`
+
+- **Decision** (2026-08-22): até aqui o MVVM do mobile (#29) só nomeava View + ViewModel — o
+  "Model" existia de fato (`features/<domínio>/{types.ts,api.ts}`, `offline/*`), mas nenhuma regra
+  de domínio (derivação pura sobre uma entidade) tinha um lugar formal: elas viviam soltas dentro
+  do `.viewmodel.ts` de quem precisava delas primeiro, sem reuso.
+  - Extraído pra `features/structure/model.ts`: `findUnitById`, `filterUnitsByIds`
+    (deduplicando o mesmo `.filter((u) => user?.units.includes(u.id))` que existia repetido em
+    `HomeScreen`/`SelectUnitScreen`/`ProfileScreen`), `inmateStatusLine`, `inmateMovementActionLabel`
+    (antes funções locais dentro de `InmatesScreen.viewmodel.ts`).
+  - Extraído pra `features/movements/model.ts`: `filterTemporaryMovementTypes`,
+    `canSubmitExitMovement` (antes inline em `MovementRegister.viewmodel.ts`).
+  - Telas sem domínio compartilhado (#31) ganham `model.ts` **colocado na própria pasta da tela**
+    em vez de em `features/`, quando têm alguma regra local: `screens/LoginScreen/model.ts`
+    (`validateEmail`/`validatePassword`, antes inline no viewmodel) e `screens/ProfileScreen/
+    model.ts` (`roleLabel`/`ROLE_LABEL`, mapeamento de `RoleName` — não é um domínio "estrutura",
+    e não existe `features/auth/` hoje).
+  - `initials(name)` — estava duplicada, idêntica, em três Views (`ProfileScreen`,
+    `InmatesScreen`, `InmateDetailScreen`). Não é regra de um domínio específico (aplica a
+    qualquer nome de pessoa, preso ou usuário), então **não** foi pro `model.ts` de nenhuma
+    feature — virou `lib/initials.ts`, ao lado de `lib/utils.ts`/`lib/toast.ts`.
+  - Toda função de `model.ts`/`lib/` é **pura**: recebe dado, devolve dado, zero `useState`/
+    `useEffect`/`fetch`/`navigation` — testável com `expect(fn(input)).toBe(output)`, sem mock de
+    React nem de rede.
+  - **Regra pra telas novas daqui pra frente**: assim que o `.viewmodel.ts` de uma tela tiver
+    qualquer derivação pura sobre uma entidade (formatar, filtrar, validar, decidir um rótulo) —
+    por menor que seja — essa função nasce direto em `model.ts` (da feature, se a entidade for
+    compartilhada; da própria pasta da tela, se for local), nunca inline no ViewModel.
+    `model.ts` **não é arquivo obrigatório por tela** — só existe quando há pelo menos uma dessas
+    funções; um `model.ts` vazio "reservando o padrão" não se cria (Constituição/CLAUDE.md: sem
+    código morto/especulativo). Na prática isso quase sempre acontece rápido — a maioria das telas
+    formata ou deriva algo do dado que busca.
+- **Rationale**: pedido explícito do usuário do projeto, depois de perguntar onde ficava o "M" do
+  MVVM e concordar com a sugestão de funções puras em vez de classe (evita atrito com
+  comparação rasa do React/serialização do AsyncStorage/React Query, e não introduz um padrão
+  novo que mais ninguém no projeto usa). Ter a regra de negócio num lugar sem React nem HTTP
+  facilita teste unitário isolado (Constituição VIII) e elimina duplicação real que já existia
+  (o filtro de unidades por `user.units` estava copiado em 3 lugares).
+- **Alternatives considered**: Model como classe (`class InmateModel`) — rejeitado, atrito com
+  re-render/serialização e inconsistente com o resto do projeto (frontend e mobile só usam
+  objetos/interfaces planos); `model.ts` obrigatório em toda tela mesmo sem lógica pra extrair
+  (pedido inicial do usuário, "mesmo que não tenha ainda regra de negócio") — implementado como
+  "cria quando aparece a primeira função pura", não como arquivo vazio de antemão, por conflitar
+  com a regra do projeto de não escrever código especulativo/morto; confirmado pelo usuário nesta
+  rodada. **Correção da posição do Model em si**: ver #33 — o `canSubmitExitMovement` chegou em
+  `features/movements/model.ts` pelo motivo errado nesta entrada (achei, por um momento, que devia
+  ir pra um `model.ts` local à tela por não "descrever a entidade"); a regra final da #33 mantém
+  ele onde já estava, só que por um critério diferente e mais simples.
+
+## 33. Regra definitiva de onde mora o Model — e por que `screens/` (raiz) virou `pages/`
+
+- **Decision** (2026-08-22): depois de discutir caso a caso onde cada função pura da #32 devia
+  morar (é sobre a entidade ou sobre o formulário da tela?), o usuário do projeto apontou —
+  corretamente — que uma regra que exige julgamento a cada nova função vai gerar inconsistência
+  com o tempo. Regra fechada, sem exceção de julgamento:
+  - **O Model mora sempre na raiz do menor domínio que o possui.** Pra uma feature com várias
+    telas (`features/structure/`, `features/movements/`), isso é a raiz da feature —
+    `features/<domínio>/model.ts`, um só por domínio, do lado de `api.ts`/`types.ts`. Não existe
+    Model dentro de `features/<domínio>/screens/<Tela>/` nunca — mesmo uma função hoje usada por
+    uma tela só (`inmateStatusLine`, usada só pela `InmatesScreen`) fica na raiz da feature,
+    porque o domínio ali é `structure`, não "a tela que perguntou primeiro".
+  - Pra uma tela **sem** domínio compartilhado com nenhuma outra (Login, Home, Profile) — ela É o
+    próprio domínio (não existe uma feature maior pra hospedar o Model dela). Nesse caso o Model
+    mora dentro da própria pasta da tela (`pages/LoginScreen/model.ts`), e isso **não é uma
+    exceção** à regra acima — é a mesma regra aplicada a um domínio de tamanho 1.
+  - `canSubmitExitMovement` (#32) permanece em `features/movements/model.ts` — não porque
+    "descreve a entidade `MovementType`" (não descreve; recebe campos soltos de formulário), mas
+    porque o domínio de quem a possui é `movements`, ponto final. O critério deixou de ser
+    "isso é uma propriedade da entidade?" (subjetivo) e passou a ser só "de qual domínio é isso?"
+    (objetivo).
+  - **Renomeado `mobile/src/screens/` (raiz) → `mobile/src/pages/`** — mesmo conteúdo
+    (`LoginScreen/`, `HomeScreen/`, `ProfileScreen/`, cada uma com `index.tsx` + `viewmodel.ts` +
+    `model.ts` quando existir), só a pasta-contêiner mudou de nome. Motivo: o nome `screens/`
+    reaparecia dentro de `features/<domínio>/screens/` com um significado diferente (várias telas,
+    um domínio compartilhado) do significado da pasta raiz (uma tela = um domínio isolado) — a
+    mesma palavra pra dois conceitos diferentes foi o que gerou a dúvida de "por que o Model não
+    fica sempre no mesmo nível". `pages/` é o nome que o `frontend/` já usa pra exatamente esse
+    conceito (`frontend/src/pages/LoginPage/`, research.md #31) — reaproveitado em vez de inventar
+    um termo novo. Os componentes continuam com o sufixo `Screen` (`LoginScreen`, não `LoginPage`)
+    porque isso já é o vocabulário de React Navigation usado em `navigation/types.ts`/
+    `RootNavigator.tsx` — só o nome da pasta-contêiner mudou, não o nome do componente.
+    `RootNavigator.tsx` é o único import externo às telas, atualizado pros novos caminhos
+    (`@/pages/LoginScreen` etc.).
+  - Árvore final:
+    ```
+    mobile/src/pages/
+      LoginScreen/{index.tsx, viewmodel.ts, model.ts}
+      HomeScreen/{index.tsx, viewmodel.ts}
+      ProfileScreen/{index.tsx, viewmodel.ts, model.ts}
+    mobile/src/features/
+      structure/{api.ts, types.ts, model.ts, screens/{SelectUnitScreen,GalleriesScreen,CellsScreen,InmatesScreen,InmateDetailScreen}/{index.tsx, viewmodel.ts}}
+      movements/{api.ts, types.ts, model.ts, screens/MovementRegister/{index.tsx, viewmodel.ts}}
+    ```
+- **Rationale**: uma regra objetiva ("de qual domínio é isso?") é sempre melhor que uma regra que
+  depende de interpretar se algo "é uma propriedade da entidade" — a segunda já gerou duas idas e
+  voltas nesta mesma sessão (mover `canSubmitExitMovement` pra um lugar, depois perceber que
+  bastava simplificar a pergunta). Reaproveitar `pages/` do `frontend/` em vez de inventar um nome
+  novo mantém os dois clientes fáceis de explicar com o mesmo vocabulário.
+- **Alternatives considered**: `features/auth/model.ts` só pra tirar `validateEmail`/
+  `validatePassword`/`roleLabel` de dentro de `pages/` — rejeitado pelo usuário do projeto: forçaria
+  um domínio compartilhado que não existe de fato (Login e Profile não têm nenhuma lógica em
+  comum entre si), só pra "não deixar Model dentro de tela" — a causa raiz era o nome da pasta
+  colidir, não a posição em si; renomear a pasta resolve sem inventar domínio artificial. Manter
+  `screens/` como nome da pasta raiz e renomear a pasta aninhada da feature pra outra coisa (ex.:
+  `features/<domínio>/views/`) — rejeitado, `screens/` dentro da feature já é o nome mais claro
+  pra quem chega vindo de `RootNavigator`/React Navigation; era a pasta raiz que precisava de um
+  nome diferente por representar um conceito diferente.
