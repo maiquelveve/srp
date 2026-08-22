@@ -7,6 +7,7 @@ import { Text } from '@/components/ui/text';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import ScreenHeader from '@/components/ScreenHeader';
 import { initials } from '@/lib/initials';
+import DetailRow from './components/DetailRow';
 import { useInmateDetailScreenViewModel } from './viewmodel';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InmateDetail'>;
@@ -60,16 +61,5 @@ export default function InmateDetailScreen({ route }: Props): JSX.Element {
         </View>
       )}
     </SafeAreaView>
-  );
-}
-
-function DetailRow({ label, value }: { label: string; value: string }): JSX.Element {
-  return (
-    <View>
-      <Text variant="muted" className="text-xs">
-        {label}
-      </Text>
-      <Text>{value}</Text>
-    </View>
   );
 }

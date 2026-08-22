@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import ScreenHeader from '@/components/ScreenHeader';
 import ConfirmSheet from '@/components/ConfirmSheet';
+import FieldLabel from './components/FieldLabel';
+import ReadOnlyValue from './components/ReadOnlyValue';
 import { useMovementRegisterViewModel } from './viewmodel';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MovementRegister'>;
@@ -97,21 +99,5 @@ export default function MovementRegister({ route, navigation }: Props): JSX.Elem
         onCancel={viewModel.cancelSubmit}
       />
     </SafeAreaView>
-  );
-}
-
-function FieldLabel({ children }: { children: React.ReactNode }): JSX.Element {
-  return (
-    <Text variant="muted" className="mb-1 mt-3 text-xs">
-      {children}
-    </Text>
-  );
-}
-
-function ReadOnlyValue({ children }: { children: React.ReactNode }): JSX.Element {
-  return (
-    <View className="bg-muted rounded-md p-3">
-      <Text>{children}</Text>
-    </View>
   );
 }

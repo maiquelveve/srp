@@ -139,18 +139,19 @@ mobile/                       # app operacional para Policial Penal
 ├── tailwind.config.js, metro.config.js, nativewind-env.d.ts   # NativeWind v4 (research.md #28)
 ├── src/
 │   ├── pages/                 # telas SEM domínio de negócio próprio (research.md #31/#33): LoginScreen/, HomeScreen/, ProfileScreen/ — nome "pages" (não "screens") de propósito, pra não colidir com features/<domínio>/screens/ (significado diferente: aqui 1 tela = 1 domínio isolado)
-│   │   └── LoginScreen/
-│   │       ├── index.tsx         # a tela em si (View, só JSX — MVVM, research.md #29)
-│   │       ├── viewmodel.ts      # hook use<Screen>ViewModel com toda lógica/estado/navegação
-│   │       └── model.ts          # Model da tela (research.md #32/#33) — só existe se houver ≥1 função pura de domínio (ex.: validateEmail/validatePassword); não é obrigatório por tela. Como a tela não compartilha domínio com nenhuma outra, ela É o próprio domínio — não é exceção à regra de #33, é a mesma regra aplicada a um domínio de tamanho 1
+│   │   ├── LoginScreen/
+│   │   │   ├── index.tsx         # a tela em si (View, só JSX — MVVM, research.md #29)
+│   │   │   ├── viewmodel.ts      # hook use<Screen>ViewModel com toda lógica/estado/navegação
+│   │   │   └── model.ts          # Model da tela (research.md #32/#33) — só existe se houver ≥1 função pura de domínio (ex.: validateEmail/validatePassword); não é obrigatório por tela. Como a tela não compartilha domínio com nenhuma outra, ela É o próprio domínio — não é exceção à regra de #33, é a mesma regra aplicada a um domínio de tamanho 1
+│   │   └── HomeScreen/{index.tsx, viewmodel.ts, components/OptionCard/index.tsx}   # sub-componente usado só por esta tela (research.md #34) — nunca função solta dentro do index.tsx da tela
 │   ├── features/
 │   │   ├── structure/
 │   │   │   ├── api.ts, types.ts
 │   │   │   ├── model.ts            # Model do domínio "estrutura" (research.md #32/#33) — TODA função pura do domínio mora aqui, nunca dentro de screens/<Tela>/, mesmo se só uma tela usar hoje (findUnitById, filterUnitsByIds, inmateStatusLine, inmateMovementActionLabel), zero React/HTTP
-│   │   │   └── screens/            # telas do domínio "estrutura" (research.md #31): SelectUnitScreen/, GalleriesScreen/, CellsScreen/, InmatesScreen/, InmateDetailScreen/ — mesmo par index.tsx+viewmodel.ts de pages/
+│   │   │   └── screens/            # telas do domínio "estrutura" (research.md #31): SelectUnitScreen/, GalleriesScreen/, CellsScreen/, InmatesScreen/{index.tsx, viewmodel.ts, components/InmateRow/}, InmateDetailScreen/{index.tsx, viewmodel.ts, components/DetailRow/} — mesmo par index.tsx+viewmodel.ts de pages/, sub-componente privado em components/ (research.md #34)
 │   │   └── movements/
 │   │       ├── api.ts, types.ts, model.ts     # idem (research.md #32) — filterTemporaryMovementTypes, canSubmitExitMovement
-│   │       └── screens/MovementRegister/    # consome movementsApi + fila offline
+│   │       └── screens/MovementRegister/{index.tsx, viewmodel.ts, components/{FieldLabel,ReadOnlyValue}/}    # consome movementsApi + fila offline; sub-componentes privados em components/ (research.md #34)
 │   ├── offline/                 # fila local de movimentações pendentes + sincronização
 │   ├── theme/                    # colors.ts — tokens de cor só pra props nativas que não aceitam className (ex.: ActivityIndicator.color); estilo de componente usa global.css/Tailwind (research.md #28)
 │   ├── lib/                        # utils.ts — cn() (clsx + tailwind-merge); toast.ts — store de toast própria (research.md #29); initials.ts — formatação cross-domain (não pertence a um `model.ts` de feature, research.md #32)

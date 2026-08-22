@@ -1085,3 +1085,36 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
   `features/<domínio>/views/`) — rejeitado, `screens/` dentro da feature já é o nome mais claro
   pra quem chega vindo de `RootNavigator`/React Navigation; era a pasta raiz que precisava de um
   nome diferente por representar um conceito diferente.
+
+## 34. Sub-componente privado de uma tela — sempre em `<Tela>/components/<Nome>/index.tsx`
+
+- **Decision** (2026-08-22): telas MVVM do mobile vinham acumulando componentes auxiliares
+  declarados como função solta dentro do próprio `index.tsx` da tela (`OptionCard` em
+  `HomeScreen`, `InmateRow` em `InmatesScreen`, `DetailRow` em `InmateDetailScreen`, `FieldLabel`
+  e `ReadOnlyValue` em `MovementRegister`) — quebra da convenção de pasta-por-componente (#17/#27)
+  que já valia pra tudo em `components/`. Critério fechado, o mesmo raciocínio de domínio da #33
+  aplicado um nível abaixo, na escala de componente:
+  - Um componente usado **só por uma tela** mora em `<pasta-da-tela>/components/<Nome>/index.tsx`
+    — dentro de `pages/<Tela>/` ou `features/<domínio>/screens/<Tela>/`, conforme onde a tela já
+    estiver (#31/#33). Continua sem `viewmodel.ts`/`model.ts` próprios — são componentes de
+    apresentação pura, recebem tudo via props da tela que os usa.
+  - Um componente usado **por mais de uma tela** (de features diferentes, ou de uma feature e de
+    uma página genérica) sobe pra `src/components/<Nome>/index.tsx` (raiz), ao lado de
+    `ScreenHeader`/`ConfirmSheet`/`Toaster` — mesmo critério de "raiz do menor domínio que o
+    possui" da #33, só que aplicado a componente em vez de a Model.
+  - Renomeações feitas: `pages/HomeScreen/components/OptionCard/`,
+    `features/structure/screens/InmatesScreen/components/InmateRow/`,
+    `features/structure/screens/InmateDetailScreen/components/DetailRow/`,
+    `features/movements/screens/MovementRegister/components/{FieldLabel,ReadOnlyValue}/`. Cada
+    `index.tsx` da tela ficou só com JSX de alto nível + import desses componentes — nenhuma
+    função de componente declarada fora do `export default` da tela.
+- **Rationale**: pedido explícito do usuário do projeto ("na Home temos um componente OptionCard
+  dentro do index... isso deve sempre ser feito nos demais componentes") — critério objetivo pra
+  aplicar em toda tela nova a partir de agora, sem precisar perguntar de novo: **qualquer função de
+  componente (não helper de formatação — essas são Model, #32/#33) que aparecer solta dentro de um
+  `index.tsx` de tela deve nascer direto em `components/<Nome>/index.tsx`, nunca inline.**
+- **Alternatives considered**: manter componentes pequenos inline "porque são simples" — rejeitado
+  por precedente (mesma linha de raciocínio de #17: sem exceção por tamanho); esperar até um
+  componente ser reaproveitado por 2+ telas antes de extrair pra arquivo próprio — rejeitado,
+  cria o mesmo tipo de inconsistência que #33 já resolveu pra Model (alguns componentes soltos,
+  outros em pasta, sem regra objetiva de quando).
