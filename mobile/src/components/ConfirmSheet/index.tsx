@@ -35,22 +35,32 @@ export default function ConfirmSheet({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
       <Pressable className="flex-1 justify-end bg-black/50" onPress={onCancel}>
-        <Pressable className="bg-card rounded-t-2xl p-6" style={{ paddingBottom: insets.bottom + 24 }}>
-          <Text variant="h4" className="text-left">
-            {title}
-          </Text>
-          {description && (
-            <Text variant="muted" className="mt-2">
-              {description}
+        <Pressable
+          className="bg-card rounded-t-3xl justify-between px-6 pt-8"
+          style={{ paddingBottom: insets.bottom + 24, minHeight: 220 }}
+        >
+          <View>
+            <Text variant="h3" className="text-left">
+              {title}
             </Text>
-          )}
+            {description && (
+              <Text variant="muted" className="mt-2 text-base">
+                {description}
+              </Text>
+            )}
+          </View>
 
-          <View className="mt-6 gap-2">
-            <Button variant={destructive ? 'destructive' : 'default'} onPress={onConfirm}>
-              <Text>{confirmLabel}</Text>
+          <View className="flex-row gap-3">
+            <Button variant="outline" size="lg" className="flex-1 rounded-full" onPress={onCancel}>
+              <Text className="text-lg font-bold">{cancelLabel}</Text>
             </Button>
-            <Button variant="outline" onPress={onCancel}>
-              <Text>{cancelLabel}</Text>
+            <Button
+              variant={destructive ? 'destructive' : 'default'}
+              size="lg"
+              className="flex-1 rounded-full"
+              onPress={onConfirm}
+            >
+              <Text className="text-lg font-bold">{confirmLabel}</Text>
             </Button>
           </View>
         </Pressable>
