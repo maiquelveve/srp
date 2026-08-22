@@ -59,9 +59,27 @@ async function seed(): Promise<void> {
   const passwordHash = await argon2.hash(seedPassword);
 
   const seedUsers = [
-    { name: 'Policial Seed', email: 'policial@srp.rs.gov.br', role: roles[0] },
-    { name: 'Supervisor Seed', email: 'supervisor@srp.rs.gov.br', role: roles[1] },
-    { name: 'Diretor Seed', email: 'diretor@srp.rs.gov.br', role: roles[2] },
+    {
+      name: 'Policial Seed',
+      email: 'policial@srp.rs.gov.br',
+      role: roles[0],
+      badgeNumber: 'PP-1001',
+      jobTitle: 'Agente Penitenciário',
+    },
+    {
+      name: 'Supervisor Seed',
+      email: 'supervisor@srp.rs.gov.br',
+      role: roles[1],
+      badgeNumber: 'PP-2001',
+      jobTitle: 'Supervisor de Plantão',
+    },
+    {
+      name: 'Diretor Seed',
+      email: 'diretor@srp.rs.gov.br',
+      role: roles[2],
+      badgeNumber: 'PP-3001',
+      jobTitle: 'Diretor de Unidade',
+    },
   ];
 
   for (const u of seedUsers) {
@@ -70,6 +88,8 @@ async function seed(): Promise<void> {
         name: u.name,
         email: u.email,
         passwordHash,
+        badgeNumber: u.badgeNumber,
+        jobTitle: u.jobTitle,
         role: u.role,
         units: [unit],
         active: true,
