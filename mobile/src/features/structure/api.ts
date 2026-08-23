@@ -11,4 +11,19 @@ export const structureApi = {
   listInmates: (cellId: number) =>
     apiClient.get<Paginated<Inmate>>('/inmates', { params: { cellId } }).then((r) => r.data),
   getInmateById: (id: number) => apiClient.get<Inmate>(`/inmates/${id}`).then((r) => r.data),
+  countActiveInmatesByUnit: (unitId: number) =>
+    apiClient
+      .get<Paginated<Inmate>>('/inmates', { params: { unitId, status: 'ACTIVE' } })
+      .then((r) => r.data.total),
+  async getUnitOccupancy(unitId: number): Promise<{ capacity: number; occupancy: number }> {
+    const galleries = await structureApi.listGalleries(unitId).then((r) => r.data);
+    const cellLists = await Promise.all(
+      galleries.map((gallery) => structureApi.listCells(gallery.id).then((r) => r.data)),
+    );
+    const cells = cellLists.flat();
+    return {
+      capacity: cells.reduce((sum, cell) => sum + cell.capacity, 0),
+      occupancy: cells.reduce((sum, cell) => sum + cell.occupancy, 0),
+    };
+  },
 };

@@ -1,4 +1,5 @@
 import { Pressable, View } from 'react-native';
+import { ChevronRight } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/ui/text';
@@ -26,6 +27,7 @@ export default function OptionCard({ icon, label, detail, onPress }: OptionCardP
               {detail}
             </Text>
           </View>
+          <Icon as={ChevronRight} size={20} color={colors.mutedForeground} />
         </CardContent>
       </Card>
     </Pressable>

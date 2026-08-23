@@ -34,6 +34,7 @@
     "clsx": "^2.1.1",
     "expo": "~51.0.28",
     "expo-crypto": "~13.0.2",
+    "expo-linear-gradient": "~13.0.2",
     "expo-sqlite": "~14.0.6",
     "expo-status-bar": "~1.12.1",
     "lucide-react-native": "^1.31.0",

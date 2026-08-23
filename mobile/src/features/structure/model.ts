@@ -22,3 +22,7 @@ export function inmateStatusLine(inmate: Inmate): string {
 export function inmateMovementActionLabel(inmate: Inmate): 'Retorno' | 'Saída' {
   return inmate.inMovement ? 'Retorno' : 'Saída';
 }
+
+export function occupancyPercentage(capacity: number, occupancy: number): number {
+  return capacity > 0 ? Math.round((occupancy / capacity) * 100) : 0;
+}

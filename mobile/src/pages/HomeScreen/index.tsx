@@ -7,6 +7,7 @@ import { colors } from '@/theme/colors';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import ConfirmSheet from '@/components/ConfirmSheet';
+import HomeHeader from './components/HomeHeader';
 import OptionCard from './components/OptionCard';
 import { useHomeScreenViewModel } from './viewmodel';
 
@@ -21,32 +22,42 @@ export default function HomeScreen({ navigation }: Props): JSX.Element {
       className="flex-1"
       edges={['top', 'left', 'right']}
     >
-      <View className="p-6">
-        <Text variant="h3" className="text-left">
-          {viewModel.userName}
-        </Text>
-        <Text variant="muted">Bem-vindo</Text>
-      </View>
+      <HomeHeader
+        userName={viewModel.userName}
+        firstName={viewModel.firstName}
+        currentUnitName={viewModel.currentUnitName}
+        inmatesTotal={viewModel.inmatesTotal}
+        occupancyPercent={viewModel.occupancyPercent}
+        openMovementsTotal={viewModel.openMovementsTotal}
+        onPressAvatar={viewModel.goToProfile}
+        onPressUnitLabel={viewModel.goToSelectUnit}
+      />
 
-      <View className="gap-7 px-6">
-        <OptionCard
-          icon={MapPin}
-          label="Selecionar Unidade"
-          detail={viewModel.currentUnitName ?? 'Nenhuma selecionada'}
-          onPress={viewModel.goToSelectUnit}
-        />
-        <OptionCard
-          icon={ClipboardList}
-          label="Movimentação"
-          detail="Consultar presos e registrar"
-          onPress={viewModel.goToMovement}
-        />
-        <OptionCard
-          icon={User}
-          label="Perfil"
-          detail="Seus dados de acesso"
-          onPress={viewModel.goToProfile}
-        />
+      <View className="mt-8 gap-5 px-6">
+        <Text variant="muted" className="text-sm font-bold uppercase">
+          Acessos rápidos
+        </Text>
+
+        <View className="gap-6">
+          <OptionCard
+            icon={MapPin}
+            label="Selecionar Unidade"
+            detail={viewModel.currentUnitName ?? 'Nenhuma selecionada'}
+            onPress={viewModel.goToSelectUnit}
+          />
+          <OptionCard
+            icon={ClipboardList}
+            label="Movimentação"
+            detail="Consultar presos e registrar"
+            onPress={viewModel.goToMovement}
+          />
+          <OptionCard
+            icon={User}
+            label="Perfil"
+            detail="Seus dados de acesso"
+            onPress={viewModel.goToProfile}
+          />
+        </View>
       </View>
 
       <View className="mt-auto p-6">

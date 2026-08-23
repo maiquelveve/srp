@@ -10,6 +10,11 @@ const MOVEMENT_TYPES_CACHE_KEY = 'srp:movement-types-cache';
  * fetch, read back from there when the network call itself fails (research.md #4).
  */
 export const movementsApi = {
+  countOpenMovements: () =>
+    apiClient
+      .get<{ total: number }>('/movements', { params: { open: 'true' } })
+      .then((r) => r.data.total),
+
   async listTypesWithOfflineCache(): Promise<MovementType[]> {
     try {
       const types = await apiClient.get<MovementType[]>('/movement-types').then((r) => r.data);
