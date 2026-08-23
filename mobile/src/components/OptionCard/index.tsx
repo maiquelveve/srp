@@ -16,18 +16,18 @@ interface OptionCardProps {
 export default function OptionCard({ icon, label, detail, onPress }: OptionCardProps): JSX.Element {
   return (
     <Pressable onPress={onPress} className="active:scale-95 active:opacity-70">
-      <Card className="bg-secondary rounded-3xl py-6">
+      <Card className="bg-secondary rounded-3xl py-7">
         <CardContent className="flex-row items-center gap-4">
-          <View className="bg-card h-14 w-14 items-center justify-center rounded-full">
-            <Icon as={icon} size={24} color={colors.primary} />
+          <View className="bg-card h-16 w-16 items-center justify-center rounded-full">
+            <Icon as={icon} size={26} color={colors.primary} />
           </View>
           <View className="flex-1">
-            <Text className="text-lg font-semibold">{label}</Text>
-            <Text variant="muted" className="text-muted-foreground mt-0.5 text-sm">
+            <Text className="text-xl font-semibold">{label}</Text>
+            <Text variant="muted" className="text-muted-foreground mt-0.5 text-base">
               {detail}
             </Text>
           </View>
-          <Icon as={ChevronRight} size={20} color={colors.mutedForeground} />
+          <Icon as={ChevronRight} size={22} color={colors.mutedForeground} />
         </CardContent>
       </Card>
     </Pressable>
