@@ -59,7 +59,7 @@ export default function SelectUnitScreen({ navigation }: Props): JSX.Element {
         ListEmptyComponent={
           !viewModel.isLoading ? (
             <View className="p-4">
-              <Text variant="muted">
+              <Text variant="muted" className="text-center">
                 {viewModel.hasAnyUnit
                   ? 'Nenhuma unidade encontrada para essa busca.'
                   : 'Nenhuma unidade vinculada ao seu usuário.'}
