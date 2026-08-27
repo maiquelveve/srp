@@ -25,7 +25,7 @@ export default function HomeScreen({ navigation }: Props): JSX.Element {
       <HomeHeader
         userName={viewModel.userName}
         firstName={viewModel.firstName}
-        currentUnitName={viewModel.currentUnitName}
+        currentUnitCode={viewModel.currentUnitCode}
         inmatesTotal={viewModel.inmatesTotal}
         occupancyPercent={viewModel.occupancyPercent}
         openMovementsTotal={viewModel.openMovementsTotal}

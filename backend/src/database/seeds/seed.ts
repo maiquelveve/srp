@@ -32,7 +32,11 @@ async function seed(): Promise<void> {
   );
 
   const unit = await unitRepo.save(
-    unitRepo.create({ name: 'Unidade Central', code: 'UC-01', active: true }),
+    unitRepo.create({
+      name: 'Penitenciária Estadual de Charqueadas II',
+      code: 'PEC II',
+      active: true,
+    }),
   );
 
   const gallery = await galleryRepo.save(

@@ -14,6 +14,16 @@ export function filterUnitsByIds(units: Unit[], ids: number[]): Unit[] {
   return units.filter((unit) => ids.includes(unit.id));
 }
 
+export function filterUnitsBySearch(units: Unit[], search: string): Unit[] {
+  const normalizedSearch = search.trim().toLowerCase();
+  if (!normalizedSearch) return units;
+  return units.filter(
+    (unit) =>
+      unit.name.toLowerCase().includes(normalizedSearch) ||
+      (unit.code?.toLowerCase().includes(normalizedSearch) ?? false),
+  );
+}
+
 export function inmateStatusLine(inmate: Inmate): string {
   if (!inmate.inMovement) return inmate.status;
   return `${inmate.status} — fora da cela (${inmate.currentMovement?.movementTypeName ?? '—'})`;

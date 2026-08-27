@@ -17,7 +17,9 @@ export function useHomeScreenViewModel(navigation: Navigation) {
   const [confirmingLogout, setConfirmingLogout] = useState(false);
 
   const unitsQuery = useQuery({ queryKey: ['units'], queryFn: structureApi.listUnits });
-  const currentUnitName = findUnitById(unitsQuery.data?.data ?? [], unitId)?.name ?? null;
+  const currentUnit = findUnitById(unitsQuery.data?.data ?? [], unitId);
+  const currentUnitName = currentUnit?.name ?? null;
+  const currentUnitCode = currentUnit?.code ?? null;
 
   const inmatesCountQuery = useQuery({
     queryKey: ['inmates-count', unitId],
@@ -62,6 +64,7 @@ export function useHomeScreenViewModel(navigation: Navigation) {
     firstName: firstName(user?.name ?? ''),
     greeting: greetingForHour(new Date().getHours()),
     currentUnitName,
+    currentUnitCode,
     inmatesTotal: unitId !== null ? (inmatesCountQuery.data ?? 0) : null,
     occupancyPercent: occupancyQuery.data
       ? occupancyPercentage(occupancyQuery.data.capacity, occupancyQuery.data.occupancy)

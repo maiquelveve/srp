@@ -11,7 +11,7 @@ import StatCard from '../StatCard';
 interface HomeHeaderProps {
   userName: string;
   firstName: string;
-  currentUnitName: string | null;
+  currentUnitCode: string | null;
   inmatesTotal: number | null;
   occupancyPercent: number | null;
   openMovementsTotal: number;
@@ -22,7 +22,7 @@ interface HomeHeaderProps {
 export default function HomeHeader({
   userName,
   firstName,
-  currentUnitName,
+  currentUnitCode,
   inmatesTotal,
   occupancyPercent,
   openMovementsTotal,
@@ -55,7 +55,7 @@ export default function HomeHeader({
           className="border-primary flex-row items-center gap-1.5 rounded-full border px-3 py-1.5 active:opacity-70"
         >
           <Icon as={MapPin} size={14} color={colors.primary} />
-          <Text className="text-primary text-xs font-bold">{currentUnitName ?? 'Selecionar'}</Text>
+          <Text className="text-primary text-xs font-bold">{currentUnitCode ?? 'Selecionar'}</Text>
         </Pressable>
       </View>
 
