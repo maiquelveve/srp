@@ -1,10 +1,11 @@
-import { FlatList, Pressable, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/ui/text';
 import ScreenHeader from '@/components/ScreenHeader';
+import GalleryCard from './components/GalleryCard';
 import { useGalleriesScreenViewModel } from './viewmodel';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Galleries'>;
@@ -19,21 +20,32 @@ export default function GalleriesScreen({ navigation, route }: Props): JSX.Eleme
       edges={['top', 'left', 'right']}
     >
       <ScreenHeader title={viewModel.title} />
+
+      <Text variant="muted" className="px-4 pb-3 pt-6 text-sm font-bold uppercase">
+        Galerias da unidade
+      </Text>
+
       <FlatList
         data={viewModel.galleries}
         keyExtractor={(item) => String(item.id)}
+        numColumns={2}
+        columnWrapperClassName="gap-4 px-4"
+        contentContainerClassName="gap-4 pb-4"
         renderItem={({ item }) => (
-          <Pressable
-            className="border-border border-b px-4 py-3.5"
+          <GalleryCard
+            code={item.code}
+            cellCount={item.cellCount}
+            capacity={item.capacity}
+            occupancy={item.occupancy}
             onPress={() => viewModel.goToCells(item.id, item.code)}
-          >
-            <Text>Galeria {item.code}</Text>
-          </Pressable>
+          />
         )}
         ListEmptyComponent={
           !viewModel.isLoading ? (
             <View className="p-4">
-              <Text variant="muted">Nenhuma galeria cadastrada nesta unidade.</Text>
+              <Text variant="muted" className="text-center">
+                Nenhuma galeria cadastrada nesta unidade.
+              </Text>
             </View>
           ) : null
         }

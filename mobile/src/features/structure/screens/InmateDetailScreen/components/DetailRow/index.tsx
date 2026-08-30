@@ -1,18 +1,25 @@
 import { View } from 'react-native';
+import { cn } from '@/lib/utils';
 import { Text } from '@/components/ui/text';
 
 interface DetailRowProps {
   label: string;
   value: string;
+  divider?: boolean;
 }
 
-export default function DetailRow({ label, value }: DetailRowProps): JSX.Element {
+export default function DetailRow({ label, value, divider = false }: DetailRowProps): JSX.Element {
   return (
-    <View>
-      <Text variant="muted" className="text-xs">
+    <View
+      className={cn(
+        'flex-row items-center justify-between',
+        divider && 'border-border/40 border-b pb-4',
+      )}
+    >
+      <Text variant="muted" className="text-base">
         {label}
       </Text>
-      <Text>{value}</Text>
+      <Text className="text-lg font-bold">{value}</Text>
     </View>
   );
 }

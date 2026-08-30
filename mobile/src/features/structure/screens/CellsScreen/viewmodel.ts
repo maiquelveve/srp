@@ -15,7 +15,7 @@ export function useCellsScreenViewModel(navigation: Navigation, route: Route) {
   });
 
   function goToInmates(cellId: number, cellCode: string, capacity: number, occupancy: number): void {
-    navigation.navigate('Inmates', { cellId, cellCode, capacity, occupancy });
+    navigation.navigate('Inmates', { cellId, cellCode, capacity, occupancy, galleryCode });
   }
 
   return {

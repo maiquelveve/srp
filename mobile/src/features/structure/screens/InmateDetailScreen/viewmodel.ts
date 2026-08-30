@@ -7,7 +7,7 @@ type Route = NativeStackScreenProps<RootStackParamList, 'InmateDetail'>['route']
 
 /** Somente leitura — registrar situação definitiva é restrito à Chefia/Diretor no web (US3). */
 export function useInmateDetailScreenViewModel(route: Route) {
-  const { inmateId } = route.params;
+  const { inmateId, cellCode, galleryCode } = route.params;
 
   const inmateQuery = useQuery({
     queryKey: ['inmate', inmateId],
@@ -17,5 +17,7 @@ export function useInmateDetailScreenViewModel(route: Route) {
   return {
     inmate: inmateQuery.data ?? null,
     isLoading: inmateQuery.isLoading,
+    cellCode,
+    galleryCode,
   };
 }

@@ -1,8 +1,10 @@
 import { View } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { initials } from '@/lib/initials';
+import { isExternalMovementType } from '@/features/structure/model';
 import type { Inmate } from '@/features/structure/types';
 
 interface InmateRowProps {
@@ -21,26 +23,51 @@ export default function InmateRow({
   onPressMovement,
 }: InmateRowProps): JSX.Element {
   return (
-    <View className="border-border gap-3 border-b px-4 py-3.5">
-      <View className="flex-row items-center gap-3">
-        <Avatar alt={`Foto de ${inmate.name}`} className="h-11 w-11">
+    <View className="bg-secondary gap-6 rounded-3xl p-4">
+      <View className="flex-row items-center gap-4">
+        <Avatar alt={`Foto de ${inmate.name}`} className="h-16 w-16">
           {inmate.photoUrl && <AvatarImage source={{ uri: inmate.photoUrl }} />}
-          <AvatarFallback>
-            <Text className="text-sm font-semibold">{initials(inmate.name)}</Text>
+          <AvatarFallback className="bg-primary/20">
+            <Text className="text-primary text-lg font-bold">{initials(inmate.name)}</Text>
           </AvatarFallback>
         </Avatar>
-        <View className="flex-1">
-          <Text className="font-medium">{inmate.name}</Text>
-          <Text className="text-warning mt-0.5 text-xs">{statusLine}</Text>
+        <View className="flex-1 gap-1.5">
+          <Text className="font-bold uppercase">{inmate.name}</Text>
+          {inmate.inMovement && inmate.currentMovement ? (
+            <Badge
+              variant={
+                isExternalMovementType(inmate.currentMovement.movementTypeName)
+                  ? 'destructive'
+                  : 'warning'
+              }
+              className="self-start"
+            >
+              <Text
+                className={
+                  isExternalMovementType(inmate.currentMovement.movementTypeName)
+                    ? 'text-white text-xs font-bold uppercase'
+                    : 'text-warning-foreground text-xs font-bold uppercase'
+                }
+              >
+                {inmate.currentMovement.movementTypeName}
+              </Text>
+            </Badge>
+          ) : (
+            <Text className="text-muted-foreground text-sm">{statusLine}</Text>
+          )}
         </View>
       </View>
 
-      <View className="flex-row gap-2">
-        <Button variant="outline" size="sm" className="flex-1" onPress={onPressDetail}>
-          <Text>Situação</Text>
+      <View className="flex-row gap-3">
+        <Button
+          variant="outline"
+          className="border-primary bg-transparent flex-1 rounded-full"
+          onPress={onPressDetail}
+        >
+          <Text className="text-primary text-base font-bold">Detalhes</Text>
         </Button>
-        <Button size="sm" className="flex-1" onPress={onPressMovement}>
-          <Text>{movementLabel}</Text>
+        <Button className="flex-1 rounded-full" onPress={onPressMovement}>
+          <Text className="text-primary-foreground text-base font-bold">{movementLabel}</Text>
         </Button>
       </View>
     </View>

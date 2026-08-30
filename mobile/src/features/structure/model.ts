@@ -25,12 +25,30 @@ export function filterUnitsBySearch(units: Unit[], search: string): Unit[] {
 }
 
 export function inmateStatusLine(inmate: Inmate): string {
-  if (!inmate.inMovement) return inmate.status;
-  return `${inmate.status} — fora da cela (${inmate.currentMovement?.movementTypeName ?? '—'})`;
+  if (!inmate.inMovement) return 'Na cela';
+  return `Fora da cela — ${inmate.currentMovement?.movementTypeName ?? 'movimentação'}`;
+}
+
+/** Backend expõe status em inglês (ex.: "ACTIVE") — traduzimos os valores conhecidos pra exibição. */
+export function inmateStatusLabel(status: string): string {
+  if (status === 'ACTIVE') return 'Preso';
+  return status;
 }
 
 export function inmateMovementActionLabel(inmate: Inmate): 'Retorno' | 'Saída' {
   return inmate.inMovement ? 'Retorno' : 'Saída';
+}
+
+export function isExternalMovementType(movementTypeName: string): boolean {
+  return movementTypeName.toLowerCase().includes('extern');
+}
+
+export function movementTimeLabel(exitDateTime: string, now: Date = new Date()): string {
+  const exit = new Date(exitDateTime);
+  const isToday = exit.toDateString() === now.toDateString();
+  const time = exit.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  if (isToday) return `Hoje, ${time}`;
+  return `${exit.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}, ${time}`;
 }
 
 export function occupancyPercentage(capacity: number, occupancy: number): number {

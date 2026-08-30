@@ -1,5 +1,5 @@
 import { apiClient } from '@/services/api-client';
-import type { Cell, Gallery, Inmate, Paginated, Unit } from './types';
+import type { Cell, Gallery, GalleryWithStats, Inmate, Paginated, Unit } from './types';
 
 /** Read-only lookup — mobile writes only go through the offline movement queue (FR-011a). */
 export const structureApi = {
@@ -8,6 +8,21 @@ export const structureApi = {
     apiClient.get<Paginated<Gallery>>(`/units/${unitId}/galleries`).then((r) => r.data),
   listCells: (galleryId: number) =>
     apiClient.get<Paginated<Cell>>(`/galleries/${galleryId}/cells`).then((r) => r.data),
+  async listGalleriesWithStats(unitId: number): Promise<GalleryWithStats[]> {
+    const galleries = await structureApi.listGalleries(unitId).then((r) => r.data);
+    const cellLists = await Promise.all(
+      galleries.map((gallery) => structureApi.listCells(gallery.id).then((r) => r.data)),
+    );
+    return galleries.map((gallery, index) => {
+      const cells = cellLists[index];
+      return {
+        ...gallery,
+        cellCount: cells.length,
+        capacity: cells.reduce((sum, cell) => sum + cell.capacity, 0),
+        occupancy: cells.reduce((sum, cell) => sum + cell.occupancy, 0),
+      };
+    });
+  },
   listInmates: (cellId: number) =>
     apiClient.get<Paginated<Inmate>>('/inmates', { params: { cellId } }).then((r) => r.data),
   getInmateById: (id: number) => apiClient.get<Inmate>(`/inmates/${id}`).then((r) => r.data),

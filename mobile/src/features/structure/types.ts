@@ -10,6 +10,12 @@ export interface Gallery {
   code: string;
 }
 
+export interface GalleryWithStats extends Gallery {
+  cellCount: number;
+  capacity: number;
+  occupancy: number;
+}
+
 export interface Cell {
   id: number;
   galleryId: number;
@@ -32,6 +38,7 @@ export interface Inmate {
   inMovement: boolean;
   currentMovement: CurrentMovement | null;
   photoUrl: string | null;
+  registrationNumber?: string | null;
 }
 
 export interface Paginated<T> {

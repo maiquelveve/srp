@@ -6,8 +6,14 @@ export type RootStackParamList = {
   SelectUnit: undefined;
   Galleries: { unitId: number; unitName: string };
   Cells: { galleryId: number; galleryCode: string };
-  Inmates: { cellId: number; cellCode: string; capacity: number; occupancy: number };
-  InmateDetail: { inmateId: number };
+  Inmates: {
+    cellId: number;
+    cellCode: string;
+    capacity: number;
+    occupancy: number;
+    galleryCode: string;
+  };
+  InmateDetail: { inmateId: number; cellCode: string; galleryCode: string };
   Profile: undefined;
   MovementRegister: { inmate: Inmate; cellId: number };
 };

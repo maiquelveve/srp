@@ -31,6 +31,7 @@ export default function InmatesScreen({ navigation, route }: Props): JSX.Element
       <FlatList
         data={viewModel.inmates}
         keyExtractor={(item) => String(item.id)}
+        contentContainerClassName="gap-4 px-4 pb-4"
         renderItem={({ item }) => (
           <InmateRow
             inmate={item}
@@ -43,7 +44,9 @@ export default function InmatesScreen({ navigation, route }: Props): JSX.Element
         ListEmptyComponent={
           !viewModel.isLoading ? (
             <View className="p-4">
-              <Text variant="muted">Nenhum preso nesta cela.</Text>
+              <Text variant="muted" className="text-center">
+                Nenhum preso nesta cela.
+              </Text>
             </View>
           ) : null
         }

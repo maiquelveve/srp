@@ -2,7 +2,11 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { movementsApi } from '@/features/movements/api';
-import { canSubmitExitMovement, filterTemporaryMovementTypes } from '@/features/movements/model';
+import {
+  canSubmitExitMovement,
+  filterMovementTypesBySearch,
+  filterTemporaryMovementTypes,
+} from '@/features/movements/model';
 import { enqueueMovement, enqueueReturn } from '@/offline/offline-queue';
 import { syncPendingMovements } from '@/offline/sync-service';
 import { toast } from '@/lib/toast';
@@ -20,6 +24,7 @@ export function useMovementRegisterViewModel(
   const [movementTypeId, setMovementTypeId] = useState<number | null>(null);
   const [destinationLocation, setDestinationLocation] = useState('');
   const [reason, setReason] = useState('');
+  const [search, setSearch] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [confirmingSubmit, setConfirmingSubmit] = useState(false);
 
@@ -29,8 +34,11 @@ export function useMovementRegisterViewModel(
     enabled: !isReturning,
   });
   const temporaryTypes = filterTemporaryMovementTypes(movementTypesQuery.data ?? []);
+  const visibleTypes = filterMovementTypesBySearch(temporaryTypes, search);
 
   const canSubmitExit = canSubmitExitMovement(movementTypeId, destinationLocation);
+  const selectedMovementTypeName =
+    temporaryTypes.find((type) => type.id === movementTypeId)?.name ?? null;
 
   async function handleConfirm(): Promise<void> {
     setConfirmingSubmit(false);
@@ -62,8 +70,12 @@ export function useMovementRegisterViewModel(
   return {
     inmate,
     isReturning,
-    temporaryTypes,
+    temporaryTypes: visibleTypes,
+    hasAnyType: temporaryTypes.length > 0,
+    search,
+    setSearch,
     movementTypeId,
+    selectedMovementTypeName,
     setMovementTypeId,
     destinationLocation,
     setDestinationLocation,

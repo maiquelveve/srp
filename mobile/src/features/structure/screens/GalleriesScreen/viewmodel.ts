@@ -11,7 +11,7 @@ export function useGalleriesScreenViewModel(navigation: Navigation, route: Route
 
   const galleriesQuery = useQuery({
     queryKey: ['galleries', unitId],
-    queryFn: () => structureApi.listGalleries(unitId),
+    queryFn: () => structureApi.listGalleriesWithStats(unitId),
   });
 
   function goToCells(galleryId: number, galleryCode: string): void {
@@ -20,7 +20,7 @@ export function useGalleriesScreenViewModel(navigation: Navigation, route: Route
 
   return {
     title: unitName || 'Galerias',
-    galleries: galleriesQuery.data?.data ?? [],
+    galleries: galleriesQuery.data ?? [],
     isLoading: galleriesQuery.isLoading,
     goToCells,
   };

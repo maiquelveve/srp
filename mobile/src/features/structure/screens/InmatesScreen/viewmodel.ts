@@ -12,7 +12,7 @@ type Navigation = NativeStackNavigationProp<RootStackParamList, 'Inmates'>;
 type Route = NativeStackScreenProps<RootStackParamList, 'Inmates'>['route'];
 
 export function useInmatesScreenViewModel(navigation: Navigation, route: Route) {
-  const { cellId, cellCode, capacity, occupancy } = route.params;
+  const { cellId, cellCode, capacity, occupancy, galleryCode } = route.params;
 
   const inmatesQuery = useQuery({
     queryKey: ['inmates', cellId],
@@ -20,7 +20,7 @@ export function useInmatesScreenViewModel(navigation: Navigation, route: Route) 
   });
 
   function goToDetail(inmateId: number): void {
-    navigation.navigate('InmateDetail', { inmateId });
+    navigation.navigate('InmateDetail', { inmateId, cellCode, galleryCode });
   }
 
   function goToMovementRegister(inmate: Inmate): void {
