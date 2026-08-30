@@ -4,12 +4,17 @@ import { ArrowLeftRight, CircleCheck, Clock, UserRound } from 'lucide-react-nati
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import { colors } from '@/theme/colors';
+import { cn } from '@/lib/utils';
 import { Text } from '@/components/ui/text';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Icon } from '@/components/ui/icon';
 import ScreenHeader from '@/components/ScreenHeader';
-import { inmateStatusLabel, movementTimeLabel } from '@/features/structure/model';
+import {
+  inmateStatusLabel,
+  isExternalMovementType,
+  movementTimeLabel,
+} from '@/features/structure/model';
 import DetailRow from './components/DetailRow';
 import { useInmateDetailScreenViewModel } from './viewmodel';
 
@@ -67,7 +72,14 @@ export default function InmateDetailScreen({ route }: Props): JSX.Element {
             </Text>
             {viewModel.inmate.inMovement && viewModel.inmate.currentMovement ? (
               <View className="relative">
-                <View className="bg-card border-primary flex-row items-center gap-3 rounded-2xl border p-5">
+                <View
+                  className={cn(
+                    'bg-card flex-row items-center gap-3 rounded-2xl border p-5',
+                    isExternalMovementType(viewModel.inmate.currentMovement.movementTypeName)
+                      ? 'border-destructive'
+                      : 'border-warning',
+                  )}
+                >
                   <View className="bg-secondary h-12 w-12 items-center justify-center rounded-full">
                     <Icon as={ArrowLeftRight} size={22} color={colors.primary} />
                   </View>

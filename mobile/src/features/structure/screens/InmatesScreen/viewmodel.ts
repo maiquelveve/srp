@@ -28,10 +28,10 @@ export function useInmatesScreenViewModel(navigation: Navigation, route: Route) 
   }
 
   return {
-    title: `Cela ${cellCode}`,
+    title: `Galeria ${galleryCode}   /   Cela ${cellCode}`.toUpperCase(),
     dateLabel: new Date().toLocaleDateString('pt-BR', {
       day: '2-digit',
-      month: 'long',
+      month: '2-digit',
       year: 'numeric',
     }),
     occupancyLabel: `${occupancy}/${capacity} presos`,

@@ -26,7 +26,7 @@ export const colors = {
   destructive: 'hsl(0, 84%, 60%)',
   destructiveForeground: 'hsl(0, 0%, 100%)',
 
-  success: 'hsl(142, 71%, 45%)',
+  success: 'hsl(142, 72%, 29%)',
   successForeground: 'hsl(0, 0%, 100%)',
 
   warning: 'hsl(38, 92%, 50%)',

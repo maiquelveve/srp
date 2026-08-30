@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { ActivityIndicator, FlatList, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, UserRound } from 'lucide-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -108,29 +108,35 @@ export default function MovementRegister({ route, navigation }: Props): JSX.Elem
               </View>
             </View>
 
-            <FlatList
-              className="flex-1"
-              data={viewModel.temporaryTypes}
-              keyExtractor={(type) => String(type.id)}
-              contentContainerClassName="gap-3 px-4 pb-3 pt-3"
-              renderItem={({ item: type }) => (
-                <MovementTypeOption
-                  icon={movementTypeIcon(type.name)}
-                  label={type.name}
-                  selected={viewModel.movementTypeId === type.id}
-                  onPress={() => viewModel.setMovementTypeId(type.id)}
-                />
-              )}
-              ListEmptyComponent={
-                <View className="p-4">
-                  <Text variant="muted" className="text-center">
-                    {viewModel.hasAnyType
-                      ? 'Nenhum motivo encontrado para essa busca.'
-                      : 'Nenhum tipo de movimentação cadastrado.'}
-                  </Text>
-                </View>
-              }
-            />
+            {viewModel.isLoadingTypes ? (
+              <View className="flex-1 items-center justify-center">
+                <ActivityIndicator color={colors.primary} />
+              </View>
+            ) : (
+              <FlatList
+                className="flex-1"
+                data={viewModel.temporaryTypes}
+                keyExtractor={(type) => String(type.id)}
+                contentContainerClassName="gap-3 px-4 pb-3 pt-3"
+                renderItem={({ item: type }) => (
+                  <MovementTypeOption
+                    icon={movementTypeIcon(type.name)}
+                    label={type.name}
+                    selected={viewModel.movementTypeId === type.id}
+                    onPress={() => viewModel.setMovementTypeId(type.id)}
+                  />
+                )}
+                ListEmptyComponent={
+                  <View className="p-4">
+                    <Text variant="muted" className="text-center">
+                      {viewModel.hasAnyType
+                        ? 'Nenhum motivo encontrado para essa busca.'
+                        : 'Nenhum tipo de movimentação cadastrado.'}
+                    </Text>
+                  </View>
+                }
+              />
+            )}
           </>
         )}
 

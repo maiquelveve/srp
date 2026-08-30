@@ -1,4 +1,4 @@
-import { FlatList, View } from 'react-native';
+import { ActivityIndicator, FlatList, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
@@ -22,35 +22,40 @@ export default function InmatesScreen({ navigation, route }: Props): JSX.Element
       <ScreenHeader title={viewModel.title} />
 
       <View className="flex-row items-center justify-between px-4 pb-2 pt-4">
-        <Text variant="muted" className="text-sm capitalize">
+        <Text variant="muted" className="text-sm">
           {viewModel.dateLabel}
         </Text>
         <Text className="font-semibold">{viewModel.occupancyLabel}</Text>
       </View>
 
-      <FlatList
-        data={viewModel.inmates}
-        keyExtractor={(item) => String(item.id)}
-        contentContainerClassName="gap-4 px-4 pb-4"
-        renderItem={({ item }) => (
-          <InmateRow
-            inmate={item}
-            statusLine={viewModel.statusLine(item)}
-            movementLabel={viewModel.movementActionLabel(item)}
-            onPressDetail={() => viewModel.goToDetail(item.id)}
-            onPressMovement={() => viewModel.goToMovementRegister(item)}
-          />
-        )}
-        ListEmptyComponent={
-          !viewModel.isLoading ? (
+      {viewModel.isLoading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          className="flex-1"
+          data={viewModel.inmates}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerClassName="gap-4 px-4 pb-4"
+          renderItem={({ item }) => (
+            <InmateRow
+              inmate={item}
+              statusLine={viewModel.statusLine(item)}
+              movementLabel={viewModel.movementActionLabel(item)}
+              onPressDetail={() => viewModel.goToDetail(item.id)}
+              onPressMovement={() => viewModel.goToMovementRegister(item)}
+            />
+          )}
+          ListEmptyComponent={
             <View className="p-4">
               <Text variant="muted" className="text-center">
                 Nenhum preso nesta cela.
               </Text>
             </View>
-          ) : null
-        }
-      />
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }

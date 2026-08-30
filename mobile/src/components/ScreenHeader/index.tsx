@@ -28,7 +28,7 @@ export default function ScreenHeader({ title }: ScreenHeaderProps): JSX.Element 
           <Icon as={ChevronLeft} size={20} color={colors.primaryForeground} />
         </Pressable>
       )}
-      <Text variant="h4" className="text-left">
+      <Text variant="h4" className="flex-1 text-left" numberOfLines={1} ellipsizeMode="tail">
         {title}
       </Text>
     </View>

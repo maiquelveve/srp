@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { movementsApi } from '@/features/movements/api';
 import {
@@ -20,6 +20,7 @@ export function useMovementRegisterViewModel(
 ) {
   const { inmate, cellId } = route.params;
   const isReturning = inmate.inMovement;
+  const queryClient = useQueryClient();
 
   const [movementTypeId, setMovementTypeId] = useState<number | null>(null);
   const [destinationLocation, setDestinationLocation] = useState('');
@@ -47,7 +48,7 @@ export function useMovementRegisterViewModel(
       if (isReturning) {
         if (!inmate.currentMovement) return;
         await enqueueReturn(inmate.currentMovement.movementId);
-        void syncPendingMovements();
+        await syncPendingMovements();
         toast.success(`Retorno de ${inmate.name} registrado.`);
       } else {
         if (!canSubmitExit) return;
@@ -58,9 +59,14 @@ export function useMovementRegisterViewModel(
           destinationLocation,
           reason: reason || undefined,
         });
-        void syncPendingMovements();
+        await syncPendingMovements();
         toast.success(`Saída de ${inmate.name} registrada.`);
       }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['inmates', cellId] }),
+        queryClient.invalidateQueries({ queryKey: ['inmate', inmate.id] }),
+        queryClient.invalidateQueries({ queryKey: ['open-movements-count'] }),
+      ]);
       navigation.goBack();
     } finally {
       setSubmitting(false);
@@ -72,6 +78,7 @@ export function useMovementRegisterViewModel(
     isReturning,
     temporaryTypes: visibleTypes,
     hasAnyType: temporaryTypes.length > 0,
+    isLoadingTypes: movementTypesQuery.isLoading,
     search,
     setSearch,
     movementTypeId,

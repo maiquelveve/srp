@@ -1,4 +1,4 @@
-import { FlatList, View } from 'react-native';
+import { ActivityIndicator, FlatList, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
@@ -25,31 +25,34 @@ export default function GalleriesScreen({ navigation, route }: Props): JSX.Eleme
         Galerias da unidade
       </Text>
 
-      <FlatList
-        data={viewModel.galleries}
-        keyExtractor={(item) => String(item.id)}
-        numColumns={2}
-        columnWrapperClassName="gap-4 px-4"
-        contentContainerClassName="gap-4 pb-4"
-        renderItem={({ item }) => (
-          <GalleryCard
-            code={item.code}
-            cellCount={item.cellCount}
-            capacity={item.capacity}
-            occupancy={item.occupancy}
-            onPress={() => viewModel.goToCells(item.id, item.code)}
-          />
-        )}
-        ListEmptyComponent={
-          !viewModel.isLoading ? (
+      {viewModel.isLoading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          className="flex-1"
+          data={viewModel.galleries}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerClassName="gap-5 px-4 pb-4"
+          renderItem={({ item }) => (
+            <GalleryCard
+              code={item.code}
+              cellCount={item.cellCount}
+              capacity={item.capacity}
+              occupancy={item.occupancy}
+              onPress={() => viewModel.goToCells(item.id, item.code)}
+            />
+          )}
+          ListEmptyComponent={
             <View className="p-4">
               <Text variant="muted" className="text-center">
                 Nenhuma galeria cadastrada nesta unidade.
               </Text>
             </View>
-          ) : null
-        }
-      />
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }

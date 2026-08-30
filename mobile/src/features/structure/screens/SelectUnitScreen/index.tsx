@@ -1,4 +1,4 @@
-import { FlatList, View } from 'react-native';
+import { ActivityIndicator, FlatList, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search } from 'lucide-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -44,20 +44,25 @@ export default function SelectUnitScreen({ navigation }: Props): JSX.Element {
         Suas unidades
       </Text>
 
-      <FlatList
-        data={viewModel.units}
-        keyExtractor={(item) => String(item.id)}
-        contentContainerClassName="gap-6 px-4 pb-4 pt-3"
-        renderItem={({ item }) => (
-          <UnitCard
-            name={item.name}
-            code={item.code}
-            active={viewModel.currentUnitId === item.id}
-            onPress={() => void viewModel.selectUnit(item.id)}
-          />
-        )}
-        ListEmptyComponent={
-          !viewModel.isLoading ? (
+      {viewModel.isLoading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          className="flex-1"
+          data={viewModel.units}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerClassName="gap-6 px-4 pb-4 pt-3"
+          renderItem={({ item }) => (
+            <UnitCard
+              name={item.name}
+              code={item.code}
+              active={viewModel.currentUnitId === item.id}
+              onPress={() => void viewModel.selectUnit(item.id)}
+            />
+          )}
+          ListEmptyComponent={
             <View className="p-4">
               <Text variant="muted" className="text-center">
                 {viewModel.hasAnyUnit
@@ -65,9 +70,9 @@ export default function SelectUnitScreen({ navigation }: Props): JSX.Element {
                   : 'Nenhuma unidade vinculada ao seu usuário.'}
               </Text>
             </View>
-          ) : null
-        }
-      />
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }

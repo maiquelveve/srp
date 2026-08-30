@@ -53,7 +53,11 @@ export default function InmateRow({
               </Text>
             </Badge>
           ) : (
-            <Text className="text-muted-foreground text-sm">{statusLine}</Text>
+            <Badge variant="success" className="self-start">
+              <Text className="text-success-foreground text-xs font-bold uppercase">
+                {statusLine}
+              </Text>
+            </Badge>
           )}
         </View>
       </View>
