@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,9 +11,8 @@ import { firstName, greetingForHour } from './model';
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
 export function useHomeScreenViewModel(navigation: Navigation) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { unitId } = useUnit();
-  const [confirmingLogout, setConfirmingLogout] = useState(false);
 
   const unitsQuery = useQuery({ queryKey: ['units'], queryFn: structureApi.listUnits });
   const currentUnit = findUnitById(unitsQuery.data?.data ?? [], unitId);
@@ -54,11 +52,6 @@ export function useHomeScreenViewModel(navigation: Navigation) {
     navigation.navigate('Profile');
   }
 
-  async function confirmLogout(): Promise<void> {
-    setConfirmingLogout(false);
-    await logout();
-  }
-
   return {
     userName: user?.name ?? '',
     firstName: firstName(user?.name ?? ''),
@@ -70,10 +63,6 @@ export function useHomeScreenViewModel(navigation: Navigation) {
       ? occupancyPercentage(occupancyQuery.data.capacity, occupancyQuery.data.occupancy)
       : null,
     openMovementsTotal: openMovementsQuery.data ?? 0,
-    confirmingLogout,
-    requestLogout: () => setConfirmingLogout(true),
-    cancelLogout: () => setConfirmingLogout(false),
-    confirmLogout,
     goToSelectUnit,
     goToMovement,
     goToProfile,

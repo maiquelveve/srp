@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Briefcase, IdCard, Mail, MapPin, ShieldCheck } from 'lucide-react-native';
 import { colors } from '@/theme/colors';
@@ -23,7 +23,7 @@ export default function ProfileScreen(): JSX.Element {
     >
       <ScreenHeader title="Perfil" />
 
-      <View className="flex-1 gap-8 px-6 pb-6 pt-6">
+      <ScrollView className="flex-1" contentContainerClassName="gap-8 px-6 pb-6 pt-6">
         <View className="items-center gap-2">
           <Avatar alt={`Foto de ${viewModel.name}`} className="border-primary h-28 w-28 border-2">
             <AvatarFallback>
@@ -66,9 +66,7 @@ export default function ProfileScreen(): JSX.Element {
             <InfoRow icon={Mail} label="E-mail institucional" value={viewModel.email} />
           </View>
         </View>
-      </View>
 
-      <View className="px-6 pb-6">
         <Button
           variant="destructive"
           size="lg"
@@ -77,7 +75,7 @@ export default function ProfileScreen(): JSX.Element {
         >
           <Text className="text-lg font-bold">Sair</Text>
         </Button>
-      </View>
+      </ScrollView>
 
       <ConfirmSheet
         visible={viewModel.confirmingLogout}
