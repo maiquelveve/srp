@@ -56,7 +56,7 @@ export default function MovementRegister({ route, navigation }: Props): JSX.Elem
             <View className="flex-1 gap-1">
               <Text className="text-lg font-bold uppercase">{viewModel.inmate.name}</Text>
               <Text variant="muted" className="text-base">
-                Prontuário: {viewModel.inmate.registrationNumber ?? 'não informado'}
+                Prontuário: {viewModel.inmate.registrationId ?? 'não informado'}
               </Text>
             </View>
           </View>

@@ -38,7 +38,7 @@ export interface Inmate {
   inMovement: boolean;
   currentMovement: CurrentMovement | null;
   photoUrl: string | null;
-  registrationNumber?: string | null;
+  registrationId?: string | null;
 }
 
 export interface Paginated<T> {

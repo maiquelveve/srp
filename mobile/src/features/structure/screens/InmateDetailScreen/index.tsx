@@ -62,7 +62,7 @@ export default function InmateDetailScreen({ route }: Props): JSX.Element {
               <DetailRow divider label="Status" value={inmateStatusLabel(viewModel.inmate.status)} />
               <DetailRow divider label="Cela" value={viewModel.cellCode} />
               <DetailRow divider label="Galeria" value={viewModel.galleryCode} />
-              <DetailRow label="Matrícula" value={viewModel.inmate.registrationNumber ?? 'Não informada'} />
+              <DetailRow label="Matrícula" value={viewModel.inmate.registrationId ?? 'Não informada'} />
             </View>
           </View>
 
