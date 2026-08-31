@@ -11,10 +11,17 @@ export function filterTemporaryMovementTypes(types: MovementType[]): MovementTyp
   return types.filter((type) => type.category === 'TEMPORARY');
 }
 
+function normalizeForSearch(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase();
+}
+
 export function filterMovementTypesBySearch(types: MovementType[], search: string): MovementType[] {
-  const normalizedSearch = search.trim().toLowerCase();
+  const normalizedSearch = normalizeForSearch(search.trim());
   if (!normalizedSearch) return types;
-  return types.filter((type) => type.name.toLowerCase().includes(normalizedSearch));
+  return types.filter((type) => normalizeForSearch(type.name).includes(normalizedSearch));
 }
 
 /** Ícone só decorativo — a API não expõe ícone por tipo, então inferimos por palavra-chave do nome. */

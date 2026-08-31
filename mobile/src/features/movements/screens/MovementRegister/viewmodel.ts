@@ -49,7 +49,7 @@ export function useMovementRegisterViewModel(
         if (!inmate.currentMovement) return;
         await enqueueReturn(inmate.currentMovement.movementId);
         await syncPendingMovements();
-        toast.success(`Retorno de ${inmate.name} registrado.`);
+        toast.success(`Retorno de ${inmate.name.toUpperCase()} registrado.`);
       } else {
         if (!canSubmitExit) return;
         await enqueueMovement({
@@ -60,7 +60,7 @@ export function useMovementRegisterViewModel(
           reason: reason || undefined,
         });
         await syncPendingMovements();
-        toast.success(`Saída de ${inmate.name} registrada.`);
+        toast.success(`Saída de ${inmate.name.toUpperCase()} registrada.`);
       }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['inmates', cellId] }),

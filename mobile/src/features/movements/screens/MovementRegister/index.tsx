@@ -190,7 +190,7 @@ export default function MovementRegister({ route, navigation }: Props): JSX.Elem
         <ConfirmSheet
           visible={viewModel.confirmingSubmit}
           title="Confirmar retorno?"
-          description={`Retorno de ${viewModel.inmate.name}.`}
+          description={`Retorno de ${viewModel.inmate.name.toUpperCase()}.`}
           confirmLabel="Confirmar"
           onConfirm={() => void viewModel.handleConfirm()}
           onCancel={viewModel.cancelSubmit}
