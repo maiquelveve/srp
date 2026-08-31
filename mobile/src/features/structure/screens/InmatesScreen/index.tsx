@@ -1,10 +1,13 @@
 import { ActivityIndicator, FlatList, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { CloudOff } from 'lucide-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/ui/text';
+import { Icon } from '@/components/ui/icon';
 import ScreenHeader from '@/components/ScreenHeader';
+import { pendingSyncLabel } from '@/features/structure/model';
 import InmateRow from './components/InmateRow';
 import { useInmatesScreenViewModel } from './viewmodel';
 
@@ -27,6 +30,15 @@ export default function InmatesScreen({ navigation, route }: Props): JSX.Element
         </Text>
         <Text className="font-semibold">{viewModel.occupancyLabel}</Text>
       </View>
+
+      {viewModel.pendingSyncCount > 0 && (
+        <View className="border-warning bg-warning/10 mx-4 mb-2 flex-row items-center gap-3 rounded-2xl border p-4">
+          <Icon as={CloudOff} size={18} color={colors.warning} />
+          <Text className="text-warning flex-1 text-sm font-semibold">
+            {pendingSyncLabel(viewModel.pendingSyncCount)}
+          </Text>
+        </View>
+      )}
 
       {viewModel.isLoading ? (
         <View className="flex-1 items-center justify-center">

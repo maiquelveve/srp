@@ -54,3 +54,9 @@ export function movementTimeLabel(exitDateTime: string, now: Date = new Date()):
 export function occupancyPercentage(capacity: number, occupancy: number): number {
   return capacity > 0 ? Math.round((occupancy / capacity) * 100) : 0;
 }
+
+export function pendingSyncLabel(count: number): string {
+  const noun = count === 1 ? 'movimentação' : 'movimentações';
+  const adjective = count === 1 ? 'pendente' : 'pendentes';
+  return `${count} ${noun} ${adjective} de sincronização`;
+}

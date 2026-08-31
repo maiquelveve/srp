@@ -1,3 +1,5 @@
+import { useCallback, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import type {
   NativeStackNavigationProp,
@@ -7,6 +9,7 @@ import { structureApi } from '@/features/structure/api';
 import { inmateMovementActionLabel, inmateStatusLine } from '@/features/structure/model';
 import type { Inmate } from '@/features/structure/types';
 import type { RootStackParamList } from '@/navigation/types';
+import { countPending } from '@/offline/offline-queue';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Inmates'>;
 type Route = NativeStackScreenProps<RootStackParamList, 'Inmates'>['route'];
@@ -18,6 +21,14 @@ export function useInmatesScreenViewModel(navigation: Navigation, route: Route) 
     queryKey: ['inmates', cellId],
     queryFn: () => structureApi.listInmates(cellId),
   });
+
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      countPending().then(setPendingSyncCount);
+    }, []),
+  );
 
   function goToDetail(inmateId: number): void {
     navigation.navigate('InmateDetail', { inmateId, cellCode, galleryCode });
@@ -37,6 +48,7 @@ export function useInmatesScreenViewModel(navigation: Navigation, route: Route) 
     occupancyLabel: `${occupancy}/${capacity} presos`,
     inmates: inmatesQuery.data?.data ?? [],
     isLoading: inmatesQuery.isLoading,
+    pendingSyncCount,
     statusLine: inmateStatusLine,
     movementActionLabel: inmateMovementActionLabel,
     goToDetail,
