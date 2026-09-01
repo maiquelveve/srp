@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { User } from 'lucide-react';
 import { movementsApi } from '../../api';
 import type { Inmate } from '../../../structure/types';
 import { notify } from '@/lib/notify';
@@ -7,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -108,7 +110,7 @@ export default function MovementDialog({
         destinationLocation,
         reason,
       }),
-    onSuccess: () => onSuccess(`Saída de ${inmate.name} registrada`),
+    onSuccess: () => onSuccess(`Saída de ${inmate.name.toUpperCase()} registrada`),
     onError: () =>
       notify({ title: 'Não foi possível registrar a saída', message: 'Tente novamente', type: 'error' }),
   });
@@ -122,7 +124,7 @@ export default function MovementDialog({
         destinationLocation,
         reason: reason || undefined,
       }),
-    onSuccess: () => onSuccess(`Movimentação de ${inmate.name} atualizada`),
+    onSuccess: () => onSuccess(`Movimentação de ${inmate.name.toUpperCase()} atualizada`),
     onError: () =>
       notify({
         title: 'Não foi possível atualizar a movimentação',
@@ -133,7 +135,7 @@ export default function MovementDialog({
 
   const registerReturn = useMutation({
     mutationFn: () => movementsApi.returnMovement(inmate.currentMovement!.movementId),
-    onSuccess: () => onSuccess(`Retorno de ${inmate.name} registrado`),
+    onSuccess: () => onSuccess(`Retorno de ${inmate.name.toUpperCase()} registrado`),
     onError: () =>
       notify({ title: 'Não foi possível registrar o retorno', message: 'Tente novamente', type: 'error' }),
   });
@@ -170,16 +172,13 @@ export default function MovementDialog({
             <DialogTitle>
               {isEditing ? 'Editar movimentação' : isReturning ? 'Registrar retorno' : 'Registrar saída'}
             </DialogTitle>
+            <DialogDescription className="flex items-center gap-1.5 uppercase">
+              <User className="size-3.5" />
+              {inmate.name}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4">
-            <div className="grid gap-1.5">
-              <Label>Preso</Label>
-              <div className="rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground">
-                {inmate.name}
-              </div>
-            </div>
-
             {isReturning && !isEditing && inmate.currentMovement && (
               <>
                 <div className="grid gap-1.5">

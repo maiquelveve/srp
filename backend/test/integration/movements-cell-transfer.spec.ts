@@ -7,8 +7,7 @@ import { TEST_FIXTURE } from './fixtures';
 /**
  * Integration tests for contracts/movements.md — troca/permuta de cela e
  * galeria (research.md #35, FR-015–FR-015c), against the isolated
- * `srp_db_test` database prepared by `pretest:integration`. Also covers
- * `GET /cells/:id/occupant`, used by the permuta flow.
+ * `srp_db_test` database prepared by `pretest:integration`.
  */
 describe('Movements endpoints — troca/permuta de cela e galeria (contracts/movements.md)', () => {
   let app: INestApplication;
@@ -125,31 +124,6 @@ describe('Movements endpoints — troca/permuta de cela e galeria (contracts/mov
     });
   });
 
-  describe('GET /cells/:id/occupant (FR-015a/FR-015c)', () => {
-    it('returns the inmate currently occupying the cell', async () => {
-      const galleryId = await createGallery();
-      const cellId = await createCell(galleryId, '01', 2);
-      const inmateId = await createInmate('Preso Ocupante', cellId);
-
-      const res = await request(app.getHttpServer())
-        .get(`/api/v1/cells/${cellId}/occupant`)
-        .set('Authorization', `Bearer ${officerToken}`);
-      expect(res.status).toBe(200);
-      expect(res.body).toMatchObject({ id: inmateId, name: 'Preso Ocupante' });
-    });
-
-    it('returns null for an empty cell', async () => {
-      const galleryId = await createGallery();
-      const emptyCellId = await createCell(galleryId, '01', 2);
-
-      const res = await request(app.getHttpServer())
-        .get(`/api/v1/cells/${emptyCellId}/occupant`)
-        .set('Authorization', `Bearer ${officerToken}`);
-      expect(res.status).toBe(200);
-      expect(res.body).toBeNull();
-    });
-  });
-
   describe('POST /movements/cell-swap (FR-015a) — qualquer perfil', () => {
     it('swaps two inmates between same-gallery cells simultaneously, no vacancy required', async () => {
       const galleryId = await createGallery();
@@ -161,7 +135,12 @@ describe('Movements endpoints — troca/permuta de cela e galeria (contracts/mov
       const res = await request(app.getHttpServer())
         .post('/api/v1/movements/cell-swap')
         .set('Authorization', `Bearer ${officerToken}`)
-        .send({ inmateId: inmateAId, destinationCellId: cellBId, reason: 'Permuta a pedido' });
+        .send({
+          inmateId: inmateAId,
+          destinationCellId: cellBId,
+          destinationInmateId: inmateBId,
+          reason: 'Permuta a pedido',
+        });
       expect(res.status).toBe(201);
 
       const [movementA, movementB] = res.body as {
@@ -184,16 +163,73 @@ describe('Movements endpoints — troca/permuta de cela e galeria (contracts/mov
       expect(await cellOccupancy(cellBId, galleryId)).toBe(1);
     });
 
-    it('rejects when the destination cell is not occupied by an ACTIVE inmate (race condition, 409)', async () => {
+    it('swaps with the specific chosen occupant when the destination cell has multiple active inmates (correctness)', async () => {
+      // Regressão do bug relatado pelo usuário: cela compartilhada com 2+
+      // presos ativos — a permuta MUST trocar com quem foi escolhido
+      // (`destinationInmateId`), nunca "qualquer um" da cela.
       const galleryId = await createGallery();
       const cellAId = await createCell(galleryId, '01', 1);
-      const emptyCellId = await createCell(galleryId, '02', 1);
-      const inmateAId = await createInmate('Preso Sozinho', cellAId);
+      const sharedCellId = await createCell(galleryId, '02', 2);
+      const inmateAId = await createInmate('Preso A Permuta Múltipla', cellAId);
+      const inmateB1Id = await createInmate('Preso B1 Não Escolhido', sharedCellId);
+      const inmateB2Id = await createInmate('Preso B2 Escolhido', sharedCellId);
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/movements/cell-swap')
         .set('Authorization', `Bearer ${officerToken}`)
-        .send({ inmateId: inmateAId, destinationCellId: emptyCellId, reason: 'Tentativa' });
+        .send({
+          inmateId: inmateAId,
+          destinationCellId: sharedCellId,
+          destinationInmateId: inmateB2Id,
+          reason: 'Permuta específica',
+        });
+      expect(res.status).toBe(201);
+
+      const inmateAAfter = await request(app.getHttpServer())
+        .get(`/api/v1/inmates/${inmateAId}`)
+        .set('Authorization', `Bearer ${wardenToken}`);
+      const inmateB1After = await request(app.getHttpServer())
+        .get(`/api/v1/inmates/${inmateB1Id}`)
+        .set('Authorization', `Bearer ${wardenToken}`);
+      const inmateB2After = await request(app.getHttpServer())
+        .get(`/api/v1/inmates/${inmateB2Id}`)
+        .set('Authorization', `Bearer ${wardenToken}`);
+      expect(inmateAAfter.body).toMatchObject({ currentCellId: sharedCellId });
+      expect(inmateB2After.body).toMatchObject({ currentCellId: cellAId });
+      expect(inmateB1After.body).toMatchObject({ currentCellId: sharedCellId });
+    });
+
+    it('rejects when destinationInmateId is missing (400)', async () => {
+      const galleryId = await createGallery();
+      const cellAId = await createCell(galleryId, '01', 1);
+      const cellBId = await createCell(galleryId, '02', 1);
+      const inmateAId = await createInmate('Preso Sem Destino', cellAId);
+      await createInmate('Preso B', cellBId);
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/movements/cell-swap')
+        .set('Authorization', `Bearer ${officerToken}`)
+        .send({ inmateId: inmateAId, destinationCellId: cellBId, reason: 'Tentativa' });
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects when destinationInmateId is not currently in destinationCellId (race condition, 409)', async () => {
+      const galleryId = await createGallery();
+      const cellAId = await createCell(galleryId, '01', 1);
+      const emptyCellId = await createCell(galleryId, '02', 1);
+      const elsewhereCellId = await createCell(galleryId, '03', 1);
+      const inmateAId = await createInmate('Preso Sozinho', cellAId);
+      const staleInmateId = await createInmate('Preso Em Outro Lugar', elsewhereCellId);
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/movements/cell-swap')
+        .set('Authorization', `Bearer ${officerToken}`)
+        .send({
+          inmateId: inmateAId,
+          destinationCellId: emptyCellId,
+          destinationInmateId: staleInmateId,
+          reason: 'Tentativa',
+        });
       expect(res.status).toBe(409);
     });
   });
@@ -254,6 +290,55 @@ describe('Movements endpoints — troca/permuta de cela e galeria (contracts/mov
     });
   });
 
+  describe('Bloqueio com movimentação temporária em aberto', () => {
+    async function openTemporaryMovement(inmateId: number, cellId: number): Promise<void> {
+      await request(app.getHttpServer())
+        .post('/api/v1/movements')
+        .set('Authorization', `Bearer ${wardenToken}`)
+        .send({
+          inmateId,
+          movementTypeId: TEST_FIXTURE.temporaryMovementTypeId,
+          originCellId: cellId,
+          destinationLocation: 'Atendimento médico',
+          reason: 'Consulta',
+        });
+    }
+
+    it('rejects cell-change when the inmate has an open TEMPORARY movement (409)', async () => {
+      const galleryId = await createGallery();
+      const originCellId = await createCell(galleryId, '01', 2);
+      const destCellId = await createCell(galleryId, '02', 2);
+      const inmateId = await createInmate('Preso Fora Da Cela', originCellId);
+      await openTemporaryMovement(inmateId, originCellId);
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/movements/cell-change')
+        .set('Authorization', `Bearer ${officerToken}`)
+        .send({ inmateId, destinationCellId: destCellId, reason: 'Tentativa' });
+      expect(res.status).toBe(409);
+    });
+
+    it('rejects cell-swap when the OTHER inmate (destination occupant) has an open TEMPORARY movement (409)', async () => {
+      const galleryId = await createGallery();
+      const cellAId = await createCell(galleryId, '01', 1);
+      const cellBId = await createCell(galleryId, '02', 1);
+      const inmateAId = await createInmate('Preso A Disponível', cellAId);
+      const inmateBId = await createInmate('Preso B Fora Da Cela', cellBId);
+      await openTemporaryMovement(inmateBId, cellBId);
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/movements/cell-swap')
+        .set('Authorization', `Bearer ${officerToken}`)
+        .send({
+          inmateId: inmateAId,
+          destinationCellId: cellBId,
+          destinationInmateId: inmateBId,
+          reason: 'Tentativa',
+        });
+      expect(res.status).toBe(409);
+    });
+  });
+
   describe('POST /movements/gallery-swap (FR-015c) — SUPERVISOR/WARDEN', () => {
     it('swaps two inmates between different-gallery cells simultaneously', async () => {
       const galleryA = await createGallery();
@@ -269,6 +354,7 @@ describe('Movements endpoints — troca/permuta de cela e galeria (contracts/mov
         .send({
           inmateId: inmateAId,
           destinationCellId: cellBId,
+          destinationInmateId: inmateBId,
           reason: 'Permuta entre galerias',
         });
       expect(res.status).toBe(201);

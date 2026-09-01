@@ -148,6 +148,29 @@ describe('Movements endpoints — final/situações definitivas (contracts/movem
     expect(await cellOccupancy(cellId, galleryId)).toBe(0);
   });
 
+  describe('Bloqueio com movimentação temporária em aberto', () => {
+    it('rejects final/release when the inmate has an open TEMPORARY movement (409)', async () => {
+      const { inmateId, cellId } = await createInmate('Preso Em Atendimento');
+
+      await request(app.getHttpServer())
+        .post('/api/v1/movements')
+        .set('Authorization', `Bearer ${wardenToken}`)
+        .send({
+          inmateId,
+          movementTypeId: TEST_FIXTURE.temporaryMovementTypeId,
+          originCellId: cellId,
+          destinationLocation: 'Atendimento médico',
+          reason: 'Consulta',
+        });
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/movements/final/release')
+        .set('Authorization', `Bearer ${wardenToken}`)
+        .send({ inmateId, reason: 'Tentativa' });
+      expect(res.status).toBe(409);
+    });
+  });
+
   // Troca/permuta de cela/galeria (FR-015–FR-015c) têm sua própria suíte —
   // backend/test/integration/movements-cell-transfer.spec.ts (research.md #35).
 

@@ -7,14 +7,10 @@ const MOVEMENT_TYPES_CACHE_KEY = 'srp:movement-types-cache';
 interface CellTransferInput {
   inmateId: number;
   destinationCellId: number;
+  /** Obrigatório para cellSwap (research.md #36) — o backend ignora em cellChange. */
+  destinationInmateId?: number;
   reason: string;
   notes?: string;
-}
-
-interface CellOccupant {
-  id: number;
-  name: string;
-  registrationId: string | null;
 }
 
 /**
@@ -50,8 +46,4 @@ export const movementsApi = {
 
   cellSwap: (input: CellTransferInput) =>
     apiClient.post<{ id: number }[]>('/movements/cell-swap', input).then((r) => r.data),
-
-  /** GET /cells/:id/occupant — mostra quem ocupa a cela de destino antes de confirmar a permuta. */
-  cellOccupant: (cellId: number) =>
-    apiClient.get<CellOccupant | null>(`/cells/${cellId}/occupant`).then((r) => r.data),
 };

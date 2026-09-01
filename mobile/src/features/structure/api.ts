@@ -23,8 +23,17 @@ export const structureApi = {
       };
     });
   },
+  // `status: 'ACTIVE'` é obrigatório aqui — sem ele a listagem também traz
+  // presos com situação definitiva já registrada (liberado/tornozeleira/
+  // transferido/óbito), que continuam com `currentCellId` apontando pra essa
+  // cela (é o timeline de FR-016). Sem o filtro, a lista mostra mais presos
+  // do que a ocupação real da cela (backend já conta só ACTIVE em
+  // `CellsService.occupancyOf`), dando a falsa impressão de que a contagem
+  // de vagas está errada — mesmo bug corrigido no web (GalleryCards).
   listInmates: (cellId: number) =>
-    apiClient.get<Paginated<Inmate>>('/inmates', { params: { cellId } }).then((r) => r.data),
+    apiClient
+      .get<Paginated<Inmate>>('/inmates', { params: { cellId, status: 'ACTIVE' } })
+      .then((r) => r.data),
   getInmateById: (id: number) => apiClient.get<Inmate>(`/inmates/${id}`).then((r) => r.data),
   countActiveInmatesByUnit: (unitId: number) =>
     apiClient

@@ -51,19 +51,13 @@ export const movementsApi = {
 
   gallerySwap: (input: CellTransferInput) =>
     apiClient.post<Movement[]>('/movements/gallery-swap', input).then((r) => r.data),
-
-  /** GET /cells/:id/occupant — mostra quem ocupa a cela de destino antes de confirmar uma permuta. */
-  cellOccupant: (cellId: number) =>
-    apiClient
-      .get<{ id: number; name: string; registrationId: string | null } | null>(
-        `/cells/${cellId}/occupant`,
-      )
-      .then((r) => r.data),
 };
 
 interface CellTransferInput {
   inmateId: number;
   destinationCellId: number;
+  /** Obrigatório para cell-swap/gallery-swap (research.md #36) — o backend ignora em cell-change/gallery-change. */
+  destinationInmateId?: number;
   reason: string;
   notes?: string;
 }

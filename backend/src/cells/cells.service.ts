@@ -125,11 +125,4 @@ export class CellsService {
       where: { currentCell: { id: cellId }, status: InmateStatus.ACTIVE },
     });
   }
-
-  /** Used by GET /cells/:id/occupant and by permuta validation (research.md #35, FR-015a/FR-015c). */
-  async findActiveOccupant(cellId: number): Promise<Inmate | null> {
-    return this.inmateRepository.findOne({
-      where: { currentCell: { id: cellId }, status: InmateStatus.ACTIVE },
-    });
-  }
 }

@@ -7,8 +7,12 @@ import { IsISO8601, IsInt, IsNotEmpty, IsOptional, IsString } from 'class-valida
  * is endpoint-level behavior (same gallery vs. different, single move vs.
  * simultaneous swap), not the payload. `originCellId` is not accepted —
  * derived server-side from `inmate.currentCell`. For `*-swap`,
- * `destinationCellId` is the cell currently occupied by the *other* inmate
- * (confirmed beforehand via `GET /cells/:id/occupant`).
+ * `destinationCellId` is the cell currently occupied by the *other* inmate,
+ * and `destinationInmateId` (REQUIRED for `*-swap`, ignored otherwise) is
+ * that inmate specifically — a shared cell can hold more than one ACTIVE
+ * inmate, so "whoever's in that cell" is ambiguous; the client MUST have
+ * listed the cell's occupants beforehand (`GET /inmates?cellId=&status=ACTIVE`)
+ * and let the user pick which one.
  */
 export class CellTransferDto {
   @IsInt()
@@ -16,6 +20,10 @@ export class CellTransferDto {
 
   @IsInt()
   destinationCellId: number;
+
+  @IsOptional()
+  @IsInt()
+  destinationInmateId?: number;
 
   @IsString()
   @IsNotEmpty()

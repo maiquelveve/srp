@@ -10,6 +10,7 @@ import { inmateMovementActionLabel, inmateStatusLine } from '@/features/structur
 import type { Inmate } from '@/features/structure/types';
 import type { RootStackParamList } from '@/navigation/types';
 import { countPending } from '@/offline/offline-queue';
+import { toast } from '@/lib/toast';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Inmates'>;
 type Route = NativeStackScreenProps<RootStackParamList, 'Inmates'>['route'];
@@ -39,6 +40,15 @@ export function useInmatesScreenViewModel(navigation: Navigation, route: Route) 
   }
 
   function goToCellTransferSelect(inmate: Inmate): void {
+    // Preso fora da cela numa movimentação temporária em aberto (atendimento
+    // médico, audiência etc.) — o backend já recusa qualquer troca/permuta
+    // nesse estado (409), isso só evita abrir a tela pra descobrir só no
+    // final. Sem tooltip no mobile (não existe esse componente aqui, ver
+    // docs/style-guide.md #6), então o aviso vem por toast no toque.
+    if (inmate.inMovement) {
+      toast.warning('Preso em movimentação temporária. Registre o retorno antes de continuar.');
+      return;
+    }
     navigation.navigate('CellTransferSelect', { inmate, cellId, galleryId, galleryCode });
   }
 

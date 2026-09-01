@@ -14,6 +14,7 @@ export function useCellSwapViewModel(navigation: Navigation, route: Route) {
   const queryClient = useQueryClient();
 
   const [destinationCellId, setDestinationCellId] = useState<number | null>(null);
+  const [selectedDestinationInmateId, setSelectedDestinationInmateId] = useState<number | null>(null);
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -29,17 +30,28 @@ export function useCellSwapViewModel(navigation: Navigation, route: Route) {
     (cell) => cell.id !== cellId && cell.occupancy > 0,
   );
 
-  const occupantQuery = useQuery({
-    queryKey: ['cell-occupant', destinationCellId],
-    queryFn: () => movementsApi.cellOccupant(destinationCellId as number),
+  // Permuta troca com um preso específico, não "a cela" — uma cela
+  // compartilhada pode ter mais de um ocupante ativo, então não dá pra
+  // assumir "quem estiver lá". Lista todos os ocupantes ativos e deixa o
+  // usuário escolher (research.md #36 — antes vinha um preso pré-selecionado
+  // sem escolha possível, `structureApi.listInmates` já filtra ACTIVE).
+  const candidatesQuery = useQuery({
+    queryKey: ['inmates', destinationCellId],
+    queryFn: () => structureApi.listInmates(destinationCellId as number),
     enabled: destinationCellId !== null,
   });
+  const candidates = candidatesQuery.data?.data ?? [];
+  // Só pré-seleciona quando não há ambiguidade (um único ocupante).
+  const destinationInmateId =
+    selectedDestinationInmateId ?? (candidates.length === 1 ? candidates[0].id : null);
+  const selectedCandidate = candidates.find((candidate) => candidate.id === destinationInmateId);
 
   const canSubmit =
     destinationCellId !== null &&
     reason.trim() !== '' &&
-    occupantQuery.data !== undefined &&
-    occupantQuery.data !== null;
+    destinationInmateId !== null &&
+    selectedCandidate !== undefined &&
+    !selectedCandidate.inMovement;
 
   async function handleConfirm(): Promise<void> {
     if (!canSubmit) return;
@@ -49,6 +61,7 @@ export function useCellSwapViewModel(navigation: Navigation, route: Route) {
       await movementsApi.cellSwap({
         inmateId: inmate.id,
         destinationCellId: destinationCellId as number,
+        destinationInmateId: destinationInmateId as number,
         reason,
         notes: notes || undefined,
       });
@@ -70,9 +83,15 @@ export function useCellSwapViewModel(navigation: Navigation, route: Route) {
     cells: availableCells,
     isLoading: cellsQuery.isLoading,
     destinationCellId,
-    setDestinationCellId,
-    occupant: occupantQuery.data,
-    isLoadingOccupant: occupantQuery.isLoading,
+    setDestinationCellId: (id: number) => {
+      setDestinationCellId(id);
+      setSelectedDestinationInmateId(null);
+    },
+    candidates,
+    isLoadingCandidates: candidatesQuery.isLoading,
+    destinationInmateId,
+    setDestinationInmateId: setSelectedDestinationInmateId,
+    selectedCandidate,
     reason,
     setReason,
     notes,

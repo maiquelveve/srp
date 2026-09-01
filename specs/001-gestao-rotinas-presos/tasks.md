@@ -241,7 +241,7 @@ Revisão pós-implementação decidida com o usuário do projeto depois de T046�
 - [X] T086 [P] [US3] Implement `POST /api/v1/movements/cell-swap` (FR-015a) — any role, two paired `Movement` rows, `409` if destination stopped being occupied by an `ACTIVE` inmate — in `backend/src/movements/` (depends on T084)
 - [X] T087 [P] [US3] Implement `POST /api/v1/movements/gallery-change` (FR-015b) — SUPERVISOR/WARDEN only, capacity-checked — in `backend/src/movements/` (depends on T084)
 - [X] T088 [P] [US3] Implement `POST /api/v1/movements/gallery-swap` (FR-015c) — SUPERVISOR/WARDEN only, two paired `Movement` rows — in `backend/src/movements/` (depends on T084)
-- [X] T089 [P] [US3] Implement `GET /api/v1/cells/:id/occupant` in `backend/src/cells/` (depends on T081). **Landed on**: response body serialized manually via `res.json()` — a handler that just `return`s `null` gets Nest's "empty body" shortcut instead of the JSON literal `null`, breaking the documented contract.
+- [X] T089 [P] [US3] Implement `GET /api/v1/cells/:id/occupant` in `backend/src/cells/` (depends on T081). **Landed on**: response body serialized manually via `res.json()` — a handler that just `return`s `null` gets Nest's "empty body" shortcut instead of the JSON literal `null`, breaking the documented contract. **Removed in T100 below (research.md #36)** — a shared cell can have more than one ACTIVE occupant, so "the" occupant is ambiguous; superseded by listing all occupants via the existing `GET /inmates?cellId=&status=ACTIVE` and letting the user pick.
 - [X] T090 [US3] Make `CreateMovementDto.reason` required (FR-008a) — update `POST /movements` (US2) and its existing tests (`backend/test/integration/movements-temporary.spec.ts`) in `backend/src/movements/dto/create-movement.dto.ts`. **Landed on**: `registerChange`/`registerSwap` (T085–T088) re-fetch origin/destination cells via `CellsService.findEntityInScope` instead of trusting `inmate.currentCell` directly — `InmatesService.findEntityInScope` only `leftJoin`s (not `leftJoinAndSelect`) the cell's gallery for its own scope filter, so `inmate.currentCell.gallery` is never hydrated on the returned entity; comparing galleries off it crashed with a 500. Verified: `tsc -b`, `eslint --max-warnings=0`, `nest build`, full unit (14) + integration (47) suites all green.
 
 #### Frontend web
@@ -253,7 +253,75 @@ Revisão pós-implementação decidida com o usuário do projeto depois de T046�
 
 - [X] T093 [P] [US3] Build mobile "Trocar de cela" entry point — row action between "Detalhes" and "Saída" on the inmate list — plus a type-selection screen (2 cards: Troca de cela / Permuta de cela — gallery variants never show on mobile, FR-015b/FR-015c are web-only) in `mobile/src/features/movements/screens/CellTransferSelect/` (depends on T085, T086). **Landed on**: `RootStackParamList.Inmates` (and `CellsScreen`'s navigation into it) gained a `galleryId` field — it only carried `galleryCode` (string) before, but troca/permuta de cela need the numeric id to query `structureApi.listCells(galleryId)`. Third `InmateRow` action is icon-only (`Shuffle`, outline/neutral) between "Detalhes" and the movement button — three full-text buttons side by side didn't fit the row.
 - [X] T094 [P] [US3] Build mobile Troca de cela screen (single-inmate flow, destination cell picker within the same gallery) in `mobile/src/features/movements/screens/CellChange/` (depends on T093)
-- [X] T095 [P] [US3] Build mobile Permuta de cela screen (choose destination cell → show occupant via `GET /cells/:id/occupant` → confirm) in `mobile/src/features/movements/screens/CellSwap/` (depends on T093). **Landed on**: added `movementsApi.cellChange`/`cellSwap`/`cellOccupant` (mobile) and registered the 3 new screens in `RootNavigator`. **Verification note**: this Linux/WSL sandbox's `mobile/node_modules` is incomplete pre-existing (`lucide-react-native`, `@rn-primitives/*`, `nativewind` unresolved — affects every file, not just these, and breaks `tsc --noEmit`/`jest` project-wide) — `npm run lint` passes clean, but full typecheck/on-device verification was not possible here; per the user, that happens on a separate Windows-side instance.
+- [X] T095 [P] [US3] Build mobile Permuta de cela screen (choose destination cell → show occupant via `GET /cells/:id/occupant` → confirm) in `mobile/src/features/movements/screens/CellSwap/` (depends on T093). **Landed on**: added `movementsApi.cellChange`/`cellSwap`/`cellOccupant` (mobile) and registered the 3 new screens in `RootNavigator`. **Verification note**: this Linux/WSL sandbox's `mobile/node_modules` is incomplete pre-existing (`lucide-react-native`, `@rn-primitives/*`, `nativewind` unresolved — affects every file, not just these, and breaks `tsc --noEmit`/`jest` project-wide) — `npm run lint` passes clean, but full typecheck/on-device verification was not possible here; per the user, that happens on a separate Windows-side instance. **Redesigned in T100 below.**
+
+#### Correções pós-implementação #2 (revisão do usuário sobre T091–T095, research.md #36–#39)
+
+Segunda rodada de revisão pós-implementação — o usuário testou o Mapa da Unidade e o fluxo de
+troca/permuta na web e reportou bugs/ajustes um de cada vez. Todas as tasks abaixo já entregues e
+verificadas na web (Playwright) e no backend (suítes de integração/unitárias); mobile ainda
+pendente de validação manual (T104).
+
+- [X] T096 [US3] Fix: listagem de presos de uma cela não filtrava `status=ACTIVE` — presos com
+  situação definitiva já registrada (liberado/tornozeleira/transferido/óbito) continuam com
+  `currentCellId` apontando pra última cela (timeline de FR-016) e apareciam na lista junto com os
+  ativos, embora a ocupação numérica (`X/Y`) já fosse calculada só com `ACTIVE` e estivesse
+  correta — a UI simplesmente mostrava mais presos do que a ocupação informada, parecendo um bug
+  de contagem. Corrigido em `frontend/src/features/structure/components/GalleryCards/index.tsx`
+  (web, `CellRowInmates`) e `mobile/src/features/structure/api.ts` (`structureApi.listInmates`).
+- [X] T097 [P] [US3] `CellTransferDialog`: os 4 cards de tipo (troca/permuta cela/galeria) ficam
+  desabilitados com badge "Indisponível" + tooltip explicando o motivo quando não há destino
+  possível pro tipo (nenhuma cela com vaga, ou nenhuma cela ocupada, na galeria atual/demais
+  galerias) — evita abrir o formulário e só descobrir no select vazio, que parecia bug. Checagem
+  reaproveita as mesmas queries `['cells', galeriaId]` já cacheadas pelo Mapa da Unidade.
+- [X] T098 [P] [US3] `CellTransferDialog`: select "Galeria de destino" (troca/permuta de galeria)
+  filtrado só às galerias que de fato têm uma cela elegível pro tipo escolhido (com vaga pra
+  troca, ocupada pra permuta) — antes listava todas as galerias da unidade, inclusive as sem
+  destino possível.
+- [X] T099 [US3] Bloqueio de troca/permuta/situação definitiva quando o preso tem movimentação
+  `TEMPORARY` em aberto (research.md #38) — `MovementsService.assertNoOpenTemporaryMovement()`
+  chamado em `registerFinal` (cobre `final/*`, `cell-change`, `gallery-change`) e `registerSwap`
+  (`cell-swap`/`gallery-swap`, nos dois presos), `409` em `backend/src/movements/movements.service.ts`.
+  Espelhado na UI: botões "Trocar de cela"/"Alterar situação" desabilitados com tooltip em
+  `GalleryCards` (web); botão "Trocar de cela" esmaecido + toast de aviso ao toque (sem tooltip no
+  mobile) em `InmatesScreen` (`mobile/src/features/structure/screens/InmatesScreen/`). Testes de
+  integração novos cobrindo os 3 pontos de entrada em `movements-cell-transfer.spec.ts` e
+  `movements-final.spec.ts`.
+- [X] T100 [US3] `destinationInmateId` obrigatório em permuta (research.md #36) — cela
+  compartilhada pode ter mais de um preso `ACTIVE`, então "quem está na cela" sozinho não
+  identifica ninguém pra troca; `GET /cells/:id/occupant` (T089) removido, substituído por
+  `GET /inmates?cellId=&status=ACTIVE` (já existente) pra listar todos os candidatos.
+  `CellTransferDto` ganha `destinationInmateId`, validado em `registerSwap`
+  (`backend/src/movements/movements.service.ts`, `409` se o preso não estiver mais `ACTIVE`
+  naquela cela). Web (`CellTransferDialog`) e mobile (`CellSwap`, novo componente `InmateOption`)
+  passam a listar os ocupantes ativos da cela de destino e exigir escolha explícita — inclusive
+  com 1 candidato só, eliminando a ambiguidade por completo. Candidato com `inMovement=true`
+  aparece na lista mas bloqueia o Confirmar (mesma regra de T099). Testes de integração novos:
+  permuta contra cela com múltiplos ocupantes troca com o escolhido (não "qualquer um"), `400` sem
+  `destinationInmateId`, `409` de condição de corrida.
+- [X] T101 [US3] Fix de layout: nome do preso ficava com 0px de largura (invisível, não truncado)
+  em viewports em torno de 945px — `GalleryCards` só vira 2 colunas a partir de `lg` (1024px, não
+  mais `md`), indentação da lista de presos reduzida de `ml-10 mr-16` pra `ml-6 mr-6`, e
+  `INMATE_ROW_GRID`/`CELL_ROW_GRID` passam a `minmax(0,1fr)` em vez de `1fr` cru (research.md #37).
+- [X] T102 [US3] Polimento de UI (research.md #39, web only): título dos modais de movimentação
+  (`CellTransferDialog`/`FinalSituationDialog`/`MovementDialog`) redesenhado — `DialogTitle` com a
+  ação, `DialogDescription` com ícone + nome do preso, sem travessão; nome do preso sempre em
+  maiúsculo em toda exibição web (lista de presos, cabeçalhos de modal, combobox); select de
+  "Preso de destino" da permuta virou combobox com busca (`Popover`+`Command`/cmdk, componentes
+  shadcn novos — `command`, `popover`, `docs/style-guide.md` atualizado), com fix do filtro fuzzy
+  padrão do cmdk (trocado por substring simples) e estilo global de barra de rolagem
+  (`frontend/src/index.css`) nos tokens de cor do tema.
+- [ ] T103 [US3] Seed manual de dados de teste (não é código — via API, script descartável) na
+  Galeria D: reativada (estava inativa/sem celas), 5 celas ("1"–"5", capacidade 10), 48 presos
+  (4 celas cheias + 1 com 8/10) com nome/sobrenome/matrícula/nascimento completos, pra testar
+  troca/permuta com volume real de candidatos. **Pendência**: decidir se a Galeria D volta a ficar
+  inativa depois dos testes ou permanece como dado de exemplo.
+- [ ] T104 [US3] Validar manualmente no mobile (instância Windows, fora deste sandbox Linux/WSL —
+  mesma limitação de T095) as mudanças de T096/T099/T100 acima: `InmatesScreen` (lista da cela só
+  ACTIVE; botão "Trocar de cela" esmaecido + toast quando `inMovement`), `CellSwap`/Permuta de
+  cela (novo picker `InmateOption` entre os ocupantes da cela de destino; candidato `inMovement`
+  aparece mas bloqueia Confirmar), e um smoke test de `CellChange`/Troca de cela (não alterada
+  nesta rodada, mas compartilha navegação/tipos com as telas acima).
 
 **Checkpoint**: User Stories 1–3 all work independently
 

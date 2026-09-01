@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Icon } from '@/components/ui/icon';
 import { colors } from '@/theme/colors';
 import { initials } from '@/lib/initials';
+import { cn } from '@/lib/utils';
 import { isExternalMovementType } from '@/features/structure/model';
 import type { Inmate } from '@/features/structure/types';
 
@@ -77,11 +78,14 @@ export default function InmateRow({
         </Button>
         {/* Troca/permuta de cela (US3, FR-015/FR-015a) — ícone só, entre
             Detalhes e o botão de movimentação, pra não espremer o texto dos
-            outros dois num row de 3 botões cheios. */}
+            outros dois num row de 3 botões cheios. Esmaecido (não
+            `disabled` de verdade — sem tooltip no mobile, o toque ainda
+            precisa disparar o toast explicando o motivo) enquanto o preso
+            está fora da cela numa movimentação temporária em aberto. */}
         <Button
           variant="outline"
           size="icon"
-          className="border-border bg-transparent rounded-full"
+          className={cn('border-border bg-transparent rounded-full', inmate.inMovement && 'opacity-40')}
           onPress={onPressTransfer}
         >
           <Icon as={Shuffle} size={18} color={colors.foreground} />

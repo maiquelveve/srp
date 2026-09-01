@@ -21,8 +21,13 @@ Cobre User Story 2 (FR-008…FR-011a) e User Story 3 (FR-012…FR-016c).
 | POST | `/api/v1/movements/cell-swap` | PRISON_OFFICER, SUPERVISOR, WARDEN | Registra permuta de cela — mesma galeria, dois presos, sem exigir vaga (FR-015a). |
 | POST | `/api/v1/movements/gallery-change` | SUPERVISOR, WARDEN | Registra troca de galeria — galerias diferentes, exige vaga (FR-015b). |
 | POST | `/api/v1/movements/gallery-swap` | SUPERVISOR, WARDEN | Registra permuta de galeria — galerias diferentes, dois presos, sem exigir vaga (FR-015c). |
-| GET | `/api/v1/cells/:id/occupant` | qualquer autenticado | Retorna o preso que ocupa atualmente a cela (ou `null`) — usado pela tela de permuta para exibir o preso do destino escolhido antes da confirmação (FR-015a/FR-015c). Não estava nesta tabela originalmente. |
 | GET | `/api/v1/inmates/:id/location-history` | qualquer autenticado | Linha do tempo de localização do preso (FR-016). |
+
+> `GET /cells/:id/occupant` existiu numa versão anterior deste contrato e foi **removido** — uma
+> cela compartilhada pode ter mais de um preso `ACTIVE` ao mesmo tempo, então "o" ocupante é
+> ambíguo. A tela de permuta usa `GET /api/v1/inmates?cellId=&status=ACTIVE` (já existente,
+> FR-007/FR-011) para listar TODOS os ocupantes ativos da cela de destino e deixar o usuário
+> escolher qual deles é o segundo preso da troca.
 
 ## Idempotência (offline, FR-011a)
 
@@ -62,14 +67,25 @@ Cobre User Story 2 (FR-008…FR-011a) e User Story 3 (FR-012…FR-016c).
   `inmates.current_cell_id`, fechar e reabrir o registro de `CellHistory` (FR-016), e MUST ser
   rejeitados com `400` se a cela de destino já estiver na capacidade máxima (data-model.md `Cell`).
   `inmates.status` **não muda** (permanece `ACTIVE`).
+- **Todo endpoint desta seção que muda `inmates.current_cell_id` e/ou `inmates.status`** —
+  `final/release`, `/ankle-monitor`, `/transfer`, `cell-change`, `gallery-change`, `cell-swap`,
+  `gallery-swap` — MUST responder `409` se o preso (nos dois casos de permuta, qualquer um dos
+  dois presos envolvidos) tiver uma movimentação `TEMPORARY` em aberto no momento do POST
+  (research.md #38) — ele precisa estar fisicamente na cela pra qualquer uma dessas mudanças
+  fazer sentido; registre o retorno (`PATCH /movements/:id/return`) primeiro.
 - `POST /movements/cell-swap` e `/gallery-swap` MUST, na mesma transação: trocar `current_cell_id`
   dos dois presos envolvidos, gerar dois registros de `Movement` vinculados por `pairedMovement`
   (data-model.md), fechar/reabrir dois registros de `CellHistory` (um por preso). Nunca checam
   capacidade (a troca é direta). Requisição informa `inmateId` + `destinationCellId` (a cela
-  atualmente ocupada pelo segundo preso); o cliente MUST ter consultado
-  `GET /cells/:id/occupant` antes, para exibir o segundo preso e obter confirmação do usuário —
-  o backend MUST responder `409` se, no momento do POST, a cela de destino não estiver mais
-  ocupada por um preso `ACTIVE` (edge case de condição de corrida, ver spec.md Edge Cases).
+  atualmente ocupada pelo segundo preso) + `destinationInmateId` (**obrigatório** — o segundo
+  preso especificamente; uma cela compartilhada pode ter mais de um preso `ACTIVE`, então "quem
+  está na cela" sozinho não identifica ninguém). O cliente MUST ter consultado
+  `GET /inmates?cellId=&status=ACTIVE` antes, para listar os ocupantes da cela de destino e obter
+  a escolha do usuário — o backend MUST responder `400` se `destinationInmateId` estiver ausente
+  e `409` se, no momento do POST, esse preso não estiver mais `ACTIVE` naquela cela (edge case de
+  condição de corrida — foi movido, liberado etc. entre a consulta e a confirmação, ver spec.md
+  Edge Cases). Ver também a regra de movimentação `TEMPORARY` em aberto (`409`) logo acima, que se
+  aplica aos dois presos da permuta.
 - `/gallery-change` e `/gallery-swap` MUST responder `403` para `PRISON_OFFICER` (RBAC —
   data-model.md, FR-015b/FR-015c).
 - Todo endpoint de criação desta seção MUST gerar log de auditoria com valores antigos/novos do
@@ -100,12 +116,14 @@ Response 409 (já em aberto):
 
 ## Exemplo — POST /api/v1/movements/cell-swap
 
-Request (`inmateId` é o preso A; `destinationCellId` é a cela atualmente ocupada pelo preso B,
-já confirmada via `GET /cells/:id/occupant`):
+Request (`inmateId` é o preso A; `destinationCellId` é a cela atualmente ocupada pelo preso B;
+`destinationInmateId` é o preso B especificamente, escolhido pelo usuário na lista retornada por
+`GET /inmates?cellId=55&status=ACTIVE`):
 ```json
 {
   "inmateId": 101,
   "destinationCellId": 55,
+  "destinationInmateId": 208,
   "reason": "Reorganização a pedido da galeria"
 }
 ```
@@ -118,7 +136,18 @@ Response 201 (um por preso, dois registros criados na mesma transação):
 ]
 ```
 
-Response 409 (cela de destino não está mais ocupada por um preso ativo):
+Response 400 (`destinationInmateId` ausente):
 ```json
-{ "message": "A cela de destino não está mais ocupada — escolha novamente" }
+{ "message": "Informe o preso de destino da permuta (destinationInmateId)" }
+```
+
+Response 409 (preso de destino não está mais, de fato, na cela informada):
+```json
+{ "message": "O preso de destino não está mais nessa cela — escolha novamente" }
+```
+
+Response 409 (qualquer endpoint desta seção — origem ou, em permuta, também o preso de destino —
+quando o preso tem uma movimentação `TEMPORARY` em aberto, research.md #38):
+```json
+{ "message": "Preso possui movimentação temporária em aberto — registre o retorno antes de continuar" }
 ```

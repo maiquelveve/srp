@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { User } from 'lucide-react';
 import { movementsApi } from '../../api';
 import type { Inmate } from '../../../structure/types';
 import { notify } from '@/lib/notify';
@@ -7,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -79,7 +81,10 @@ export default function FinalSituationDialog({
       return movementsApi.finalTransfer(input);
     },
     onSuccess: () => {
-      notify({ message: `Situação de ${inmate.name} atualizada (${SITUATION_LABEL[type]})`, type: 'success' });
+      notify({
+        message: `Situação de ${inmate.name.toUpperCase()} atualizada (${SITUATION_LABEL[type]})`,
+        type: 'success',
+      });
       void queryClient.invalidateQueries({ queryKey: ['inmates'] });
       void queryClient.invalidateQueries({ queryKey: ['cells'] });
       setOpen(false);
@@ -104,7 +109,11 @@ export default function FinalSituationDialog({
         <DialogTrigger asChild>{children}</DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Alterar situação — {inmate.name}</DialogTitle>
+            <DialogTitle>Alterar situação</DialogTitle>
+            <DialogDescription className="flex items-center gap-1.5 uppercase">
+              <User className="size-3.5" />
+              {inmate.name}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4">

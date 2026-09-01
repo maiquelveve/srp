@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import ScreenHeader from '@/components/ScreenHeader';
 import ConfirmSheet from '@/components/ConfirmSheet';
 import CellOption from './components/CellOption';
+import InmateOption from './components/InmateOption';
 import { useCellSwapViewModel } from './viewmodel';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CellSwap'>;
@@ -59,14 +60,37 @@ export default function CellSwap({ navigation, route }: Props): JSX.Element {
       )}
 
       {viewModel.destinationCellId !== null && (
-        <View className="px-4 pb-2">
-          <Text variant="muted" className="text-sm">
-            {viewModel.isLoadingOccupant
-              ? 'Consultando ocupante...'
-              : viewModel.occupant
-                ? `Trocará de cela com: ${viewModel.occupant.name.toUpperCase()}`
-                : 'Essa cela não está mais ocupada — escolha outra.'}
+        <View className="gap-3 px-4 pb-2 pt-3">
+          <Text variant="muted" className="text-sm font-bold uppercase">
+            Preso de destino
           </Text>
+          {viewModel.isLoadingCandidates ? (
+            <Text variant="muted" className="text-sm">
+              Consultando ocupantes...
+            </Text>
+          ) : viewModel.candidates.length === 0 ? (
+            <Text variant="muted" className="text-sm">
+              Essa cela não está mais ocupada — escolha outra.
+            </Text>
+          ) : (
+            <View className="gap-2">
+              {viewModel.candidates.map((candidate) => (
+                <InmateOption
+                  key={candidate.id}
+                  name={candidate.name}
+                  inMovement={candidate.inMovement}
+                  selected={viewModel.destinationInmateId === candidate.id}
+                  onPress={() => viewModel.setDestinationInmateId(candidate.id)}
+                />
+              ))}
+              {viewModel.selectedCandidate?.inMovement && (
+                <Text className="text-destructive text-sm">
+                  Esse preso está em movimentação temporária. Registre o retorno antes de confirmar a
+                  permuta.
+                </Text>
+              )}
+            </View>
+          )}
         </View>
       )}
 
@@ -98,7 +122,7 @@ export default function CellSwap({ navigation, route }: Props): JSX.Element {
       <ConfirmSheet
         visible={viewModel.confirmingSubmit}
         title="Confirmar permuta de cela?"
-        description={`${viewModel.inmate.name.toUpperCase()} e ${viewModel.occupant?.name.toUpperCase() ?? 'o outro preso'} vão trocar de cela.`}
+        description={`${viewModel.inmate.name.toUpperCase()} e ${viewModel.selectedCandidate?.name.toUpperCase() ?? 'o outro preso'} vão trocar de cela.`}
         confirmLabel="Confirmar"
         onConfirm={() => void viewModel.handleConfirm()}
         onCancel={viewModel.cancelSubmit}

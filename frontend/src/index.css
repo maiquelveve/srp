@@ -127,4 +127,28 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Barra de rolagem nos mesmos tokens do resto do sistema — sem isso, todo
+     elemento com overflow (Command/cmdk incluído) usa a barra branca/cinza
+     padrão do navegador, destoando do tema escuro. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.4) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.4);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.6);
+  }
 }

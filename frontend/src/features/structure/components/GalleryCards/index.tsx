@@ -34,7 +34,14 @@ export interface GalleryCardsProps {
 // own grid instance, so an `auto` track would size itself to that row's own
 // badge text ("OK" vs "Quase cheia"), shifting the middle columns out of
 // alignment from row to row and from the header.
-const CELL_ROW_GRID = 'grid grid-cols-[20px_2.5rem_1fr_1fr_7.5rem] items-center gap-2';
+// `minmax(0,1fr)` em vez de `1fr` cru — sem isso, o "automatic minimum size"
+// de um grid item some (vira efetivamente 0px, texto inteiro invisível em
+// vez de truncado com "...") quando a linha fica espremida demais pro
+// conteúdo (containers estreitos, cards em duas colunas numa tela menor).
+// `minmax(0, ...)` é a forma explícita e correta de dizer "essa coluna pode
+// encolher até 0 sem carregar o min-content junto" (mesmo problema, mesma
+// correção, em research.md #37).
+const CELL_ROW_GRID = 'grid grid-cols-[20px_2.5rem_minmax(0,1fr)_minmax(0,1fr)_7.5rem] items-center gap-2';
 
 // No Regime column here on purpose — a preso listado numa cela é, por
 // definição, regime fechado; quem passa pra semiaberto/aberto/tornozeleira
@@ -45,7 +52,7 @@ const CELL_ROW_GRID = 'grid grid-cols-[20px_2.5rem_1fr_1fr_7.5rem] items-center 
 // "Ativo" em toda linha.
 // Última coluna alargada pra caber até 3 botões de ação (Mover preso/Trocar
 // de cela sempre; Alterar situação só pra WARDEN) sem apertar.
-const INMATE_ROW_GRID = 'grid grid-cols-[1fr_1fr_7rem] items-center gap-2';
+const INMATE_ROW_GRID = 'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem] items-center gap-2';
 
 /**
  * Botão só-ícone usado tanto solto (alterar situação, ainda sem ação — US3
@@ -65,27 +72,34 @@ const INMATE_ROW_GRID = 'grid grid-cols-[1fr_1fr_7rem] items-center gap-2';
  */
 const InmateActionButton = forwardRef<
   HTMLButtonElement,
-  { label: string; icon: LucideIcon } & ButtonHTMLAttributes<HTMLButtonElement>
->(({ label, icon: Icon, onClick, ...props }, ref) => (
+  { label: string; icon: LucideIcon; tooltip?: string } & ButtonHTMLAttributes<HTMLButtonElement>
+>(({ label, icon: Icon, tooltip, onClick, disabled, ...props }, ref) => (
   <Tooltip>
+    {/* Mesmo motivo do "Cadastrar preso" abaixo: um `<button disabled>` não
+        dispara os eventos de hover que o TooltipTrigger escuta em alguns
+        navegadores, então o span (sempre "hoverable") é quem carrega o
+        trigger — o botão desabilitado só decide o cursor/estilo. */}
     <TooltipTrigger asChild>
-      <Button
-        ref={ref}
-        type="button"
-        variant="outline"
-        size="icon"
-        className="h-7 w-7 hover:border-primary hover:bg-primary hover:text-primary-foreground"
-        onClick={(e) => {
-          e.stopPropagation();
-          onClick?.(e);
-        }}
-        {...props}
-      >
-        <Icon className="size-3.5" />
-        <span className="sr-only">{label}</span>
-      </Button>
+      <span className={disabled ? 'cursor-not-allowed' : undefined}>
+        <Button
+          ref={ref}
+          type="button"
+          variant="outline"
+          size="icon"
+          disabled={disabled}
+          className="h-7 w-7 hover:border-primary hover:bg-primary hover:text-primary-foreground"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick?.(e);
+          }}
+          {...props}
+        >
+          <Icon className="size-3.5" />
+          <span className="sr-only">{label}</span>
+        </Button>
+      </span>
     </TooltipTrigger>
-    <TooltipContent>{label}</TooltipContent>
+    <TooltipContent>{tooltip ?? label}</TooltipContent>
   </Tooltip>
 ));
 InmateActionButton.displayName = 'InmateActionButton';
@@ -131,9 +145,16 @@ function CellRowInmates({
   isFull: boolean;
   galleries: Gallery[];
 }): JSX.Element {
+  // `status: 'ACTIVE'` é obrigatório aqui — sem ele a listagem traz também
+  // presos com situação definitiva já registrada (liberado/tornozeleira/
+  // transferido/óbito), que continuam com `currentCellId` apontando pra cá
+  // (é o timeline de FR-016, research.md #9). Sem o filtro, a lista mostra
+  // mais presos do que a ocupação real da cela (que já é ACTIVE-only, ver
+  // `CellsService.occupancyOf`), dando a falsa impressão de que a contagem
+  // de vagas está errada.
   const inmatesQuery = useQuery({
     queryKey: ['inmates', cellId],
-    queryFn: () => structureApi.listInmates({ cellId }),
+    queryFn: () => structureApi.listInmates({ cellId, status: 'ACTIVE' }),
   });
 
   const inmates = inmatesQuery.data?.data ?? [];
@@ -162,7 +183,7 @@ function CellRowInmates({
                   isWarden && 'cursor-pointer transition-colors hover:bg-accent',
                 )}
               >
-                <span className="truncate">
+                <span className="truncate uppercase">
                   {inmate.name}
                   {inmate.inMovement && (
                     <MovementDialog inmate={inmate} cellId={cellId} mode="edit">
@@ -182,17 +203,39 @@ function CellRowInmates({
                     />
                   </MovementDialog>
                   {/* Troca/permuta de cela é para qualquer perfil (research.md
-                      #35) — igual "Mover preso", não gated por isWarden. */}
+                      #35) — igual "Mover preso", não gated por isWarden.
+                      Desabilitada enquanto o preso está fora da cela numa
+                      movimentação temporária em aberto (o backend também
+                      recusa isso, 409 — aqui é só a UI espelhando pra não
+                      deixar preencher o formulário à toa). */}
                   <CellTransferDialog
                     inmate={inmate}
                     currentGalleryId={currentGalleryId}
                     galleries={galleries}
                   >
-                    <InmateActionButton label="Trocar de cela" icon={Shuffle} />
+                    <InmateActionButton
+                      label="Trocar de cela"
+                      icon={Shuffle}
+                      disabled={inmate.inMovement}
+                      tooltip={
+                        inmate.inMovement
+                          ? 'Preso em movimentação temporária. Registre o retorno antes de continuar.'
+                          : undefined
+                      }
+                    />
                   </CellTransferDialog>
                   {isWarden && (
                     <FinalSituationDialog inmate={inmate}>
-                      <InmateActionButton label="Alterar situação" icon={RefreshCcw} />
+                      <InmateActionButton
+                        label="Alterar situação"
+                        icon={RefreshCcw}
+                        disabled={inmate.inMovement}
+                        tooltip={
+                          inmate.inMovement
+                            ? 'Preso em movimentação temporária. Registre o retorno antes de continuar.'
+                            : undefined
+                        }
+                      />
                     </FinalSituationDialog>
                   )}
                 </span>
@@ -318,7 +361,12 @@ function GalleryCard({
                 </Badge>
               </button>
               {isExpanded && (
-                <div className="mb-3 ml-10 mr-16">
+                // `ml-10 mr-16` (research.md #37) era grande demais em telas
+                // médias — combinado com o card ficando estreito em duas
+                // colunas (ver `lg:grid-cols-2` abaixo), sobrava pouco pro
+                // grid de 3 colunas da lista de presos, colapsando pra 0px
+                // (nome do preso literalmente invisível, não só truncado).
+                <div className="mb-3 ml-6 mr-6">
                   <CellRowInmates
                     cellId={cell.id}
                     cellLabel={`Galeria ${gallery.code} - Cela ${cell.code}`}
@@ -363,7 +411,12 @@ export default function GalleryCards({ galleries, galleryIds, isWarden }: Galler
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+    // `lg:` (não `md:`) de propósito — duas colunas a partir de `md` (768px)
+    // deixava cada card estreito demais pra caber o grid de 3 colunas da
+    // lista de presos expandida (research.md #37); esperar `lg` (1024px)
+    // dá espaço de sobra, e abaixo disso uma coluna só já usa a largura
+    // inteira disponível.
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       {selectedGalleries.map((gallery) => (
         // `galleries` aqui é a lista COMPLETA da unidade (não só as
         // selecionadas no filtro) — troca/permuta de galeria deve poder

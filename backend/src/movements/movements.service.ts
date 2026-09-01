@@ -138,16 +138,7 @@ export class MovementsService {
     }
 
     // FR-010 — no more than one open TEMPORARY movement per inmate at a time.
-    const openMovement = await this.movementRepository
-      .createQueryBuilder('movement')
-      .innerJoin('movement.movementType', 'movementType')
-      .where('movement.inmate_id = :inmateId', { inmateId: inmate.id })
-      .andWhere('movement.return_datetime IS NULL')
-      .andWhere('movementType.category = :category', { category: MovementCategory.TEMPORARY })
-      .getOne();
-    if (openMovement) {
-      throw new ConflictException('Preso já possui movimentação em aberto');
-    }
+    await this.assertNoOpenTemporaryMovement(inmate.id, 'Preso já possui movimentação em aberto');
 
     const movement = await this.movementRepository.save(
       this.movementRepository.create({
@@ -405,8 +396,11 @@ export class MovementsService {
    * Shared core for permuta de cela/galeria — two ACTIVE inmates trade cells
    * simultaneously, never checked against capacity (research.md #35,
    * FR-015a/FR-015c). `dto.destinationCellId` is the cell the *other* inmate
-   * currently occupies (the client is expected to have confirmed this via
-   * `GET /cells/:id/occupant` first).
+   * currently occupies; `dto.destinationInmateId` is that inmate,
+   * REQUIRED — a shared cell can hold more than one ACTIVE inmate, so
+   * "whoever's in that cell" is ambiguous. The client is expected to have
+   * listed the cell's occupants first (`GET /inmates?cellId=&status=ACTIVE`)
+   * and let the user pick which one.
    */
   private async registerSwap(
     dto: CellTransferDto,
@@ -418,6 +412,10 @@ export class MovementsService {
     },
   ): Promise<MovementResponseDto[]> {
     const inmateA = await this.inmatesService.findEntityInScope(dto.inmateId, currentUser.units);
+    await this.assertNoOpenTemporaryMovement(
+      inmateA.id,
+      'Preso possui movimentação temporária em aberto — registre o retorno antes de continuar',
+    );
     // Same reason as registerChange() — re-fetch via CellsService for a
     // gallery-hydrated Cell, since inmate.currentCell.gallery isn't loaded.
     const cellA = await this.cellsService.findEntityInScope(
@@ -430,10 +428,26 @@ export class MovementsService {
     );
     this.assertGalleryScope(cellA, cellB, options.sameGallery, options.movementTypeName);
 
-    const inmateB = await this.cellsService.findActiveOccupant(cellB.id);
-    if (!inmateB) {
-      throw new ConflictException('A cela de destino não está mais ocupada — escolha novamente');
+    if (!dto.destinationInmateId) {
+      throw new BadRequestException('Informe o preso de destino da permuta (destinationInmateId)');
     }
+    const inmateB = await this.inmatesService.findEntityInScope(
+      dto.destinationInmateId,
+      currentUser.units,
+    );
+    // Cobre tanto "a cela ficou vazia" quanto "esse preso específico não
+    // está mais lá" (foi movido/liberado enquanto o usuário via a tela) —
+    // mesmo edge case de condição de corrida de antes, agora contra o preso
+    // escolhido, não "qualquer um" da cela.
+    if (inmateB.status !== InmateStatus.ACTIVE || inmateB.currentCell.id !== cellB.id) {
+      throw new ConflictException(
+        'O preso de destino não está mais nessa cela — escolha novamente',
+      );
+    }
+    await this.assertNoOpenTemporaryMovement(
+      inmateB.id,
+      'O outro preso da permuta possui movimentação temporária em aberto — registre o retorno antes de continuar',
+    );
 
     const movementType = await this.movementTypesService.findByName(options.movementTypeName);
     const actingUser = { id: currentUser.sub } as User;
@@ -559,6 +573,10 @@ export class MovementsService {
     currentUser: JwtPayload,
   ): Promise<MovementResponseDto> {
     const inmate = await this.inmatesService.findEntityInScope(input.inmateId, currentUser.units);
+    await this.assertNoOpenTemporaryMovement(
+      inmate.id,
+      'Preso possui movimentação temporária em aberto — registre o retorno antes de continuar',
+    );
     const movementType = await this.movementTypesService.findByName(input.movementTypeName);
     const oldStatus = inmate.status;
     const originCell = inmate.currentCell;
@@ -616,6 +634,27 @@ export class MovementsService {
     });
 
     return MovementResponseDto.fromEntity(movement);
+  }
+
+  /**
+   * Blocks any change (nova movimentação temporária, troca/permuta de cela/
+   * galeria, situação definitiva) enquanto o preso já está fora da cela numa
+   * movimentação TEMPORARY em aberto (atendimento médico, audiência etc.) —
+   * sem isso, a movimentação estrutural registraria uma cela de destino que
+   * não reflete onde o preso fisicamente está. Precisa ser resolvida
+   * (registrar o retorno) antes de qualquer uma dessas ações.
+   */
+  private async assertNoOpenTemporaryMovement(inmateId: number, message: string): Promise<void> {
+    const openMovement = await this.movementRepository
+      .createQueryBuilder('movement')
+      .innerJoin('movement.movementType', 'movementType')
+      .where('movement.inmate_id = :inmateId', { inmateId })
+      .andWhere('movement.return_datetime IS NULL')
+      .andWhere('movementType.category = :category', { category: MovementCategory.TEMPORARY })
+      .getOne();
+    if (openMovement) {
+      throw new ConflictException(message);
+    }
   }
 
   private async findEntityInScope(id: number, callerUnitIds: number[]): Promise<Movement> {

@@ -51,9 +51,13 @@ um a partir do outro; ao mudar uma cor, edite os dois arquivos.
   `cva` do próprio arquivo (é assim que `success`/`warning` foram adicionados
   a `Badge`, que não existem no shadcn padrão).
 - Inventário atual: `alert`, `alert-dialog`, `avatar`, `badge`, `button`,
-  `card`, `collapsible`, `dialog`, `dropdown-menu`, `input`, `label`,
-  `select`, `separator`, `sheet`, `sidebar`, `skeleton`, `sonner`, `table`,
-  `tabs`, `tooltip`. Ao precisar de um componente novo, primeiro rodar
+  `card`, `collapsible`, `command`, `dialog`, `dropdown-menu`, `input`,
+  `label`, `popover`, `select`, `separator`, `sheet`, `sidebar`, `skeleton`,
+  `sonner`, `table`, `tabs`, `tooltip`. `command` é a base do combobox com
+  busca (`Popover` + `Command`/cmdk) — usar em vez de `Select` puro sempre
+  que a lista de opções puder crescer o bastante pra valer a pena filtrar
+  digitando, em vez de rolar (ex.: escolher um preso entre os ocupantes de
+  uma cela). Ao precisar de um componente novo, primeiro rodar
   `npx shadcn@latest add <componente>` em vez de escrever do zero.
 - **Button** (`buttonVariants`): `default | destructive | outline |
   secondary | ghost | link`, tamanhos `default | sm | lg | icon`. Ação
@@ -115,6 +119,34 @@ Padrão fixo, visto em `InmateDialog` e `EntityDialog`:
 - Campo travado/somente-leitura (ex. cela do preso): `<div
   className="rounded-md border border-input bg-muted px-3 py-2 text-sm
   text-muted-foreground">`, não um `Input disabled`.
+- **Título de modal que age sobre um registro específico** (ex. um preso):
+  `DialogTitle` leva só a ação ("Permuta de galeria", "Registrar saída"),
+  nunca a ação e o registro concatenados com travessão
+  (`"Ação — Nome"` já foi tentado e considerado amador). O registro vai em
+  `DialogDescription` logo abaixo, com um ícone `User` (lucide) +
+  `className="flex items-center gap-1.5 uppercase"` — ver
+  `CellTransferDialog`/`FinalSituationDialog`/`MovementDialog`. Se o corpo do
+  formulário já tinha um campo somente-leitura repetindo esse mesmo nome,
+  remover — fica redundante com o cabeçalho.
+- **Nome de preso é sempre exibido em maiúsculo** — em toda tela/dialog/
+  toast que mostra `inmate.name` ou o nome de outro preso (ex. o candidato de
+  permuta). Prefira a classe utilitária `uppercase` (CSS puro, não altera o
+  dado) sempre que o texto está num elemento JSX próprio; use
+  `.toUpperCase()` no JavaScript só quando não há elemento pra estilizar —
+  mensagens de `notify()`/toast, ou o valor exibido no *trigger* fechado de
+  um combobox `cmdk` (que espelha o texto do item selecionado, não o
+  className dele).
+- **`Select` vs. combobox com busca**: use `Select` (`@/components/ui/select`)
+  pra listas curtas/fixas (tipo de movimentação, situação). Para uma lista
+  que pode crescer o bastante pra valer a pena filtrar digitando em vez de
+  rolar (ex. escolher um preso entre os ocupantes de uma cela), use o
+  combobox `Popover` + `Command`/cmdk (`@/components/ui/popover` +
+  `@/components/ui/command`) — ver `CellTransferDialog` ("Preso de
+  destino"). **Sempre passe `shouldFilter={false}` no `Command` e filtre a
+  lista você mesmo por substring** (`nome.toLowerCase().includes(busca)`) —
+  o filtro fuzzy padrão do cmdk casa letras fora de ordem/posição (digitar
+  "vini" batendo em "Otavio Teixeira Martins") e não é o que o usuário espera
+  de uma busca por nome.
 
 ## 6. Mobile — react-native-reusables + NativeWind
 

@@ -1,17 +1,20 @@
 import { useState, type ReactNode } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeftRight, Repeat } from 'lucide-react';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeftRight, Check, ChevronsUpDown, Repeat, User } from 'lucide-react';
 import { movementsApi } from '../../api';
 import type { Movement } from '../../types';
 import { structureApi } from '../../../structure/api';
 import type { Gallery, Inmate } from '../../../structure/types';
 import { useAuth } from '@/hooks/useAuth';
 import { notify } from '@/lib/notify';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -19,7 +22,9 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 type TransferType = 'CELL_CHANGE' | 'CELL_SWAP' | 'GALLERY_CHANGE' | 'GALLERY_SWAP';
@@ -47,6 +52,12 @@ const IS_CROSS_GALLERY: Record<TransferType, boolean> = {
   CELL_SWAP: false,
   GALLERY_CHANGE: true,
   GALLERY_SWAP: true,
+};
+const UNAVAILABLE_REASON: Record<TransferType, string> = {
+  CELL_CHANGE: 'Nenhuma cela com vaga nesta galeria no momento.',
+  CELL_SWAP: 'Nenhuma outra cela ocupada nesta galeria no momento.',
+  GALLERY_CHANGE: 'Nenhuma cela com vaga em outra galeria no momento.',
+  GALLERY_SWAP: 'Nenhuma cela ocupada em outra galeria no momento.',
 };
 
 export interface CellTransferDialogProps {
@@ -82,10 +93,62 @@ export default function CellTransferDialog({
   const [type, setType] = useState<TransferType | null>(null);
   const [destinationGalleryId, setDestinationGalleryId] = useState('');
   const [destinationCellId, setDestinationCellId] = useState('');
+  const [selectedDestinationInmateId, setSelectedDestinationInmateId] = useState('');
+  const [destinationInmateComboOpen, setDestinationInmateComboOpen] = useState(false);
+  const [destinationInmateSearch, setDestinationInmateSearch] = useState('');
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
 
   const queryClient = useQueryClient();
+
+  // Disponibilidade de destino por tipo, checada assim que o diálogo abre —
+  // ainda na tela de seleção de card, antes do usuário escolher um tipo —
+  // pra não deixar ele entrar num formulário cujo select de cela some vazio
+  // sem explicação (parece bug). Reaproveita a mesma queryKey ['cells', id]
+  // que GalleryCard já usa pra listar celas da galeria, então a galeria atual
+  // (já expandida na tela) normalmente já está em cache.
+  const homeCellsQuery = useQuery({
+    queryKey: ['cells', currentGalleryId],
+    queryFn: () => structureApi.listCells(currentGalleryId),
+    enabled: open,
+  });
+  const homeCells = (homeCellsQuery.data?.data ?? []).filter(
+    (cell) => cell.active && cell.id !== inmate.currentCellId,
+  );
+  const cellChangeAvailable = homeCells.some((cell) => cell.occupancy < cell.capacity);
+  const cellSwapAvailable = homeCells.some((cell) => cell.occupancy > 0);
+
+  const otherGalleries = galleries.filter((gallery) => gallery.id !== currentGalleryId);
+  const otherGalleryCellsQueries = useQueries({
+    queries: canCrossGallery
+      ? otherGalleries.map((gallery) => ({
+          queryKey: ['cells', gallery.id],
+          queryFn: () => structureApi.listCells(gallery.id),
+          enabled: open,
+        }))
+      : [],
+  });
+  const otherGalleryCellsChecking = canCrossGallery && otherGalleryCellsQueries.some((query) => query.isLoading);
+  // Por galeria (não achatado) — usado tanto pra saber se ALGUMA galeria
+  // serve de destino (cards) quanto pra filtrar QUAIS galerias aparecem no
+  // select (não faz sentido listar uma galeria sem cela elegível, o usuário
+  // só ia escolher e trombar com um segundo select vazio).
+  const activeCellsByGalleryId = new Map(
+    otherGalleries.map((gallery, i) => [
+      gallery.id,
+      (otherGalleryCellsQueries[i]?.data?.data ?? []).filter((cell) => cell.active),
+    ]),
+  );
+  const otherGalleryCells = [...activeCellsByGalleryId.values()].flat();
+  const galleryChangeAvailable = otherGalleryCells.some((cell) => cell.occupancy < cell.capacity);
+  const gallerySwapAvailable = otherGalleryCells.some((cell) => cell.occupancy > 0);
+
+  const TYPE_AVAILABILITY: Record<TransferType, { checking: boolean; available: boolean }> = {
+    CELL_CHANGE: { checking: homeCellsQuery.isLoading, available: cellChangeAvailable },
+    CELL_SWAP: { checking: homeCellsQuery.isLoading, available: cellSwapAvailable },
+    GALLERY_CHANGE: { checking: otherGalleryCellsChecking, available: galleryChangeAvailable },
+    GALLERY_SWAP: { checking: otherGalleryCellsChecking, available: gallerySwapAvailable },
+  };
 
   const cellsGalleryId =
     type && (!IS_CROSS_GALLERY[type] || destinationGalleryId !== '')
@@ -103,16 +166,48 @@ export default function CellTransferDialog({
     return type && IS_SWAP[type] ? cell.occupancy > 0 : cell.occupancy < cell.capacity;
   });
 
-  const occupantQuery = useQuery({
-    queryKey: ['cell-occupant', Number(destinationCellId)],
-    queryFn: () => movementsApi.cellOccupant(Number(destinationCellId)),
+  // Permuta troca com um preso específico, não "a cela" — uma cela
+  // compartilhada pode ter mais de um ocupante ativo, então não dá pra
+  // assumir "quem estiver lá". Lista todos os ocupantes ativos (mesma
+  // listagem que o Mapa da Unidade já usa) e deixa o usuário escolher
+  // (research.md #36 — bug relatado pelo usuário: antes vinha um preso
+  // pré-selecionado sem escolha possível).
+  const destinationCandidatesQuery = useQuery({
+    queryKey: ['inmates', Number(destinationCellId)],
+    queryFn: () => structureApi.listInmates({ cellId: Number(destinationCellId), status: 'ACTIVE' }),
     enabled: open && type !== null && IS_SWAP[type] && destinationCellId !== '',
   });
+  const destinationCandidates = destinationCandidatesQuery.data?.data ?? [];
+  // Busca por substring simples (não a fuzzy-match padrão do cmdk, que
+  // "encontra" nomes sem relação nenhuma — ex.: "vini" batendo em "Otavio
+  // Teixeira Martins" por casar as letras em qualquer ordem/posição, bug
+  // relatado pelo usuário). `shouldFilter={false}` no Command abaixo
+  // desliga o filtro embutido; filtramos nós mesmos aqui.
+  const normalizedSearch = destinationInmateSearch.trim().toLowerCase();
+  const filteredDestinationCandidates =
+    normalizedSearch === ''
+      ? destinationCandidates
+      : destinationCandidates.filter((candidate) =>
+          candidate.name.toLowerCase().includes(normalizedSearch),
+        );
+  // Só pré-seleciona quando não há ambiguidade (um único ocupante) — é
+  // exatamente o caso comum, sem custar a escolha explícita quando há 2+.
+  const destinationInmateId =
+    selectedDestinationInmateId !== ''
+      ? selectedDestinationInmateId
+      : destinationCandidates.length === 1
+        ? String(destinationCandidates[0].id)
+        : '';
+  const selectedDestinationCandidate = destinationCandidates.find(
+    (candidate) => String(candidate.id) === destinationInmateId,
+  );
 
   function reset(): void {
     setType(null);
     setDestinationGalleryId('');
     setDestinationCellId('');
+    setSelectedDestinationInmateId('');
+    setDestinationInmateSearch('');
     setReason('');
     setNotes('');
   }
@@ -124,7 +219,13 @@ export default function CellTransferDialog({
 
   const mutation = useMutation<Movement | Movement[]>({
     mutationFn: () => {
-      const input = { inmateId: inmate.id, destinationCellId: Number(destinationCellId), reason, notes: notes || undefined };
+      const input = {
+        inmateId: inmate.id,
+        destinationCellId: Number(destinationCellId),
+        ...(type && IS_SWAP[type] ? { destinationInmateId: Number(destinationInmateId) } : {}),
+        reason,
+        notes: notes || undefined,
+      };
       if (type === 'CELL_CHANGE') return movementsApi.cellChange(input);
       if (type === 'CELL_SWAP') return movementsApi.cellSwap(input);
       if (type === 'GALLERY_CHANGE') return movementsApi.galleryChange(input);
@@ -132,7 +233,7 @@ export default function CellTransferDialog({
     },
     onSuccess: () => {
       notify({
-        message: `${type ? TRANSFER_LABEL[type] : 'Situação'} de ${inmate.name} registrada`,
+        message: `${type ? TRANSFER_LABEL[type] : 'Situação'} de ${inmate.name.toUpperCase()} registrada`,
         type: 'success',
       });
       void queryClient.invalidateQueries({ queryKey: ['inmates'] });
@@ -151,7 +252,10 @@ export default function CellTransferDialog({
     type !== null &&
     destinationCellId !== '' &&
     reason.trim() !== '' &&
-    (!IS_SWAP[type] || (occupantQuery.data !== undefined && occupantQuery.data !== null));
+    (!IS_SWAP[type] ||
+      (destinationInmateId !== '' &&
+        selectedDestinationCandidate !== undefined &&
+        !selectedDestinationCandidate.inMovement));
 
   return (
     // Mesmo motivo do wrapper em MovementDialog/FinalSituationDialog.
@@ -160,38 +264,68 @@ export default function CellTransferDialog({
         <DialogTrigger asChild>{children}</DialogTrigger>
         <DialogContent className={type === null ? 'sm:max-w-2xl' : undefined}>
           <DialogHeader>
-            <DialogTitle>
-              {type === null ? `Trocar de cela — ${inmate.name}` : `${TRANSFER_LABEL[type]} — ${inmate.name}`}
-            </DialogTitle>
+            <DialogTitle>{type === null ? 'Trocar de cela' : TRANSFER_LABEL[type]}</DialogTitle>
+            <DialogDescription className="flex items-center gap-1.5 uppercase">
+              <User className="size-3.5" />
+              {inmate.name}
+            </DialogDescription>
           </DialogHeader>
 
           {type === null ? (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {availableTypes.map((value) => (
-                <Card
-                  key={value}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setType(value)}
-                  className={cn(
-                    'cursor-pointer transition-colors hover:border-primary hover:bg-accent',
-                  )}
-                >
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      {IS_SWAP[value] ? (
-                        <Repeat className="size-4 text-primary" />
-                      ) : (
-                        <ArrowLeftRight className="size-4 text-primary" />
-                      )}
-                      {TRANSFER_LABEL[value]}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pb-4">
-                    <CardDescription>{TRANSFER_DESCRIPTION[value]}</CardDescription>
-                  </CardContent>
-                </Card>
-              ))}
+              {availableTypes.map((value) => {
+                const { checking, available } = TYPE_AVAILABILITY[value];
+                const disabled = checking || !available;
+                const card = (
+                  <Card
+                    role="button"
+                    tabIndex={disabled ? -1 : 0}
+                    aria-disabled={disabled}
+                    onClick={() => {
+                      if (!disabled) setType(value);
+                    }}
+                    className={cn(
+                      'transition-colors',
+                      disabled
+                        ? 'cursor-not-allowed opacity-50'
+                        : 'cursor-pointer hover:border-primary hover:bg-accent',
+                    )}
+                  >
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        {IS_SWAP[value] ? (
+                          <Repeat className="size-4 text-primary" />
+                        ) : (
+                          <ArrowLeftRight className="size-4 text-primary" />
+                        )}
+                        {TRANSFER_LABEL[value]}
+                        {disabled && (
+                          <Badge
+                            variant={checking ? 'outline' : 'destructive'}
+                            className={cn('ml-auto font-normal', checking && 'text-muted-foreground')}
+                          >
+                            {checking ? 'Verificando...' : 'Indisponível'}
+                          </Badge>
+                        )}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pb-4">
+                      <CardDescription>{TRANSFER_DESCRIPTION[value]}</CardDescription>
+                    </CardContent>
+                  </Card>
+                );
+
+                if (!disabled) return <div key={value}>{card}</div>;
+
+                return (
+                  <Tooltip key={value}>
+                    <TooltipTrigger asChild>{card}</TooltipTrigger>
+                    <TooltipContent>
+                      {checking ? 'Verificando disponibilidade...' : UNAVAILABLE_REASON[value]}
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
             </div>
           ) : (
             <>
@@ -210,8 +344,13 @@ export default function CellTransferDialog({
                         <SelectValue placeholder="Selecione a galeria" />
                       </SelectTrigger>
                       <SelectContent>
-                        {galleries
-                          .filter((gallery) => gallery.id !== currentGalleryId)
+                        {otherGalleries
+                          .filter((gallery) => {
+                            const cells = activeCellsByGalleryId.get(gallery.id) ?? [];
+                            return cells.some((cell) =>
+                              IS_SWAP[type] ? cell.occupancy > 0 : cell.occupancy < cell.capacity,
+                            );
+                          })
                           .map((gallery) => (
                             <SelectItem key={gallery.id} value={String(gallery.id)}>
                               Galeria {gallery.code}
@@ -226,7 +365,11 @@ export default function CellTransferDialog({
                   <Label htmlFor="transfer-cell">Cela de destino</Label>
                   <Select
                     value={destinationCellId}
-                    onValueChange={setDestinationCellId}
+                    onValueChange={(value) => {
+                      setDestinationCellId(value);
+                      setSelectedDestinationInmateId('');
+                      setDestinationInmateSearch('');
+                    }}
                     disabled={IS_CROSS_GALLERY[type] && destinationGalleryId === ''}
                   >
                     <SelectTrigger id="transfer-cell">
@@ -240,16 +383,88 @@ export default function CellTransferDialog({
                       ))}
                     </SelectContent>
                   </Select>
-                  {IS_SWAP[type] && destinationCellId !== '' && (
-                    <p className="text-xs text-muted-foreground">
-                      {occupantQuery.isLoading
-                        ? 'Consultando ocupante...'
-                        : occupantQuery.data
-                          ? `Trocará de cela com: ${occupantQuery.data.name}`
-                          : 'Essa cela não está mais ocupada — escolha outra.'}
-                    </p>
-                  )}
                 </div>
+
+                {IS_SWAP[type] && destinationCellId !== '' && (
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="transfer-inmate">Preso de destino</Label>
+                    {destinationCandidatesQuery.isLoading ? (
+                      <p className="text-xs text-muted-foreground">Consultando ocupantes...</p>
+                    ) : destinationCandidates.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        Essa cela não está mais ocupada — escolha outra.
+                      </p>
+                    ) : (
+                      <>
+                        {/* Combobox com busca (Popover + Command/cmdk) em vez
+                            de Select puro — cela compartilhada pode ter
+                            muitos ocupantes, e rolar uma lista fechada pra
+                            achar um nome é pior do que digitar pra filtrar. */}
+                        <Popover open={destinationInmateComboOpen} onOpenChange={setDestinationInmateComboOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              id="transfer-inmate"
+                              type="button"
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={destinationInmateComboOpen}
+                              className="w-full justify-between font-normal"
+                            >
+                              <span className={cn('truncate', selectedDestinationCandidate && 'uppercase')}>
+                                {selectedDestinationCandidate?.name ?? 'Selecione o preso'}
+                              </span>
+                              <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            className="w-[--radix-popover-trigger-width] p-0"
+                            onOpenAutoFocus={(e) => e.preventDefault()}
+                          >
+                            <Command shouldFilter={false}>
+                              <CommandInput
+                                placeholder="Buscar preso..."
+                                value={destinationInmateSearch}
+                                onValueChange={setDestinationInmateSearch}
+                              />
+                              <CommandList>
+                                <CommandEmpty>Nenhum preso encontrado.</CommandEmpty>
+                                <CommandGroup>
+                                  {filteredDestinationCandidates.map((candidate) => (
+                                    <CommandItem
+                                      key={candidate.id}
+                                      value={candidate.name}
+                                      onSelect={() => {
+                                        setSelectedDestinationInmateId(String(candidate.id));
+                                        setDestinationInmateComboOpen(false);
+                                      }}
+                                      className="uppercase"
+                                    >
+                                      <Check
+                                        className={cn(
+                                          'size-4',
+                                          String(candidate.id) === destinationInmateId
+                                            ? 'opacity-100'
+                                            : 'opacity-0',
+                                        )}
+                                      />
+                                      {candidate.name}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        {selectedDestinationCandidate?.inMovement && (
+                          <p className="text-xs text-destructive">
+                            Esse preso está em movimentação temporária. Registre o retorno antes de
+                            confirmar a permuta.
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
 
                 <div className="grid gap-1.5">
                   <Label htmlFor="transfer-reason">Motivo</Label>

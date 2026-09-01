@@ -1209,3 +1209,133 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
   seletor de galeria/cela; `CellHistoryReason` ganha `CELL_SWAP`/`GALLERY_CHANGE`/`GALLERY_SWAP`
   no lugar do `CELL_CHANGE` genérico único. Novas tasks T079+ (`tasks.md`, Phase 5) cobrem essa
   revisão — nenhum código foi alterado só com esta atualização de documentação.
+
+## 36. Correção pós-implementação de US3: permuta contra cela compartilhada (`destinationInmateId`)
+
+- **Contexto** (2026-09-01, bug relatado pelo usuário do projeto depois de T091–T095 entregues):
+  a mecânica de permuta descrita no ponto 35 acima ("o sistema consulta quem ocupa aquela cela")
+  assumia implicitamente **um único** ocupante ativo por cela de destino — `GET
+  /cells/:id/occupant` usava `findOne()` e devolvia "qualquer um" dos presos ativos daquela cela,
+  sem expor escolha ao usuário. Isso é incorreto pra cela `SHARED` com capacidade > 1 (comum na
+  base real): ao permutar contra uma cela com 2+ presos ativos, o sistema trocava com um preso
+  arbitrário, não necessariamente o que o usuário via/queria na tela.
+- **Decision**: `GET /cells/:id/occupant` é **removido** — substituído pelo endpoint já existente
+  `GET /inmates?cellId=&status=ACTIVE` (usado por US1 pra listar presos de uma cela), que já
+  devolve TODOS os ocupantes ativos, cada um com `inMovement`/`currentMovement` computados. A
+  tela de permuta (web `CellTransferDialog`, mobile `CellSwap`) passa a listar esses candidatos e
+  exigir que o usuário escolha explicitamente um — inclusive quando há só um candidato (elimina a
+  ambiguidade por completo, não só o caso de 2+). `CellTransferDto` ganha `destinationInmateId`
+  (obrigatório só para `/cell-swap` e `/gallery-swap`, checado no service, não no DTO, já que o
+  mesmo DTO serve `/cell-change` e `/gallery-change`) — o backend valida que esse preso específico
+  está `ACTIVE` e fisicamente naquela cela no momento do POST (`409` se não, mesma semântica de
+  condição de corrida de antes).
+- **Decision — preso em movimentação como candidato de permuta**: um candidato com
+  `inMovement = true` (ex.: em atendimento médico) continua **aparecendo** na lista — o usuário
+  pode selecioná-lo — mas a UI mostra um aviso e mantém o botão Confirmar desabilitado enquanto
+  ele estiver selecionado (o backend também recusa, `409`, via `assertNoOpenTemporaryMovement`,
+  research.md #38 — a mesma regra que já bloqueia o preso de origem de qualquer troca/permuta/
+  situação definitiva enquanto ele estiver fisicamente fora da cela). Rejeitar esse candidato
+  silenciosamente da lista seria mais confuso do que mostrá-lo com o motivo explícito de por que
+  não dá pra confirmar ainda.
+- **Impact**: `GET /cells/:id/occupant`, `CellOccupantResponseDto` e
+  `CellsService.findActiveOccupant` são removidos (mortos, sem outro chamador).
+  `movementsApi.cellOccupant` (web e mobile) removido — as duas telas de permuta passam a usar
+  `structureApi.listInmates`. `contracts/movements.md` atualizado para descrever
+  `destinationInmateId` e apontar pro `GET /inmates` existente.
+
+## 37. Bug de layout: nome do preso invisível em `GalleryCards` (viewport estreito)
+
+- **Contexto** (2026-09-01, achado pelo usuário ao revisar as mudanças do ponto 36 acima): em
+  viewports em torno de 945px de largura (comum em notebook), o nome do preso na lista expandida
+  de uma cela (`CellRowInmates`, `frontend/src/features/structure/components/GalleryCards/`)
+  ficava completamente invisível — não truncado com "...", literalmente 0px de largura. A causa
+  raiz eram três fatores empilhados: (1) `GalleryCards` vira duas colunas a partir de `md`
+  (768px), então cada card de Galeria já fica com menos da metade da largura da tela; (2) a lista
+  de presos expandida usa indentação fixa `ml-10 mr-16` (104px) sob a linha da cela; (3) o grid de
+  3 colunas da linha (`grid-cols-[1fr_1fr_7rem]`) usava `1fr` puro — sem `overflow: visible`, o
+  "automatic minimum size" de um grid item já deveria zerar corretamente, mas a combinação dos
+  três (card estreito + indentação fixa grande + pouquíssimo espaço residual) fazia o cálculo do
+  browser colapsar as duas colunas de texto pra exatos 0px em vez de qualquer largura mínima
+  visível.
+- **Decision**: três ajustes, nenhum sozinho seria suficiente:
+  1. `GalleryCards` só vira duas colunas a partir de `lg` (1024px) — não `md` — dando a cada card
+     a largura inteira da tela em viewports médios, onde o espaço é mais escasso.
+  2. Indentação da lista de presos reduzida de `ml-10 mr-16` (104px) pra `ml-6 mr-6` (48px).
+  3. `INMATE_ROW_GRID` e `CELL_ROW_GRID` passam a usar `minmax(0,1fr)` em vez de `1fr` cru nas
+     colunas de texto — forma explícita (não dependente do comportamento implícito de
+     `overflow`/auto-minimum) de garantir que a coluna encolhe até 0 sem arrastar o min-content
+     do texto junto, e — mais importante — que o conteúdo trunca com "..." em vez de sumir quando
+     o espaço realmente for insuficiente.
+- **Impact**: mudança só de CSS/layout (`GalleryCards/index.tsx`) — nenhum contrato, endpoint ou
+  schema afetado.
+
+## 38. Bloqueio de troca/permuta/situação definitiva com movimentação temporária em aberto
+
+- **Contexto** (2026-09-01, achado pelo usuário antes dos pontos 36/37 acima, nesta mesma sessão
+  de revisão pós-T091–T095): nenhum dos fluxos de troca/permuta de cela/galeria ou situação
+  definitiva (liberdade/tornozeleira/transferência) verificava se o preso tinha uma movimentação
+  `TEMPORARY` em aberto (ex.: em atendimento médico, audiência) antes de registrar a mudança
+  estrutural — só `POST /movements` (abrir uma NOVA temporária) tinha essa checagem (FR-010).
+  Registrar, por exemplo, uma troca de cela enquanto o preso está fisicamente na enfermaria
+  deixaria `inmates.current_cell_id` apontando pra um lugar que não reflete onde ele está.
+- **Decision**: `MovementsService` ganha `assertNoOpenTemporaryMovement(inmateId, message)`,
+  chamado em dois pontos que juntos cobrem todo endpoint de criação desta seção exceto
+  `POST /movements` em si (que já tinha sua própria checagem, agora reaproveitando o mesmo
+  helper): `registerFinal` (núcleo transacional compartilhado por `final/release`,
+  `/ankle-monitor`, `/transfer`, `cell-change` e `gallery-change` — ver research.md #35) e
+  `registerSwap` (`cell-swap`/`gallery-swap`, checado nos **dois** presos envolvidos — origem e
+  destino). Resposta `409` em qualquer um dos casos.
+- **Decision — espelhamento na UI, não só no backend**: as três superfícies que disparam esses
+  endpoints replicam a mesma regra ANTES do usuário preencher o formulário todo, pra não deixar
+  ele descobrir só no fim:
+  - Web `GalleryCards` (Mapa da Unidade): os botões "Trocar de cela" e "Alterar situação" na
+    linha do preso ficam desabilitados (com tooltip explicando) quando `inmate.inMovement`.
+  - Web `CellTransferDialog`: candidato de permuta com `inMovement = true` continua aparecendo na
+    lista (não é escondido — ver research.md #36), mas com aviso e o botão Confirmar bloqueado.
+  - Mobile `InmatesScreen`: o botão "Trocar de cela" (ícone `Shuffle`) fica esmaecido; como não
+    existe componente de tooltip no mobile, o toque nele dispara um toast explicando o motivo em
+    vez de navegar pra tela de troca. Mobile não tem "Alterar situação" (WARDEN-only, só web,
+    research.md #35).
+- **Impact**: `backend/src/movements/movements.service.ts` (`registerFinal`/`registerSwap`);
+  `GalleryCards/index.tsx` (web); `InmatesScreen/viewmodel.ts` + `InmateRow/index.tsx` (mobile).
+  `contracts/movements.md` atualizado para documentar a precondição em todos os endpoints
+  afetados, não só `cell-swap`/`gallery-swap`.
+
+## 39. Polimento de UI pós-implementação: títulos de modal, nomes em maiúsculo, combobox com busca
+
+- **Contexto** (2026-09-01, série de ajustes visuais pedidos pelo usuário depois de validar o
+  comportamento funcional dos pontos 36/38): três pedidos distintos, todos sobre como a
+  informação já correta é apresentada, não sobre regra de negócio.
+- **Decision — título dos modais de movimentação**: `CellTransferDialog`, `FinalSituationDialog`
+  e `MovementDialog` usavam o formato `"Ação — Nome"` (`DialogTitle` só, com travessão) —
+  considerado pouco profissional. Passam a usar o próprio padrão `DialogTitle`/`DialogDescription`
+  do shadcn: `DialogTitle` com a ação (ex. "Permuta de galeria"), `DialogDescription` logo abaixo
+  com um ícone `User` (lucide) + o nome do preso, sem travessão. `MovementDialog` também perdeu o
+  campo somente-leitura "Preso" do corpo do formulário — ficaria redundante com o nome já visível
+  no cabeçalho.
+- **Decision — nome do preso sempre maiúsculo**: aplicado em toda exibição do nome no web —
+  `GalleryCards` (linha da lista), os três cabeçalhos de modal acima, e o combobox de preso de
+  destino da permuta. Onde o texto é só apresentação (JSX), usa a classe utilitária `uppercase`
+  (CSS `text-transform`, não muda o dado). Onde o texto entra em uma string simples sem como
+  escopar CSS — mensagens de `notify()` (toast) e o valor mostrado no *trigger* fechado de um
+  combobox baseado em `cmdk` (explicado no próximo ponto) — usa `.toUpperCase()` no próprio
+  JavaScript, porque nesses dois casos não existe um elemento HTML dedicado pra estilizar.
+- **Decision — combobox com busca no select de preso da permuta**: o `Select` nativo do shadcn
+  virou um combobox pesquisável (`Popover` + `Command`/`cmdk`, componentes shadcn adicionados via
+  `npx shadcn@latest add popover command` — não escritos à mão, seguindo `docs/style-guide.md`
+  §3) — cela com muitos ocupantes tornava rolar uma lista fechada pior do que digitar pra filtrar.
+  Dois problemas descobertos ao testar essa troca, ambos corrigidos:
+  1. O filtro embutido do `cmdk` é fuzzy/subsequência (as letras digitadas só precisam aparecer
+     na mesma ordem em qualquer posição do texto), não substring — digitar "vini" batia também em
+     "Otavio Teixeira Martins" por coincidência de posição das letras. Corrigido desligando esse
+     filtro (`shouldFilter={false}` no `Command`) e filtrando a lista de candidatos nós mesmos por
+     substring simples (`nome.toLowerCase().includes(busca)`), o comportamento que o usuário
+     realmente espera de uma busca por nome.
+  2. A barra de rolagem da lista (e de qualquer elemento com overflow no app) usava o estilo
+     branco/cinza padrão do navegador, destoando do tema escuro — resolvido com um estilo global
+     em `frontend/src/index.css` (`@layer base`) usando os próprios tokens de cor do tema
+     (`--muted-foreground`) via `scrollbar-color`/`::-webkit-scrollbar`, então vale pro app
+     inteiro, não só pra esse combobox.
+- **Impact**: `docs/style-guide.md` atualizado (inventário de componentes shadcn + os dois novos
+  padrões — cabeçalho de modal ação+sujeito, e combobox em vez de `Select` para listas longas).
+  Nenhum contrato, endpoint ou schema afetado.
