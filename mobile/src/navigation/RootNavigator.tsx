@@ -10,6 +10,9 @@ import CellsScreen from '@/features/structure/screens/CellsScreen';
 import InmatesScreen from '@/features/structure/screens/InmatesScreen';
 import InmateDetailScreen from '@/features/structure/screens/InmateDetailScreen';
 import MovementRegister from '@/features/movements/screens/MovementRegister';
+import CellTransferSelect from '@/features/movements/screens/CellTransferSelect';
+import CellChange from '@/features/movements/screens/CellChange';
+import CellSwap from '@/features/movements/screens/CellSwap';
 import { colors } from '@/theme/colors';
 import type { RootStackParamList } from './types';
 
@@ -49,6 +52,9 @@ export default function RootNavigator(): JSX.Element {
             <Stack.Screen name="InmateDetail" component={InmateDetailScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="MovementRegister" component={MovementRegister} />
+            <Stack.Screen name="CellTransferSelect" component={CellTransferSelect} />
+            <Stack.Screen name="CellChange" component={CellChange} />
+            <Stack.Screen name="CellSwap" component={CellSwap} />
           </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />

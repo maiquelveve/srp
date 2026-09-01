@@ -3,11 +3,19 @@ import { Inmate } from './inmate.entity';
 import { Cell } from '../../cells/entities/cell.entity';
 import { User } from '../../users/entities/user.entity';
 
+/**
+ * CELL_CHANGE/CELL_SWAP/GALLERY_CHANGE/GALLERY_SWAP replace the previous
+ * single CELL_CHANGE value (research.md #35) — each distinguishes troca de
+ * permuta, and mesma galeria de galeria diferente, for correct reporting.
+ */
 export enum CellHistoryReason {
-  CELL_CHANGE = 'CELL_CHANGE',
   RELEASE = 'RELEASE',
   ANKLE_MONITOR = 'ANKLE_MONITOR',
   TRANSFER = 'TRANSFER',
+  CELL_CHANGE = 'CELL_CHANGE',
+  CELL_SWAP = 'CELL_SWAP',
+  GALLERY_CHANGE = 'GALLERY_CHANGE',
+  GALLERY_SWAP = 'GALLERY_SWAP',
 }
 
 /** Timeline used to reconstruct an inmate's location history (FR-016). */

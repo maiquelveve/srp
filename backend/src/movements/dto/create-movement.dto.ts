@@ -16,9 +16,10 @@ export class CreateMovementDto {
   @IsNotEmpty()
   destinationLocation: string;
 
-  @IsOptional()
+  /** Obrigatório em qualquer tipo de Movimentação (FR-008a, research.md #35). */
   @IsString()
-  reason?: string;
+  @IsNotEmpty()
+  reason: string;
 
   @IsOptional()
   @IsString()

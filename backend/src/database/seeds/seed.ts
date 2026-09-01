@@ -57,6 +57,19 @@ async function seed(): Promise<void> {
     }),
     movementTypeRepo.create({ name: 'Parlatório', category: MovementCategory.TEMPORARY }),
     movementTypeRepo.create({ name: 'Liberdade', category: MovementCategory.PERMANENT }),
+    // US3 — situações definitivas (contracts/movements.md, FR-013/FR-014/FR-015).
+    movementTypeRepo.create({
+      name: 'Tornozeleira eletrônica',
+      category: MovementCategory.PERMANENT,
+    }),
+    movementTypeRepo.create({ name: 'Transferência', category: MovementCategory.PERMANENT }),
+    // Troca/permuta de cela/galeria (research.md #35, FR-015–FR-015c) — status
+    // do preso continua ACTIVE, mas category=PERMANENT porque nunca têm
+    // returnDateTime (mesmo raciocínio de research.md #9).
+    movementTypeRepo.create({ name: 'Troca de cela', category: MovementCategory.PERMANENT }),
+    movementTypeRepo.create({ name: 'Permuta de cela', category: MovementCategory.PERMANENT }),
+    movementTypeRepo.create({ name: 'Troca de galeria', category: MovementCategory.PERMANENT }),
+    movementTypeRepo.create({ name: 'Permuta de galeria', category: MovementCategory.PERMANENT }),
   ]);
 
   const seedPassword = process.env.SEED_USER_PASSWORD ?? 'ChangeMe123!';

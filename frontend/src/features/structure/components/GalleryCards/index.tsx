@@ -6,6 +6,7 @@ import {
   ChevronRightIcon,
   PlusIcon,
   RefreshCcw,
+  Shuffle,
   Undo2Icon,
   type LucideIcon,
 } from 'lucide-react';
@@ -13,6 +14,8 @@ import { structureApi } from '../../api';
 import type { Gallery } from '../../types';
 import InmateDialog from '../InmateDialog';
 import MovementDialog from '../../../movements/components/MovementDialog';
+import FinalSituationDialog from '../../../movements/components/FinalSituationDialog';
+import CellTransferDialog from '../../../movements/components/CellTransferDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,7 +43,9 @@ const CELL_ROW_GRID = 'grid grid-cols-[20px_2.5rem_1fr_1fr_7.5rem] items-center 
 // ATIVO aparece numa cela (todo outro status tira o preso dela), então o
 // espaço vira dois botões de ação (mover/alterar status) em vez de repetir
 // "Ativo" em toda linha.
-const INMATE_ROW_GRID = 'grid grid-cols-[1fr_1fr_4.5rem] items-center gap-2';
+// Última coluna alargada pra caber até 3 botões de ação (Mover preso/Trocar
+// de cela sempre; Alterar situação só pra WARDEN) sem apertar.
+const INMATE_ROW_GRID = 'grid grid-cols-[1fr_1fr_7rem] items-center gap-2';
 
 /**
  * Botão só-ícone usado tanto solto (alterar situação, ainda sem ação — US3
@@ -114,13 +119,17 @@ MovementBadge.displayName = 'MovementBadge';
 function CellRowInmates({
   cellId,
   cellLabel,
+  currentGalleryId,
   isWarden,
   isFull,
+  galleries,
 }: {
   cellId: number;
   cellLabel: string;
+  currentGalleryId: number;
   isWarden: boolean;
   isFull: boolean;
+  galleries: Gallery[];
 }): JSX.Element {
   const inmatesQuery = useQuery({
     queryKey: ['inmates', cellId],
@@ -172,7 +181,20 @@ function CellRowInmates({
                       icon={inmate.inMovement ? Undo2Icon : ArrowLeftRight}
                     />
                   </MovementDialog>
-                  {isWarden && <InmateActionButton label="Alterar situação" icon={RefreshCcw} />}
+                  {/* Troca/permuta de cela é para qualquer perfil (research.md
+                      #35) — igual "Mover preso", não gated por isWarden. */}
+                  <CellTransferDialog
+                    inmate={inmate}
+                    currentGalleryId={currentGalleryId}
+                    galleries={galleries}
+                  >
+                    <InmateActionButton label="Trocar de cela" icon={Shuffle} />
+                  </CellTransferDialog>
+                  {isWarden && (
+                    <FinalSituationDialog inmate={inmate}>
+                      <InmateActionButton label="Alterar situação" icon={RefreshCcw} />
+                    </FinalSituationDialog>
+                  )}
                 </span>
               </div>
             );
@@ -217,7 +239,15 @@ function CellRowInmates({
   );
 }
 
-function GalleryCard({ gallery, isWarden }: { gallery: Gallery; isWarden: boolean }): JSX.Element {
+function GalleryCard({
+  gallery,
+  galleries,
+  isWarden,
+}: {
+  gallery: Gallery;
+  galleries: Gallery[];
+  isWarden: boolean;
+}): JSX.Element {
   const [expandedCellId, setExpandedCellId] = useState<number | null>(null);
   const cellsQuery = useQuery({
     queryKey: ['cells', gallery.id],
@@ -292,8 +322,10 @@ function GalleryCard({ gallery, isWarden }: { gallery: Gallery; isWarden: boolea
                   <CellRowInmates
                     cellId={cell.id}
                     cellLabel={`Galeria ${gallery.code} - Cela ${cell.code}`}
+                    currentGalleryId={gallery.id}
                     isWarden={isWarden}
                     isFull={isFull}
+                    galleries={galleries}
                   />
                 </div>
               )}
@@ -333,7 +365,11 @@ export default function GalleryCards({ galleries, galleryIds, isWarden }: Galler
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       {selectedGalleries.map((gallery) => (
-        <GalleryCard key={gallery.id} gallery={gallery} isWarden={isWarden} />
+        // `galleries` aqui é a lista COMPLETA da unidade (não só as
+        // selecionadas no filtro) — troca/permuta de galeria deve poder
+        // escolher qualquer galeria da unidade como destino, não só as que
+        // estão sendo exibidas no momento.
+        <GalleryCard key={gallery.id} gallery={gallery} galleries={galleries} isWarden={isWarden} />
       ))}
     </div>
   );

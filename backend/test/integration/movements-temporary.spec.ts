@@ -114,6 +114,7 @@ describe('Movements endpoints — temporary (contracts/movements.md)', () => {
         movementTypeId: TEST_FIXTURE.temporaryMovementTypeId,
         originCellId: newCellId,
         destinationLocation: 'Enfermaria',
+        reason: 'Consulta',
       });
     expect(first.status).toBe(201);
 
@@ -125,6 +126,7 @@ describe('Movements endpoints — temporary (contracts/movements.md)', () => {
         movementTypeId: TEST_FIXTURE.temporaryMovementTypeId,
         originCellId: newCellId,
         destinationLocation: 'Enfermaria',
+        reason: 'Consulta',
       });
     expect(second.status).toBe(409);
   });
@@ -140,6 +142,7 @@ describe('Movements endpoints — temporary (contracts/movements.md)', () => {
         movementTypeId: TEST_FIXTURE.permanentMovementTypeId,
         originCellId: newCellId,
         destinationLocation: 'Enfermaria',
+        reason: 'Consulta',
       });
     expect(res.status).toBe(400);
   });
@@ -155,6 +158,7 @@ describe('Movements endpoints — temporary (contracts/movements.md)', () => {
         movementTypeId: TEST_FIXTURE.temporaryMovementTypeId,
         originCellId: newCellId,
         destinationLocation: 'Enfermaria',
+        reason: 'Consulta',
       });
     const movementId = (exitRes.body as { id: number }).id;
 
@@ -183,6 +187,7 @@ describe('Movements endpoints — temporary (contracts/movements.md)', () => {
         movementTypeId: TEST_FIXTURE.temporaryMovementTypeId,
         originCellId: newCellId,
         destinationLocation: 'Enfermaria',
+        reason: 'Consulta',
       });
     const movementId = (exitRes.body as { id: number }).id;
 
@@ -243,6 +248,7 @@ describe('Movements endpoints — temporary (contracts/movements.md)', () => {
         movementTypeId: TEST_FIXTURE.temporaryMovementTypeId,
         originCellId: newCellId,
         destinationLocation: 'Enfermaria',
+        reason: 'Consulta',
       });
     const movementId = (exitRes.body as { id: number }).id;
 
@@ -272,6 +278,7 @@ describe('Movements endpoints — temporary (contracts/movements.md)', () => {
           movementTypeId: TEST_FIXTURE.temporaryMovementTypeId,
           originCellId: newCellId,
           destinationLocation: 'Enfermaria',
+          reason: 'Consulta',
         });
       expect(first.status).toBe(201);
       const movementId = (first.body as { id: number }).id;
@@ -285,6 +292,7 @@ describe('Movements endpoints — temporary (contracts/movements.md)', () => {
           movementTypeId: TEST_FIXTURE.temporaryMovementTypeId,
           originCellId: newCellId,
           destinationLocation: 'Enfermaria',
+          reason: 'Consulta',
         });
       expect(replay.status).toBe(200);
       expect(replay.body).toMatchObject({ id: movementId });
@@ -309,6 +317,7 @@ describe('Movements endpoints — temporary (contracts/movements.md)', () => {
           movementTypeId: TEST_FIXTURE.temporaryMovementTypeId,
           originCellId: newCellId,
           destinationLocation: 'Enfermaria',
+          reason: 'Consulta',
         });
       const movementId = (exitRes.body as { id: number }).id;
 
@@ -338,6 +347,7 @@ describe('Movements endpoints — temporary (contracts/movements.md)', () => {
         movementTypeId: TEST_FIXTURE.temporaryMovementTypeId,
         originCellId: 999999,
         destinationLocation: 'Enfermaria',
+        reason: 'Consulta',
       });
     expect([403, 404]).toContain(res.status);
   });
@@ -352,6 +362,7 @@ describe('Movements endpoints — temporary (contracts/movements.md)', () => {
         movementTypeId: TEST_FIXTURE.temporaryMovementTypeId,
         originCellId: newCellId,
         destinationLocation: 'Enfermaria',
+        reason: 'Consulta',
       });
 
     const res = await request(app.getHttpServer())

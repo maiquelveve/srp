@@ -65,6 +65,19 @@ export class Movement {
   @Column({ type: 'uuid', nullable: true })
   returnIdempotencyKey: string | null;
 
+  /**
+   * Links the two rows a permuta (cell-swap/gallery-swap) creates — one per
+   * inmate, preserving "Movement = one inmate per row" (research.md #26) —
+   * to the row created for the other inmate in the same swap. Null for every
+   * other movement type. Per-ROW, not per-inmate: an inmate gets a fresh
+   * Movement row (with its own correct partner) every time it swaps, so past
+   * pairings are never overwritten by a later one (research.md #35, worked
+   * example under "Como o pareamento se comporta ao longo do tempo").
+   */
+  @Index({ unique: true, where: 'paired_movement_id IS NOT NULL' })
+  @Column({ name: 'paired_movement_id', type: 'int', nullable: true })
+  pairedMovementId: number | null;
+
   @ManyToOne(() => User, { nullable: false })
   @JoinColumn({ name: 'user_id' })
   user: User;

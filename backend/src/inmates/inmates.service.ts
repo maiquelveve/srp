@@ -1,22 +1,29 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Inmate, InmateStatus } from './entities/inmate.entity';
+import { InmateCellHistory } from './entities/inmate-cell-history.entity';
 import { Movement } from '../movements/entities/movement.entity';
 import { MovementCategory } from '../movements/entities/movement-type.entity';
 import { CreateInmateDto } from './dto/create-inmate.dto';
 import { UpdateInmateDto } from './dto/update-inmate.dto';
 import { ListInmatesQueryDto } from './dto/list-inmates-query.dto';
 import { InmateResponseDto, OpenMovementInfo } from './dto/inmate-response.dto';
+import { LocationHistoryEntryDto } from './dto/location-history-entry.dto';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { CellsService } from '../cells/cells.service';
+import { CellHistoryService } from './cell-history.service';
 
 @Injectable()
 export class InmatesService {
   constructor(
     @InjectRepository(Inmate) private readonly inmateRepository: Repository<Inmate>,
+    @InjectRepository(InmateCellHistory)
+    private readonly cellHistoryRepository: Repository<InmateCellHistory>,
     @InjectRepository(Movement) private readonly movementRepository: Repository<Movement>,
+    @InjectDataSource() private readonly dataSource: DataSource,
     private readonly cellsService: CellsService,
+    private readonly cellHistoryService: CellHistoryService,
   ) {}
 
   async list(
@@ -69,18 +76,25 @@ export class InmatesService {
       throw new BadRequestException('Cela já está na capacidade máxima');
     }
 
-    const inmate = await this.inmateRepository.save(
-      this.inmateRepository.create({
-        name: dto.name,
-        registrationId: dto.registrationId ?? null,
-        birthDate: dto.birthDate ?? null,
-        custodyRegime: dto.custodyRegime ?? null,
-        photoUrl: dto.photoUrl ?? null,
-        status: InmateStatus.ACTIVE,
-        currentCell: cell,
-      }),
-    );
-    inmate.currentCell = cell;
+    const inmate = await this.dataSource.transaction(async (manager) => {
+      const created = await manager.save(
+        manager.create(Inmate, {
+          name: dto.name,
+          registrationId: dto.registrationId ?? null,
+          birthDate: dto.birthDate ?? null,
+          custodyRegime: dto.custodyRegime ?? null,
+          photoUrl: dto.photoUrl ?? null,
+          status: InmateStatus.ACTIVE,
+          currentCell: cell,
+        }),
+      );
+      created.currentCell = cell;
+      // Opens the first location-history entry (FR-016) — without this, a
+      // final/* situação definitiva would have no open entry to close.
+      await this.cellHistoryService.openInitialEntry(manager, created, cell);
+      return created;
+    });
+
     return InmateResponseDto.fromEntity(inmate, null);
   }
 
@@ -110,6 +124,17 @@ export class InmatesService {
       throw new NotFoundException('Preso não encontrado');
     }
     return inmate;
+  }
+
+  /** GET /api/v1/inmates/:id/location-history — contracts/movements.md (FR-016). */
+  async locationHistory(id: number, callerUnitIds: number[]): Promise<LocationHistoryEntryDto[]> {
+    await this.findEntityInScope(id, callerUnitIds);
+    const entries = await this.cellHistoryRepository.find({
+      where: { inmate: { id } },
+      relations: { cell: { gallery: { unit: true } } },
+      order: { entryDate: 'ASC' },
+    });
+    return entries.map((entry) => LocationHistoryEntryDto.fromEntity(entry));
   }
 
   /**

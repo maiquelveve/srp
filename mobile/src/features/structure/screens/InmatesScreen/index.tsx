@@ -56,6 +56,7 @@ export default function InmatesScreen({ navigation, route }: Props): JSX.Element
               statusLine={viewModel.statusLine(item)}
               movementLabel={viewModel.movementActionLabel(item)}
               onPressDetail={() => viewModel.goToDetail(item.id)}
+              onPressTransfer={() => viewModel.goToCellTransferSelect(item)}
               onPressMovement={() => viewModel.goToMovementRegister(item)}
             />
           )}

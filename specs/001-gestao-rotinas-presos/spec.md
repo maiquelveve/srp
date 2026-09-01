@@ -48,18 +48,22 @@ Policiais penais registram a saída e o retorno individual de presos em relaçã
 
 ### User Story 3 - Situações Definitivas (Priority: P3)
 
-Chefia/Diretor (e, quando aplicável, supervisor) registra situações em que o preso deixa definitivamente a cela/galeria: liberdade, tornozeleira eletrônica, transferência para outra unidade e troca de cela definitiva. Essas situações atualizam o status do preso e alimentam um histórico completo de localização.
+Chefia/Diretor registra situações em que o preso deixa definitivamente a unidade ou o regime fechado: liberdade, tornozeleira eletrônica e transferência para outra unidade. Além disso, qualquer perfil autenticado (Policial Penal, Supervisor ou Chefia/Diretor) pode registrar a troca ou permuta de cela de um preso — movendo-o para outra cela (na mesma galeria ou em outra galeria) ou trocando-o simultaneamente com outro preso — sendo a variação entre galerias restrita a Supervisor e Chefia/Diretor. Essas situações atualizam o status ou a cela atual do preso e alimentam um histórico completo de localização.
 
-**Why this priority**: Tem impacto legal e de auditoria direto (alvarás, escoltas, dispositivos eletrônicos) e é menos frequente que as movimentações temporárias, mas depende dos cadastros (US1) e do conceito de movimentação (US2) já existirem.
+**Why this priority**: Liberdade/tornozeleira/transferência têm impacto legal e de auditoria direto e são menos frequentes que as movimentações temporárias; troca/permuta de cela é mais frequente (inclusive usada em campo pelo Policial Penal) mas ambas dependem dos cadastros (US1) e do conceito de movimentação (US2) já existirem.
 
-**Independent Test**: Pode ser testado de forma independente registrando uma liberdade (com número de alvará e unidade judiciária) para um preso ativo e verificando que seu status muda para "liberdade" e que ele não aparece mais como ocupante da cela.
+**Independent Test**: Pode ser testado de forma independente registrando uma liberdade (com o motivo preenchido) para um preso ativo e verificando que seu status muda para "liberdade" e que ele não aparece mais como ocupante da cela.
 
 **Acceptance Scenarios**:
 
-1. **Given** um preso ativo, **When** a chefia registra sua liberdade com número de alvará e unidade judiciária, **Then** o status do preso muda para "liberdade", a cela é liberada e o evento passa a constar no histórico de localização do preso.
-2. **Given** um preso ativo, **When** a chefia registra o uso de tornozeleira eletrônica com número do dispositivo e empresa responsável, **Then** o status do preso muda para "tornozeleira" e a cela é liberada.
-3. **Given** um preso ativo, **When** a chefia registra uma transferência para outra unidade com data e referência documental, **Then** o status do preso muda para "transferido" e a cela de origem é liberada.
-4. **Given** um preso ativo, **When** a chefia registra uma troca de cela definitiva, **Then** o preso passa a constar como ocupante da nova cela e a cela antiga é liberada, mantendo o histórico de ambas.
+1. **Given** um preso ativo, **When** a chefia registra sua liberdade com o motivo (ex.: alvará, unidade judiciária, agente responsável, tudo como texto livre), **Then** o status do preso muda para "liberdade", a cela é liberada e o evento passa a constar no histórico de localização do preso.
+2. **Given** um preso ativo, **When** a chefia registra o uso de tornozeleira eletrônica com o motivo preenchido, **Then** o status do preso muda para "tornozeleira" e a cela é liberada.
+3. **Given** um preso ativo, **When** a chefia registra uma transferência para outra unidade com o motivo preenchido, **Then** o status do preso muda para "transferido" e a cela de origem é liberada.
+4. **Given** um preso ativo numa cela com vaga disponível em outra cela da mesma galeria, **When** qualquer perfil (Policial Penal, Supervisor ou Chefia/Diretor) registra uma troca de cela, **Then** o preso passa a constar como ocupante da nova cela, a cela antiga é liberada, o status permanece "ativo" e o histórico de ambas as celas é mantido.
+5. **Given** dois presos ativos em celas diferentes da mesma galeria, **When** qualquer perfil registra uma permuta de cela escolhendo a cela do segundo preso como destino, **Then** o sistema exibe o preso que ocupa essa cela para confirmação e, ao confirmar, os dois presos trocam de cela simultaneamente, sem que nenhuma vaga seja exigida, e ambos os status permanecem "ativo".
+6. **Given** um preso ativo numa unidade com vaga disponível em outra galeria da mesma unidade, **When** um Supervisor ou a Chefia/Diretor registra uma troca de galeria, **Then** o preso passa a constar como ocupante da nova galeria/cela e a cela antiga é liberada.
+7. **Given** dois presos ativos em galerias diferentes, **When** um Supervisor ou a Chefia/Diretor registra uma permuta de galeria escolhendo a cela do segundo preso como destino, **Then** o sistema exibe o preso que ocupa essa cela para confirmação e, ao confirmar, os dois presos trocam de galeria/cela simultaneamente, sem que nenhuma vaga seja exigida.
+8. **Given** um Policial Penal autenticado, **When** ele tenta registrar uma troca de galeria, uma permuta de galeria, ou qualquer uma de liberdade/tornozeleira/transferência, **Then** o sistema nega a operação por falta de permissão — apenas troca e permuta de cela (mesma galeria) estão disponíveis para ele, tanto no aplicativo móvel quanto no painel web.
 
 ---
 
@@ -117,7 +121,8 @@ Supervisor e chefia/diretor consultam relatórios operacionais (movimentações 
 
 - O que acontece quando um usuário tenta registrar o retorno de uma movimentação que já foi finalizada (retorno duplicado)?
 - Como o sistema trata presos com movimentação temporária em aberto por tempo muito superior ao esperado (sem retorno registrado)?
-- O que acontece quando uma cela já está na sua capacidade máxima e uma nova movimentação/troca de cela definitiva tenta alocar mais um preso nela?
+- O que acontece quando uma cela já está na sua capacidade máxima e uma nova movimentação, troca de cela ou troca de galeria tenta alocar mais um preso nela? (Não se aplica a permuta de cela/galeria — a troca é simultânea entre duas celas já ocupadas, nunca exige vaga.)
+- O que acontece se, entre a escolha da cela de destino e a confirmação de uma permuta (de cela ou de galeria), o preso que ocupava aquela cela deixar de ocupá-la (outra movimentação/situação registrada nesse intervalo)?
 - Como o sistema lida com duas rotinas com horários sobrepostos configuradas para a mesma galeria?
 - O que acontece se dois usuários tentam registrar simultaneamente uma movimentação de saída para o mesmo preso (condição de corrida)?
 - O que acontece quando um supervisor tenta desativar uma rotina marcada como padrão/bloqueada pela chefia?
@@ -149,7 +154,8 @@ Supervisor e chefia/diretor consultam relatórios operacionais (movimentações 
 
 **Movimentações**
 
-- **FR-008**: O sistema MUST permitir registrar movimentações temporárias de um preso contendo preso, categoria, motivo/descrição, local de destino, data/hora de saída, usuário responsável e observações.
+- **FR-008**: O sistema MUST permitir registrar movimentações temporárias de um preso contendo preso, categoria, motivo, local de destino, data/hora de saída, usuário responsável e observações.
+- **FR-008a**: Toda movimentação, de qualquer tipo (temporária, liberdade, tornozeleira, transferência, troca de cela, permuta de cela, troca de galeria ou permuta de galeria) MUST exigir um motivo preenchido pelo usuário (texto livre); observações adicionais MUST ser sempre opcionais. Nenhum tipo MUST exigir campos estruturados além desses dois — informação específica de um tipo (ex.: número de alvará, agente responsável, dispositivo, empresa, escolta, referência documental) MUST ser registrada como texto livre dentro do motivo ou das observações, não em campos próprios.
 - **FR-009**: O sistema MUST permitir registrar o retorno de uma movimentação temporária, gravando a data/hora de retorno.
 - **FR-010**: O sistema MUST impedir a criação de uma nova movimentação de saída para um preso que já possua uma movimentação temporária em aberto.
 - **FR-011**: O sistema MUST exibir em tempo real o status atual de cada preso (na cela, em rotina, em atendimento, em visita, em situação definitiva), com filtragem por unidade, galeria e cela.
@@ -157,11 +163,14 @@ Supervisor e chefia/diretor consultam relatórios operacionais (movimentações 
 
 **Situações Definitivas**
 
-- **FR-012**: O sistema MUST permitir registrar liberdade de um preso com data, número de alvará, unidade judiciária e agente responsável.
-- **FR-013**: O sistema MUST permitir registrar uso de tornozeleira eletrônica com data de início, número do dispositivo, empresa responsável e restrições.
-- **FR-014**: O sistema MUST permitir registrar transferência de um preso para outra unidade com data, escolta e referência documental.
-- **FR-015**: O sistema MUST permitir registrar troca de cela definitiva com cela antiga, cela nova, data/hora e motivo.
-- **FR-016**: Ao registrar qualquer situação definitiva, o sistema MUST atualizar o status do preso, liberar a cela de origem (quando aplicável) e manter um histórico completo de localização do preso (linha do tempo de celas, unidades e regimes).
+- **FR-012**: O sistema MUST permitir registrar liberdade de um preso com data e motivo (FR-008a) — restrito ao perfil Chefia/Diretor.
+- **FR-013**: O sistema MUST permitir registrar uso de tornozeleira eletrônica com data e motivo (FR-008a) — restrito ao perfil Chefia/Diretor.
+- **FR-014**: O sistema MUST permitir registrar transferência de um preso para outra unidade com data e motivo (FR-008a) — restrito ao perfil Chefia/Diretor.
+- **FR-015**: O sistema MUST permitir registrar troca de cela de um preso: ele sai de sua cela atual e passa a ocupar outra cela **com vaga disponível na mesma galeria**. Disponível para qualquer perfil (Policial Penal, Supervisor, Chefia/Diretor), tanto no aplicativo móvel quanto no painel web.
+- **FR-015a**: O sistema MUST permitir registrar permuta de cela entre dois presos da mesma galeria: o usuário escolhe a cela de destino, o sistema exibe o preso que a ocupa atualmente para confirmação e, ao confirmar, os dois presos trocam de cela simultaneamente — nenhuma vaga é exigida, pois a troca é direta. Disponível para qualquer perfil, tanto no aplicativo móvel quanto no painel web.
+- **FR-015b**: O sistema MUST permitir registrar troca de galeria de um preso: ele sai de sua cela atual e passa a ocupar uma cela **com vaga disponível em outra galeria**. Restrito aos perfis Supervisor e Chefia/Diretor, disponível apenas no painel web.
+- **FR-015c**: O sistema MUST permitir registrar permuta de galeria entre dois presos de galerias diferentes, com a mesma mecânica de confirmação da FR-015a (escolher destino, confirmar com o preso exibido) — nenhuma vaga é exigida. Restrito aos perfis Supervisor e Chefia/Diretor, disponível apenas no painel web.
+- **FR-016**: Ao registrar liberdade, tornozeleira ou transferência, o sistema MUST atualizar o status do preso e liberar a cela de origem. Ao registrar troca ou permuta de cela/galeria (FR-015–FR-015c), o sistema MUST manter o status do preso como "ativo" e apenas atualizar sua cela atual, liberando a cela de origem. Em qualquer um desses casos, o sistema MUST manter um histórico completo de localização do preso (linha do tempo de celas, unidades e regimes).
 
 **Rotinas**
 
@@ -197,8 +206,8 @@ Supervisor e chefia/diretor consultam relatórios operacionais (movimentações 
 - **Cela**: espaço físico dentro de uma galeria, com capacidade e tipo; contém presos.
 - **Preso**: pessoa custodiada; possui dados pessoais, regime, cela atual e status (ativo, liberdade, tornozeleira, transferido).
 - **Histórico de Cela**: registro histórico de qual cela um preso ocupou em cada período, usado para reconstruir a linha do tempo de localização.
-- **Movimentação**: registro **individual** de deslocamento (temporário ou definitivo) de **um** preso específico, com origem, destino, motivo, horários de saída/retorno e usuário responsável. Só existe Movimentação quando a atividade tira aquele preso especificamente de sua cela/galeria em um horário próprio dele (ex.: atendimento médico, visita, transferência, liberdade) — nunca para uma atividade coletiva aplicada à galeria inteira de uma vez (ver Rotina).
-- **Tipo de Movimentação**: categoria de movimentação individual (atendimento médico interno/externo, visita, transferência, liberdade, tornozeleira, troca de cela) e se é temporária ou definitiva. Não inclui pátio/corre/faxina — ver Rotina.
+- **Movimentação**: registro **individual** de deslocamento (temporário ou definitivo) de **um** preso específico, com origem, destino, motivo, observações, horários de saída/retorno e usuário responsável. Só existe Movimentação quando a atividade tira aquele preso especificamente de sua cela/galeria em um horário próprio dele (ex.: atendimento médico, visita, transferência, liberdade, troca/permuta de cela ou galeria) — nunca para uma atividade coletiva aplicada à galeria inteira de uma vez (ver Rotina). Uma permuta (de cela ou de galeria) entre dois presos gera **dois** registros de Movimentação vinculados entre si, um por preso, preservando a regra de "um preso por registro".
+- **Tipo de Movimentação**: categoria de movimentação individual (atendimento médico interno/externo, visita, liberdade, tornozeleira, transferência, troca de cela, permuta de cela, troca de galeria, permuta de galeria) e se é temporária ou definitiva. Não inclui pátio/corre/faxina — ver Rotina.
 - **Rotina**: atividade **coletiva** programada (nome, tipo, horários, escopo, status) aplicada a uma galeria/unidade inteira, sem gerar nenhum registro por preso individual (ex.: horário de pátio, horário de corre, horário de faxina, dias/horários de visita). Diferença-chave para Movimentação: Rotina define **quando a galeria é liberada** para a atividade; Movimentação (quando aplicável, ex.: levar um preso específico até sua visita) registra **o deslocamento daquele preso** dentro desse horário.
 - **Horário de Rotina**: um horário específico associado a uma rotina, podendo variar por dia da semana.
 - **Escala de Efetivo**: alocação de um policial penal a um turno, data e setor, incluindo presença/faltas/abonos/horas extras.

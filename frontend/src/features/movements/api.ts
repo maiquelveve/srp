@@ -10,7 +10,8 @@ export const movementsApi = {
     movementTypeId: number;
     originCellId: number;
     destinationLocation: string;
-    reason?: string;
+    /** Obrigatório (FR-008a, research.md #35). */
+    reason: string;
     notes?: string;
   }) => apiClient.post<Movement>('/movements', input).then((r) => r.data),
 
@@ -24,4 +25,45 @@ export const movementsApi = {
 
   list: (params: { inmateId?: number; open?: boolean }) =>
     apiClient.get<Paginated<Movement>>('/movements', { params }).then((r) => r.data),
+
+  // Liberdade/tornozeleira/transferência (US3, contracts/movements.md) —
+  // WARDEN only. Estruturalmente idênticas — reason/notes (research.md #35).
+  finalRelease: (input: { inmateId: number; reason: string; notes?: string }) =>
+    apiClient.post<Movement>('/movements/final/release', input).then((r) => r.data),
+
+  finalAnkleMonitor: (input: { inmateId: number; reason: string; notes?: string }) =>
+    apiClient.post<Movement>('/movements/final/ankle-monitor', input).then((r) => r.data),
+
+  finalTransfer: (input: { inmateId: number; reason: string; notes?: string }) =>
+    apiClient.post<Movement>('/movements/final/transfer', input).then((r) => r.data),
+
+  // Troca/permuta de cela/galeria (research.md #35, FR-015–FR-015c). Troca/
+  // permuta de cela: qualquer perfil. Troca/permuta de galeria: SUPERVISOR/
+  // WARDEN só (o backend também aplica essa regra via @Roles).
+  cellChange: (input: CellTransferInput) =>
+    apiClient.post<Movement>('/movements/cell-change', input).then((r) => r.data),
+
+  cellSwap: (input: CellTransferInput) =>
+    apiClient.post<Movement[]>('/movements/cell-swap', input).then((r) => r.data),
+
+  galleryChange: (input: CellTransferInput) =>
+    apiClient.post<Movement>('/movements/gallery-change', input).then((r) => r.data),
+
+  gallerySwap: (input: CellTransferInput) =>
+    apiClient.post<Movement[]>('/movements/gallery-swap', input).then((r) => r.data),
+
+  /** GET /cells/:id/occupant — mostra quem ocupa a cela de destino antes de confirmar uma permuta. */
+  cellOccupant: (cellId: number) =>
+    apiClient
+      .get<{ id: number; name: string; registrationId: string | null } | null>(
+        `/cells/${cellId}/occupant`,
+      )
+      .then((r) => r.data),
 };
+
+interface CellTransferInput {
+  inmateId: number;
+  destinationCellId: number;
+  reason: string;
+  notes?: string;
+}

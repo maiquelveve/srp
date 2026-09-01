@@ -155,18 +155,25 @@ Linha do tempo de ocupação de celas por um Inmate, usada para reconstruir loca
 | `inmate`, `cell` | referências obrigatórias |
 | `entryDate` | obrigatório |
 | `exitDate` | nulo enquanto ocupação corrente |
-| `reason` | `CELL_CHANGE` \| `RELEASE` \| `ANKLE_MONITOR` \| `TRANSFER` |
+| `reason` | `RELEASE` \| `ANKLE_MONITOR` \| `TRANSFER` \| `CELL_CHANGE` \| `CELL_SWAP` \| `GALLERY_CHANGE` \| `GALLERY_SWAP` |
 | `user` | responsável pelo registro |
 
 - **Regra**: toda mudança de `currentCell` de um Inmate MUST gerar exatamente um novo registro
   aqui e fechar (`exitDate`) o registro anterior em aberto, na mesma transação.
+- **Nota (research.md #35)**: `CELL_CHANGE`/`CELL_SWAP`/`GALLERY_CHANGE`/`GALLERY_SWAP`
+  substituem o antigo valor único `CELL_CHANGE` — cada um distingue troca simples de permuta, e
+  mesma galeria de galeria diferente, para relatório/auditoria correto (FR-015–FR-015c).
 
 ### MovementType (`movement_types`)
 
 | Campo | Tipo/Regra |
 |---|---|
-| `name` | único (atendimento médico interno/externo, visita, transferência, liberdade, tornozeleira, troca de cela, ...) — **não inclui pátio/corre/faxina**, atividades coletivas por galeria representadas como `Routine`, nunca como `MovementType` (research.md #26) |
+| `name` | único (atendimento médico interno/externo, visita, liberdade, tornozeleira eletrônica, transferência, troca de cela, permuta de cela, troca de galeria, permuta de galeria, ...) — **não inclui pátio/corre/faxina**, atividades coletivas por galeria representadas como `Routine`, nunca como `MovementType` (research.md #26) |
 | `category` | `TEMPORARY` \| `PERMANENT` |
+
+- **Nota (research.md #35)**: troca/permuta de cela/galeria são `category = PERMANENT` (nunca têm
+  `returnDateTime`), mesmo não sendo situação terminal de custódia (o status do preso continua
+  `ACTIVE`) — `PERMANENT` aqui significa apenas "sem retorno esperado", não "encerra custódia".
 
 ### Movement (`movements`)
 
@@ -174,14 +181,19 @@ Linha do tempo de ocupação de celas por um Inmate, usada para reconstruir loca
 |---|---|
 | `inmate`, `movementType` | referências obrigatórias |
 | `originCell` | obrigatória |
-| `destinationCell` | apenas para troca de cela |
-| `destinationLocation` | texto livre **obrigatório** — rastreabilidade de para onde o preso foi é o propósito central da Movimentação (research.md #26) |
-| `reason`, `notes` | texto livre opcional (pode ser revisto no futuro) |
+| `destinationCell` | obrigatória para troca/permuta de cela ou de galeria; nula nos demais tipos |
+| `reason` | texto livre **obrigatório** em qualquer tipo de Movimentação (FR-008a, research.md #35) — motivo da movimentação; carrega também dado específico de tipo quando aplicável (ex.: "Alvará nº 123, Vara Criminal, Agente João") |
+| `notes` | texto livre opcional (observações adicionais) |
+| `pairedMovement` | auto-referência opcional, único quando presente — liga os dois registros gerados por uma permuta (FR-015a/FR-015c, research.md #35); nulo em todo outro tipo |
 | `exitDateTime` | obrigatória |
 | `returnDateTime` | obrigatória apenas para `category = TEMPORARY`, nula até o retorno |
 | `user` | responsável pelo registro |
 | `idempotencyKey` | UUID gerado pelo cliente (app móvel), único — ver regra offline |
 
+- **Nota (research.md #35)**: `destinationLocation` (texto livre obrigatório, rastreabilidade de
+  destino) foi **removida** — liberdade/tornozeleira/transferência passam a usar só
+  `reason`/`notes`, igual às demais Movimentações definitivas; a única informação de "destino"
+  estruturada que sobra é `destinationCell` (troca/permuta de cela/galeria).
 - **Regra (FR-010)**: não pode existir mais de um Movement `TEMPORARY` em aberto
   (`returnDateTime IS NULL`) simultaneamente para o mesmo Inmate.
 - **Regra (FR-009)**: registrar retorno de um Movement já retornado MUST ser rejeitado
@@ -189,6 +201,21 @@ Linha do tempo de ocupação de celas por um Inmate, usada para reconstruir loca
 - **Regra (offline, FR-011a)**: cada Movement criado pelo app móvel carrega `idempotencyKey`
   gerado no cliente; o backend rejeita silenciosamente reenvios com a mesma chave (sem gerar
   duplicata nem erro visível ao usuário após reconexão).
+- **Regra (permuta, FR-015a/FR-015c, research.md #35)**: uma permuta gera **dois** registros de
+  Movement na mesma transação, um por preso (`inmate` continua se referindo a um único preso por
+  linha — Constituição/research.md #26), cada um com `pairedMovement` apontando pro outro.
+  `pairedMovement` é um dado **do evento** (da linha), não do preso — um Inmate acumula uma linha
+  de Movement nova a cada permuta que participa ao longo do tempo, cada uma com seu próprio
+  parceiro correto para aquele evento específico; permutas passadas nunca são reescritas. Ver
+  exemplo completo em research.md #35 ("Como o pareamento se comporta ao longo do tempo"). Nenhum
+  dos dois passa por checagem de capacidade de cela (a troca é direta: a cela que um preso libera
+  é imediatamente ocupada pelo outro).
+- **Regra (capacidade, FR-015/FR-015b)**: troca de cela e troca de galeria (não-permuta) MUST ser
+  rejeitadas se a cela de destino já estiver na capacidade máxima (data-model.md `Cell`).
+- **Regra (RBAC, FR-015/FR-015a vs FR-015b/FR-015c)**: troca/permuta de cela (mesma galeria) MUST
+  estar disponível a qualquer perfil autenticado, em qualquer cliente (web ou mobile). Troca/
+  permuta de galeria MUST ser restritas aos perfis `SUPERVISOR`/`WARDEN`, e disponíveis apenas no
+  painel web.
 
 ### Routine (`routines`)
 
@@ -262,7 +289,9 @@ Valor mínimo de efetivo configurável por setor/turno/unidade (FR-024, research
 | Regra | Origem |
 |---|---|
 | Um Movement temporário em aberto bloqueia nova saída para o mesmo Inmate | FR-010 |
-| Capacidade da Cell não pode ser excedida em nova alocação | Edge Cases (spec.md) |
+| Capacidade da Cell não pode ser excedida em nova alocação (troca de cela/galeria; não se aplica a permuta) | Edge Cases (spec.md) |
+| Toda Movimentação, de qualquer tipo, exige `reason` preenchido; `notes` sempre opcional; nenhum campo estruturado por tipo | FR-008a, research.md #35 |
+| Troca/permuta de cela disponível a qualquer perfil, em qualquer cliente; troca/permuta de galeria restrita a SUPERVISOR/WARDEN, só web | FR-015–FR-015c |
 | Routine `locked=true` não pode ser excluída/ter tipo alterado por Supervisor | FR-019, Assumptions (spec.md) |
 | User só acessa dados de Units a que está vinculado | FR-004a |
 | Somente `WARDEN` cria/desativa User | FR-030…FR-032 |

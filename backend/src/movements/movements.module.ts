@@ -8,9 +8,15 @@ import { MovementTypesService } from './movement-types.service';
 import { MovementTypesController } from './movement-types.controller';
 import { InmatesModule } from '../inmates/inmates.module';
 import { CellsModule } from '../cells/cells.module';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Movement, MovementType]), InmatesModule, CellsModule],
+  imports: [
+    TypeOrmModule.forFeature([Movement, MovementType]),
+    InmatesModule,
+    CellsModule,
+    AuditModule,
+  ],
   controllers: [MovementsController, MovementTypesController],
   providers: [MovementsService, MovementTypesService],
   exports: [MovementsService],

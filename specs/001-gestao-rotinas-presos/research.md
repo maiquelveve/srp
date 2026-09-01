@@ -1118,3 +1118,94 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
   componente ser reaproveitado por 2+ telas antes de extrair pra arquivo próprio — rejeitado,
   cria o mesmo tipo de inconsistência que #33 já resolveu pra Model (alguns componentes soltos,
   outros em pasta, sem regra objetiva de quando).
+
+## 35. Redesenho de "situações definitivas" pós-implementação de US3 (campos genéricos + troca/permuta de cela e galeria)
+
+- **Contexto** (2026-08-31, revisão pós-implementação de T046–T053 com o usuário do projeto):
+  logo após a primeira implementação completa de US3 (liberdade/tornozeleira/transferência/troca
+  de cela, todas WARDEN-only), o usuário identificou dois problemas na modelagem entregue: (1) o
+  campo `reason` estava sendo usado como "gaveta" de texto livre pra guardar dado estruturado
+  (número de alvará, agente responsável, dispositivo, empresa, escolta) de forma diferente por
+  tipo — inviabiliza pesquisa/relatório futuro por esse dado; (2) "troca de cela" não é um
+  conceito único — na prática existem quatro variações operacionais distintas, com regras e
+  perfis de acesso diferentes, nenhuma delas mapeada no desenho original.
+- **Decision — campos genéricos (FR-008a)**: `reason` (motivo) e `notes` (observação) passam a
+  ser os **únicos** dois campos de texto livre em **qualquer** tipo de Movimentação, sem exceção —
+  `reason` sempre obrigatório, `notes` sempre opcional. Nenhum tipo ganha campo estruturado
+  próprio (nem para liberdade, nem para transferência); dado específico de um tipo (alvará,
+  agente, dispositivo, escolta, unidade de destino) é texto livre dentro de `reason`/`notes`. Essa
+  simplificação foi uma escolha explícita do usuário do projeto — a alternativa (colunas
+  dedicadas por tipo, ou uma tabela de detalhe por tipo) foi considerada e descartada por ele
+  por complexidade desnecessária nesta fase; pode ser revisitada no futuro se a necessidade de
+  pesquisa estruturada por esse dado se tornar real.
+- **Decision — `destinationLocation` sai de liberdade/tornozeleira/transferência**: essas três
+  passam a ter exatamente a mesma forma (`reason`, `notes`), diferindo só no status que atribuem
+  ao preso. `destinationLocation` continua existindo só na movimentação temporária (FR-008, onde
+  já era obrigatória — research.md #26).
+- **Decision — troca de cela vira quatro variações (FR-015–FR-015c)**: o usuário identificou que
+  "troca de cela definitiva" cobria na prática quatro operações diferentes, cruzando dois eixos —
+  escopo (mesma galeria vs. galeria diferente) × modo (movimentação simples vs. permuta
+  simultânea entre dois presos):
+  - **Troca de cela** (FR-015): 1 preso, mesma galeria, exige vaga na cela de destino.
+  - **Permuta de cela** (FR-015a): 2 presos, mesma galeria, troca simultânea, nunca exige vaga.
+  - **Troca de galeria** (FR-015b): 1 preso, galeria diferente, exige vaga.
+  - **Permuta de galeria** (FR-015c): 2 presos, galeria diferente, troca simultânea, nunca exige
+    vaga.
+  Todas as quatro mantêm `inmates.status = ACTIVE` — diferente de liberdade/tornozeleira/
+  transferência, que são de fato terminais. Por isso saem do namespace `POST /movements/final/*`
+  (contracts/movements.md) — não são situação "final" de custódia.
+- **Decision — RBAC por perfil, não por cliente**: troca/permuta de cela (mesma galeria) ficam
+  disponíveis a **qualquer** perfil autenticado (`PRISON_OFFICER`/`SUPERVISOR`/`WARDEN`), tanto no
+  app mobile quanto no painel web — inclusive porque não existe hoje nenhuma barreira técnica que
+  impeça um `PRISON_OFFICER` de logar no painel web (`AuthService.login()`/`ProtectedRoute` não
+  checam `role`, só autenticação); a regra de acesso sempre foi por perfil via `@Roles(...)` nos
+  endpoints, nunca por cliente. Troca/permuta de galeria continuam restritas a
+  `SUPERVISOR`/`WARDEN`, e — por não fazerem parte do fluxo operacional do Policial Penal em
+  campo — só ficam expostas no painel web (decisão de produto, não limitação técnica).
+- **Decision — mecânica da permuta**: o usuário escolhe primeiro o **destino** (cela, ou
+  galeria+cela); o sistema consulta quem ocupa aquela cela (`GET /cells/:id/occupant`, novo nesta
+  revisão) e exibe esse preso pra confirmação antes de efetivar a troca simultânea. Uma permuta
+  gera **dois** registros de `Movement`, um por preso (preserva a regra "Movement = um preso por
+  registro", research.md #26), vinculados por uma nova coluna `pairedMovement` (auto-referência
+  opcional em `movements`, única quando presente) — a única coluna nova introduzida por esta
+  revisão, justificada como necessidade estrutural (relacionar dois registros de uma mesma
+  operação), não como campo de dado de negócio específico de tipo (o que o usuário rejeitou no
+  ponto anterior).
+- **Decision — UI**: web ganha um modal por cards pra escolher entre os quatro tipos disponíveis
+  ao perfil logado (mesma linguagem visual que o mobile, não abas) — troca de cela deixa de ser
+  uma opção dentro do modal de "Alterar situação" (que fica só com liberdade/tornozeleira/
+  transferência, agora estruturalmente idênticas entre si). Mobile ganha uma tela nova de
+  seleção (dois cards, só os tipos de mesma galeria) acionada por um botão na linha do preso,
+  entre "Detalhes" e "Saída".
+- **Por que uma coluna nova, e não dado calculado**: sem `pairedMovement`, as duas linhas de uma
+  permuta não têm nenhum campo que as ligue — a única forma de reconstruir "quem trocou com quem"
+  seria adivinhar por coincidência (mesmo `exitDateTime`, mesmo texto de `reason`, celas que
+  "batem"). Isso quebra na prática: duas permutas diferentes registradas no mesmo minuto, em
+  galerias diferentes, com o mesmo motivo genérico digitado pelo usuário (ex.: "Reorganização"),
+  ficam indistinguíveis por heurística — um relatório poderia casar o preso errado com o parceiro
+  errado. Inaceitável num sistema cujo propósito central é auditoria (Constituição III).
+  `pairedMovement` resolve isso trocando "adivinhação por coincidência" por uma referência direta
+  e garantida pelo próprio banco (chave estrangeira, única quando presente).
+
+  **Como o pareamento se comporta ao longo do tempo** — ponto que gerou dúvida durante a revisão e
+  vale deixar explícito: `pairedMovement` é um dado **do evento** (da linha de `Movement`), não um
+  atributo permanente do preso. Um Inmate acumula uma linha de `Movement` nova a cada movimentação
+  que participa — inclusive cada permuta — exatamente como já acontece com movimentação temporária
+  ou qualquer outra situação. Cada uma dessas linhas tem seu próprio `pairedMovement`, correto para
+  aquele evento específico; nada é sobrescrito quando o mesmo preso participa de outra permuta
+  depois.
+
+  Exemplo concreto: João troca de cela com Marcos (dia 1) — gera as linhas 501 (João →
+  `pairedMovement = 502`) e 502 (Marcos → `pairedMovement = 501`). Semanas depois, João troca com
+  Paulo (dia 2) — gera duas linhas **novas**, 503 (João → `pairedMovement = 504`) e 504 (Paulo →
+  `pairedMovement = 503`); as linhas 501/502 continuam exatamente como estavam, intocadas. "Com
+  quem o João trocou" não tem uma resposta única no tempo todo — tem uma resposta por linha/evento:
+  na 501 foi com o Marcos, na 503 foi com o Paulo. Isso é consistente com `movements` ser uma
+  tabela de histórico imutável (uma vez criada, uma linha nunca é editada — mesma regra já aplicada
+  à movimentação temporária retornada).
+- **Impact**: reabre parte do trabalho já entregue em T048–T051/T053 (Phase 5) — `FinalTransferDto`
+  perde `destinationLocation`; `POST /movements/final/cell-change` é removido/substituído pelos
+  quatro endpoints novos; `FinalSituationDialog` (web) perde a opção "Troca de cela" e seu
+  seletor de galeria/cela; `CellHistoryReason` ganha `CELL_SWAP`/`GALLERY_CHANGE`/`GALLERY_SWAP`
+  no lugar do `CELL_CHANGE` genérico único. Novas tasks T079+ (`tasks.md`, Phase 5) cobrem essa
+  revisão — nenhum código foi alterado só com esta atualização de documentação.

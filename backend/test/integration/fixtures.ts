@@ -13,4 +13,10 @@ export const TEST_FIXTURE = {
   officerEmail: 'officer@test.srp.rs.gov.br',
   temporaryMovementTypeId: 1,
   permanentMovementTypeId: 2,
+  ankleMonitorMovementTypeId: 3,
+  transferMovementTypeId: 4,
+  cellChangeMovementTypeId: 5,
+  cellSwapMovementTypeId: 6,
+  galleryChangeMovementTypeId: 7,
+  gallerySwapMovementTypeId: 8,
 };

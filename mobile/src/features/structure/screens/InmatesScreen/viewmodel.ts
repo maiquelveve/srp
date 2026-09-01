@@ -15,7 +15,7 @@ type Navigation = NativeStackNavigationProp<RootStackParamList, 'Inmates'>;
 type Route = NativeStackScreenProps<RootStackParamList, 'Inmates'>['route'];
 
 export function useInmatesScreenViewModel(navigation: Navigation, route: Route) {
-  const { cellId, cellCode, capacity, occupancy, galleryCode } = route.params;
+  const { cellId, cellCode, capacity, occupancy, galleryId, galleryCode } = route.params;
 
   const inmatesQuery = useQuery({
     queryKey: ['inmates', cellId],
@@ -38,6 +38,10 @@ export function useInmatesScreenViewModel(navigation: Navigation, route: Route) 
     navigation.navigate('MovementRegister', { inmate, cellId });
   }
 
+  function goToCellTransferSelect(inmate: Inmate): void {
+    navigation.navigate('CellTransferSelect', { inmate, cellId, galleryId, galleryCode });
+  }
+
   return {
     title: `Galeria ${galleryCode}   /   Cela ${cellCode}`.toUpperCase(),
     dateLabel: new Date().toLocaleDateString('pt-BR', {
@@ -53,5 +57,6 @@ export function useInmatesScreenViewModel(navigation: Navigation, route: Route) 
     movementActionLabel: inmateMovementActionLabel,
     goToDetail,
     goToMovementRegister,
+    goToCellTransferSelect,
   };
 }

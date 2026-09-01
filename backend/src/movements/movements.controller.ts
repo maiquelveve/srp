@@ -19,8 +19,15 @@ import { UpdateMovementDto } from './dto/update-movement.dto';
 import { ReturnMovementDto } from './dto/return-movement.dto';
 import { ListMovementsQueryDto } from './dto/list-movements-query.dto';
 import { MovementResponseDto } from './dto/movement-response.dto';
+import { FinalReleaseDto } from './dto/final-release.dto';
+import { FinalAnkleMonitorDto } from './dto/final-ankle-monitor.dto';
+import { FinalTransferDto } from './dto/final-transfer.dto';
+import { CellTransferDto } from './dto/cell-transfer.dto';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
+import { Roles } from '../common/decorators/roles.decorator';
+import { SkipAutoAudit } from '../common/decorators/skip-auto-audit.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { RoleName } from '../roles/entities/role.entity';
 import { JwtPayload } from '../auth/types/jwt-payload.type';
 
 /** Cobre User Story 2 (FR-008…FR-011a) — contracts/movements.md. Any authenticated role may call these. */
@@ -73,5 +80,77 @@ export class MovementsController {
       idempotencyKey,
     );
     return result.data;
+  }
+
+  @Post('final/release')
+  @Roles(RoleName.WARDEN)
+  @SkipAutoAudit() // registerFinal() already records a richer old/new status entry
+  createFinalRelease(
+    @Body() dto: FinalReleaseDto,
+    @CurrentUser() currentUser: JwtPayload,
+  ): Promise<MovementResponseDto> {
+    return this.movementsService.createFinalRelease(dto, currentUser);
+  }
+
+  @Post('final/ankle-monitor')
+  @Roles(RoleName.WARDEN)
+  @SkipAutoAudit()
+  createFinalAnkleMonitor(
+    @Body() dto: FinalAnkleMonitorDto,
+    @CurrentUser() currentUser: JwtPayload,
+  ): Promise<MovementResponseDto> {
+    return this.movementsService.createFinalAnkleMonitor(dto, currentUser);
+  }
+
+  @Post('final/transfer')
+  @Roles(RoleName.WARDEN)
+  @SkipAutoAudit()
+  createFinalTransfer(
+    @Body() dto: FinalTransferDto,
+    @CurrentUser() currentUser: JwtPayload,
+  ): Promise<MovementResponseDto> {
+    return this.movementsService.createFinalTransfer(dto, currentUser);
+  }
+
+  // Troca/permuta de cela/galeria (research.md #35, FR-015–FR-015c) — troca/
+  // permuta de CELA disponíveis a qualquer perfil (nenhum @Roles); troca/
+  // permuta de GALERIA restritas a SUPERVISOR/WARDEN.
+
+  @Post('cell-change')
+  @SkipAutoAudit() // registerChange()/registerFinal() already records a richer old/new entry
+  createCellChange(
+    @Body() dto: CellTransferDto,
+    @CurrentUser() currentUser: JwtPayload,
+  ): Promise<MovementResponseDto> {
+    return this.movementsService.createCellChange(dto, currentUser);
+  }
+
+  @Post('cell-swap')
+  @SkipAutoAudit()
+  createCellSwap(
+    @Body() dto: CellTransferDto,
+    @CurrentUser() currentUser: JwtPayload,
+  ): Promise<MovementResponseDto[]> {
+    return this.movementsService.createCellSwap(dto, currentUser);
+  }
+
+  @Post('gallery-change')
+  @Roles(RoleName.SUPERVISOR, RoleName.WARDEN)
+  @SkipAutoAudit()
+  createGalleryChange(
+    @Body() dto: CellTransferDto,
+    @CurrentUser() currentUser: JwtPayload,
+  ): Promise<MovementResponseDto> {
+    return this.movementsService.createGalleryChange(dto, currentUser);
+  }
+
+  @Post('gallery-swap')
+  @Roles(RoleName.SUPERVISOR, RoleName.WARDEN)
+  @SkipAutoAudit()
+  createGallerySwap(
+    @Body() dto: CellTransferDto,
+    @CurrentUser() currentUser: JwtPayload,
+  ): Promise<MovementResponseDto[]> {
+    return this.movementsService.createGallerySwap(dto, currentUser);
   }
 }

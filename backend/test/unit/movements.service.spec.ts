@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
+import { getRepositoryToken, getDataSourceToken } from '@nestjs/typeorm';
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { ObjectLiteral, Repository, SelectQueryBuilder } from 'typeorm';
 import { MovementsService } from '../../src/movements/movements.service';
@@ -8,6 +8,8 @@ import { MovementCategory, MovementType } from '../../src/movements/entities/mov
 import { MovementTypesService } from '../../src/movements/movement-types.service';
 import { InmatesService } from '../../src/inmates/inmates.service';
 import { CellsService } from '../../src/cells/cells.service';
+import { CellHistoryService } from '../../src/inmates/cell-history.service';
+import { AuditService } from '../../src/audit/audit.service';
 import { Inmate } from '../../src/inmates/entities/inmate.entity';
 import { Cell } from '../../src/cells/entities/cell.entity';
 import { JwtPayload } from '../../src/auth/types/jwt-payload.type';
@@ -66,9 +68,12 @@ describe('MovementsService', () => {
       providers: [
         MovementsService,
         { provide: getRepositoryToken(Movement), useValue: movementRepository },
+        { provide: getDataSourceToken(), useValue: { transaction: jest.fn() } },
         { provide: MovementTypesService, useValue: movementTypesService },
         { provide: InmatesService, useValue: inmatesService },
         { provide: CellsService, useValue: cellsService },
+        { provide: CellHistoryService, useValue: { closeAndMaybeOpen: jest.fn() } },
+        { provide: AuditService, useValue: { record: jest.fn() } },
       ],
     }).compile();
 
@@ -83,7 +88,13 @@ describe('MovementsService', () => {
 
       await expect(
         service.create(
-          { inmateId: 101, movementTypeId: 4, originCellId: 42, destinationLocation: 'Enfermaria' },
+          {
+            inmateId: 101,
+            movementTypeId: 4,
+            originCellId: 42,
+            destinationLocation: 'Enfermaria',
+            reason: 'Consulta',
+          },
           currentUser,
         ),
       ).rejects.toBeInstanceOf(ConflictException);
@@ -96,7 +107,13 @@ describe('MovementsService', () => {
 
       await expect(
         service.create(
-          { inmateId: 101, movementTypeId: 9, originCellId: 42, destinationLocation: 'Enfermaria' },
+          {
+            inmateId: 101,
+            movementTypeId: 9,
+            originCellId: 42,
+            destinationLocation: 'Enfermaria',
+            reason: 'Consulta',
+          },
           currentUser,
         ),
       ).rejects.toBeInstanceOf(BadRequestException);
@@ -120,7 +137,13 @@ describe('MovementsService', () => {
       });
 
       const result = await service.create(
-        { inmateId: 101, movementTypeId: 4, originCellId: 42, destinationLocation: 'Enfermaria' },
+        {
+          inmateId: 101,
+          movementTypeId: 4,
+          originCellId: 42,
+          destinationLocation: 'Enfermaria',
+          reason: 'Consulta',
+        },
         currentUser,
       );
 
@@ -145,7 +168,13 @@ describe('MovementsService', () => {
       movementRepository.findOne!.mockResolvedValue(existing);
 
       const result = await service.create(
-        { inmateId: 101, movementTypeId: 4, originCellId: 42, destinationLocation: 'Enfermaria' },
+        {
+          inmateId: 101,
+          movementTypeId: 4,
+          originCellId: 42,
+          destinationLocation: 'Enfermaria',
+          reason: 'Consulta',
+        },
         currentUser,
         'key-123',
       );

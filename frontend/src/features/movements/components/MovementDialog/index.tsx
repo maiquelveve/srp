@@ -106,7 +106,7 @@ export default function MovementDialog({
         movementTypeId: Number(movementTypeId),
         originCellId: cellId,
         destinationLocation,
-        reason: reason || undefined,
+        reason,
       }),
     onSuccess: () => onSuccess(`Saída de ${inmate.name} registrada`),
     onError: () =>
@@ -144,6 +144,7 @@ export default function MovementDialog({
       ? true
       : movementTypeId !== '' &&
         destinationLocation.trim() !== '' &&
+        reason.trim() !== '' &&
         !(isEditing && movementDetailsQuery.isLoading);
 
   return (

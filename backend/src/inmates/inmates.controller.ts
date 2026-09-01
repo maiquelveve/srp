@@ -5,6 +5,7 @@ import { CreateInmateDto } from './dto/create-inmate.dto';
 import { UpdateInmateDto } from './dto/update-inmate.dto';
 import { ListInmatesQueryDto } from './dto/list-inmates-query.dto';
 import { InmateResponseDto } from './dto/inmate-response.dto';
+import { LocationHistoryEntryDto } from './dto/location-history-entry.dto';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -51,5 +52,13 @@ export class InmatesController {
     @CurrentUser() currentUser: JwtPayload,
   ): Promise<InmateResponseDto> {
     return this.inmatesService.update(id, dto, currentUser.units);
+  }
+
+  @Get(':id/location-history')
+  locationHistory(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() currentUser: JwtPayload,
+  ): Promise<LocationHistoryEntryDto[]> {
+    return this.inmatesService.locationHistory(id, currentUser.units);
   }
 }

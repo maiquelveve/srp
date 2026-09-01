@@ -22,4 +22,13 @@ export class MovementTypesService {
     }
     return movementType;
   }
+
+  /** Used by the `final/*` situação-definitiva endpoints — one fixed, seeded type per endpoint. */
+  async findByName(name: string): Promise<MovementType> {
+    const movementType = await this.movementTypeRepository.findOne({ where: { name } });
+    if (!movementType) {
+      throw new NotFoundException(`Tipo de movimentação "${name}" não encontrado`);
+    }
+    return movementType;
+  }
 }

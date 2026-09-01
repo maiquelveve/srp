@@ -118,16 +118,37 @@ async function main(): Promise<void> {
 
   // 'Pátio' não é usado aqui de propósito — é uma Rotina (galeria inteira), não
   // um MovementType individual (research.md #26).
-  const [temporaryMovementType, permanentMovementType] = await movementTypeRepo.save([
+  const [
+    temporaryMovementType,
+    permanentMovementType,
+    ankleMonitorMovementType,
+    transferMovementType,
+    cellChangeMovementType,
+    cellSwapMovementType,
+    galleryChangeMovementType,
+    gallerySwapMovementType,
+  ] = await movementTypeRepo.save([
     { name: 'Atendimento médico interno', category: MovementCategory.TEMPORARY },
     { name: 'Liberdade', category: MovementCategory.PERMANENT },
+    { name: 'Tornozeleira eletrônica', category: MovementCategory.PERMANENT },
+    { name: 'Transferência', category: MovementCategory.PERMANENT },
+    { name: 'Troca de cela', category: MovementCategory.PERMANENT },
+    { name: 'Permuta de cela', category: MovementCategory.PERMANENT },
+    { name: 'Troca de galeria', category: MovementCategory.PERMANENT },
+    { name: 'Permuta de galeria', category: MovementCategory.PERMANENT },
   ]);
   if (
     temporaryMovementType.id !== TEST_FIXTURE.temporaryMovementTypeId ||
-    permanentMovementType.id !== TEST_FIXTURE.permanentMovementTypeId
+    permanentMovementType.id !== TEST_FIXTURE.permanentMovementTypeId ||
+    ankleMonitorMovementType.id !== TEST_FIXTURE.ankleMonitorMovementTypeId ||
+    transferMovementType.id !== TEST_FIXTURE.transferMovementTypeId ||
+    cellChangeMovementType.id !== TEST_FIXTURE.cellChangeMovementTypeId ||
+    cellSwapMovementType.id !== TEST_FIXTURE.cellSwapMovementTypeId ||
+    galleryChangeMovementType.id !== TEST_FIXTURE.galleryChangeMovementTypeId ||
+    gallerySwapMovementType.id !== TEST_FIXTURE.gallerySwapMovementTypeId
   ) {
     throw new Error(
-      `Movement type ids drifted from fixtures.ts (got temporary=${temporaryMovementType.id}, permanent=${permanentMovementType.id}) — update TEST_FIXTURE to match.`,
+      `Movement type ids drifted from fixtures.ts (got temporary=${temporaryMovementType.id}, permanent=${permanentMovementType.id}, ankleMonitor=${ankleMonitorMovementType.id}, transfer=${transferMovementType.id}, cellChange=${cellChangeMovementType.id}, cellSwap=${cellSwapMovementType.id}, galleryChange=${galleryChangeMovementType.id}, gallerySwap=${gallerySwapMovementType.id}) — update TEST_FIXTURE to match.`,
     );
   }
 
