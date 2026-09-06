@@ -311,17 +311,36 @@ pendente de validação manual (T104).
   shadcn novos — `command`, `popover`, `docs/style-guide.md` atualizado), com fix do filtro fuzzy
   padrão do cmdk (trocado por substring simples) e estilo global de barra de rolagem
   (`frontend/src/index.css`) nos tokens de cor do tema.
-- [ ] T103 [US3] Seed manual de dados de teste (não é código — via API, script descartável) na
+- [X] T103 [US3] Seed manual de dados de teste (não é código — via API, script descartável) na
   Galeria D: reativada (estava inativa/sem celas), 5 celas ("1"–"5", capacidade 10), 48 presos
   (4 celas cheias + 1 com 8/10) com nome/sobrenome/matrícula/nascimento completos, pra testar
-  troca/permuta com volume real de candidatos. **Pendência**: decidir se a Galeria D volta a ficar
-  inativa depois dos testes ou permanece como dado de exemplo.
-- [ ] T104 [US3] Validar manualmente no mobile (instância Windows, fora deste sandbox Linux/WSL —
+  troca/permuta com volume real de candidatos. **Decisão do usuário (2026-09-06)**: Galeria D
+  permanece ativa como dado de exemplo permanente — não é revertida/desativada após os testes.
+- [X] T104 [US3] Validar manualmente no mobile (instância Windows, fora deste sandbox Linux/WSL —
   mesma limitação de T095) as mudanças de T096/T099/T100 acima: `InmatesScreen` (lista da cela só
   ACTIVE; botão "Trocar de cela" esmaecido + toast quando `inMovement`), `CellSwap`/Permuta de
   cela (novo picker `InmateOption` entre os ocupantes da cela de destino; candidato `inMovement`
   aparece mas bloqueia Confirmar), e um smoke test de `CellChange`/Troca de cela (não alterada
-  nesta rodada, mas compartilha navegação/tipos com as telas acima).
+  nesta rodada, mas compartilha navegação/tipos com as telas acima). **Validado (2026-09-06)** —
+  troca de cela, permuta de cela e o filtro `ACTIVE` testados de ponta a ponta no app mobile real,
+  tudo OK. A validação encontrou dois bugs novos, corrigidos na mesma rodada
+  (`mobile/src/features/structure/screens/CellsScreen/viewmodel.ts`,
+  `mobile/src/features/structure/screens/InmatesScreen/viewmodel.ts`, commit `eb61515`):
+  (1) o card de cela em `CellsScreen` não atualizava o label/ocupação após uma troca (só após
+  sair de Galerias e voltar) — `useQuery(['cells', galleryId])` nunca era invalidada ao focar a
+  tela, diferente do padrão já usado em `InmatesScreen`; corrigido com o mesmo `useFocusEffect`
+  de invalidação. Na permuta o bug não aparecia por coincidência (ocupação de origem/destino não
+  muda numa troca 1-por-1). (2) o contador "X/Y presos" no cabeçalho de `InmatesScreen` vinha de
+  `route.params.occupancy`, congelado no valor de quando a tela foi empilhada (native-stack não a
+  desmonta ao voltar de uma troca); trocado para ler `inmatesQuery.data?.total` (contagem viva,
+  já filtrada por `ACTIVE`, mesmo critério de `CellsService.occupancyOf` no backend).
+  Aproveitando a validação, também foi feito um polimento de layout em `InmateRow`
+  (`mobile/src/features/structure/screens/InmatesScreen/components/InmateRow/index.tsx`, mesmo
+  commit) a pedido do usuário: o botão "Detalhes" (que dividia a linha de ações com o ícone de
+  troca de cela e ficava apertado) virou um ícone de olho sobreposto no canto do avatar; o botão
+  de troca de cela deixou de ser ícone-só (`Shuffle`) e passou a ocupar o lugar de "Detalhes" —
+  mesmo estilo `outline` dourado, texto "Trocar cela" — deixando a linha de ações com só dois
+  botões (Trocar cela / Saída-Retorno).
 
 **Checkpoint**: User Stories 1–3 all work independently
 
