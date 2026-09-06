@@ -1,5 +1,5 @@
-import { View } from 'react-native';
-import { Shuffle } from 'lucide-react-native';
+import { Pressable, View } from 'react-native';
+import { Eye } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,12 +31,24 @@ export default function InmateRow({
   return (
     <View className="bg-secondary gap-6 rounded-3xl p-4">
       <View className="flex-row items-center gap-4">
-        <Avatar alt={`Foto de ${inmate.name}`} className="h-16 w-16">
-          {inmate.photoUrl && <AvatarImage source={{ uri: inmate.photoUrl }} />}
-          <AvatarFallback className="bg-primary/20">
-            <Text className="text-primary text-lg font-bold">{initials(inmate.name)}</Text>
-          </AvatarFallback>
-        </Avatar>
+        <View className="relative">
+          <Avatar alt={`Foto de ${inmate.name}`} className="h-16 w-16">
+            {inmate.photoUrl && <AvatarImage source={{ uri: inmate.photoUrl }} />}
+            <AvatarFallback className="bg-primary/20">
+              <Text className="text-primary text-lg font-bold">{initials(inmate.name)}</Text>
+            </AvatarFallback>
+          </Avatar>
+          {/* Ícone de olho sobreposto no canto do avatar — abre o detalhe do
+              preso; substitui o antigo botão "Detalhes" que disputava espaço
+              na linha de ações abaixo. */}
+          <Pressable
+            className="bg-primary border-secondary absolute -bottom-1 -right-1 h-6 w-6 items-center justify-center rounded-full border-2"
+            onPress={onPressDetail}
+            hitSlop={8}
+          >
+            <Icon as={Eye} size={12} color={colors.primaryForeground} />
+          </Pressable>
+        </View>
         <View className="flex-1 gap-1.5">
           <Text className="font-bold uppercase">{inmate.name}</Text>
           {inmate.inMovement && inmate.currentMovement ? (
@@ -69,26 +81,17 @@ export default function InmateRow({
       </View>
 
       <View className="flex-row gap-3">
-        <Button
-          variant="outline"
-          className="border-primary bg-transparent flex-1 rounded-full"
-          onPress={onPressDetail}
-        >
-          <Text className="text-primary text-base font-bold">Detalhes</Text>
-        </Button>
-        {/* Troca/permuta de cela (US3, FR-015/FR-015a) — ícone só, entre
-            Detalhes e o botão de movimentação, pra não espremer o texto dos
-            outros dois num row de 3 botões cheios. Esmaecido (não
-            `disabled` de verdade — sem tooltip no mobile, o toque ainda
+        {/* Troca/permuta de cela (US3, FR-015/FR-015a) — no lugar do antigo
+            botão "Detalhes" (movido pro ícone de olho no avatar). Esmaecido
+            (não `disabled` de verdade — sem tooltip no mobile, o toque ainda
             precisa disparar o toast explicando o motivo) enquanto o preso
             está fora da cela numa movimentação temporária em aberto. */}
         <Button
           variant="outline"
-          size="icon"
-          className={cn('border-border bg-transparent rounded-full', inmate.inMovement && 'opacity-40')}
+          className={cn('border-primary bg-transparent flex-1 rounded-full', inmate.inMovement && 'opacity-40')}
           onPress={onPressTransfer}
         >
-          <Icon as={Shuffle} size={18} color={colors.foreground} />
+          <Text className="text-primary text-base font-bold">Trocar cela</Text>
         </Button>
         <Button className="flex-1 rounded-full" onPress={onPressMovement}>
           <Text className="text-primary-foreground text-base font-bold">{movementLabel}</Text>

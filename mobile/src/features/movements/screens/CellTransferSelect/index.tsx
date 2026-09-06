@@ -6,7 +6,7 @@ import type { RootStackParamList } from '@/navigation/types';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/ui/text';
 import ScreenHeader from '@/components/ScreenHeader';
-import OptionCard from '@/components/OptionCard';
+import TransferTypeOption from './components/TransferTypeOption';
 import { useCellTransferSelectViewModel } from './viewmodel';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CellTransferSelect'>;
@@ -35,16 +35,22 @@ export default function CellTransferSelect({ navigation, route }: Props): JSX.El
       </View>
 
       <View className="gap-4 px-4">
-        <OptionCard
+        <TransferTypeOption
           icon={ArrowLeftRight}
           label="Troca de cela"
           detail="Move o preso para outra cela com vaga, na mesma galeria."
+          checking={viewModel.checkingAvailability}
+          available={viewModel.cellChangeAvailable}
+          unavailableReason="Nenhuma cela com vaga nesta galeria no momento."
           onPress={viewModel.goToCellChange}
         />
-        <OptionCard
+        <TransferTypeOption
           icon={Repeat}
           label="Permuta de cela"
           detail="Troca o preso com outro, ambos na mesma galeria — sem precisar de vaga."
+          checking={viewModel.checkingAvailability}
+          available={viewModel.cellSwapAvailable}
+          unavailableReason="Nenhuma outra cela ocupada nesta galeria no momento."
           onPress={viewModel.goToCellSwap}
         />
       </View>

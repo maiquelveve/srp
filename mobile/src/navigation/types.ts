@@ -20,7 +20,25 @@ export type RootStackParamList = {
   // Troca/permuta de cela (US3, FR-015/FR-015a, research.md #35) — só a
   // variação de mesma galeria existe no mobile (troca/permuta de galeria é
   // só web, restrita a SUPERVISOR/WARDEN).
-  CellTransferSelect: { inmate: Inmate; cellId: number; galleryId: number; galleryCode: string };
-  CellChange: { inmate: Inmate; cellId: number; galleryId: number; galleryCode: string };
-  CellSwap: { inmate: Inmate; cellId: number; galleryId: number; galleryCode: string };
+  CellTransferSelect: {
+    inmate: Inmate;
+    cellId: number;
+    cellCode: string;
+    galleryId: number;
+    galleryCode: string;
+  };
+  CellChange: {
+    inmate: Inmate;
+    cellId: number;
+    cellCode: string;
+    galleryId: number;
+    galleryCode: string;
+  };
+  CellSwap: {
+    inmate: Inmate;
+    cellId: number;
+    cellCode: string;
+    galleryId: number;
+    galleryCode: string;
+  };
 };

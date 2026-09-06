@@ -8,7 +8,8 @@ export interface MovementPayload {
   originCellId: number;
   /** Obrigatório — rastreabilidade de para onde o preso foi (research.md #26). */
   destinationLocation: string;
-  reason?: string;
+  /** Obrigatório em qualquer tipo de Movimentação (FR-008a, research.md #35) — mesma regra do backend. */
+  reason: string;
 }
 
 export interface PendingMovement {

@@ -37,7 +37,7 @@ export function useMovementRegisterViewModel(
   const temporaryTypes = filterTemporaryMovementTypes(movementTypesQuery.data ?? []);
   const visibleTypes = filterMovementTypesBySearch(temporaryTypes, search);
 
-  const canSubmitExit = canSubmitExitMovement(movementTypeId, destinationLocation);
+  const canSubmitExit = canSubmitExitMovement(movementTypeId, destinationLocation, reason);
   const selectedMovementTypeName =
     temporaryTypes.find((type) => type.id === movementTypeId)?.name ?? null;
 
@@ -57,7 +57,7 @@ export function useMovementRegisterViewModel(
           movementTypeId: movementTypeId as number,
           originCellId: cellId,
           destinationLocation,
-          reason: reason || undefined,
+          reason,
         });
         await syncPendingMovements();
         toast.success(`Saída de ${inmate.name.toUpperCase()} registrada.`);

@@ -11,7 +11,7 @@ export function filterTemporaryMovementTypes(types: MovementType[]): MovementTyp
   return types.filter((type) => type.category === 'TEMPORARY');
 }
 
-function normalizeForSearch(value: string): string {
+export function normalizeForSearch(value: string): string {
   return value
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
@@ -37,6 +37,7 @@ export function movementTypeIcon(name: string): LucideIcon {
 export function canSubmitExitMovement(
   movementTypeId: number | null,
   destinationLocation: string,
+  reason: string,
 ): boolean {
-  return movementTypeId !== null && destinationLocation.trim() !== '';
+  return movementTypeId !== null && destinationLocation.trim() !== '' && reason.trim() !== '';
 }

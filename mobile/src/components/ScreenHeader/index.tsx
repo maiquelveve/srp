@@ -7,6 +7,8 @@ import { colors } from '@/theme/colors';
 
 interface ScreenHeaderProps {
   title: string;
+  /** Sobrepõe o "voltar" padrão (navigation.goBack()) — usado por fluxos em passos, onde voltar deve retroceder um passo em vez de sair da tela. */
+  onBackPress?: () => void;
 }
 
 /**
@@ -14,15 +16,15 @@ interface ScreenHeaderProps {
  * circular dourado de voltar + título, mesmo padrão em todas as telas pra
  * eliminar a confusão de "em qual tela estou / pra onde volto".
  */
-export default function ScreenHeader({ title }: ScreenHeaderProps): JSX.Element {
+export default function ScreenHeader({ title, onBackPress }: ScreenHeaderProps): JSX.Element {
   const navigation = useNavigation();
-  const canGoBack = navigation.canGoBack();
+  const canGoBack = onBackPress !== undefined || navigation.canGoBack();
 
   return (
     <View className="border-border flex-row items-center gap-3 border-b p-4">
       {canGoBack && (
         <Pressable
-          onPress={() => navigation.goBack()}
+          onPress={onBackPress ?? (() => navigation.goBack())}
           className="h-9 w-9 items-center justify-center rounded-full bg-primary"
         >
           <Icon as={ChevronLeft} size={20} color={colors.primaryForeground} />

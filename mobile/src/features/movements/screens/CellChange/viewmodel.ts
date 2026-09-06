@@ -9,15 +9,18 @@ import type { RootStackParamList } from '@/navigation/types';
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'CellChange'>;
 type Route = NativeStackScreenProps<RootStackParamList, 'CellChange'>['route'];
 
+export type CellChangeStep = 1 | 2 | 3;
+
+/** Fluxo em passos (1 cela → 2 motivo/observações → 3 revisão) — mesmo padrão da Permuta de Cela. */
 export function useCellChangeViewModel(navigation: Navigation, route: Route) {
-  const { inmate, cellId, galleryId } = route.params;
+  const { inmate, cellId, cellCode, galleryId } = route.params;
   const queryClient = useQueryClient();
 
+  const [step, setStep] = useState<CellChangeStep>(1);
   const [destinationCellId, setDestinationCellId] = useState<number | null>(null);
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [confirmingSubmit, setConfirmingSubmit] = useState(false);
 
   const cellsQuery = useQuery({
     queryKey: ['cells', galleryId],
@@ -26,12 +29,26 @@ export function useCellChangeViewModel(navigation: Navigation, route: Route) {
   const availableCells = (cellsQuery.data?.data ?? []).filter(
     (cell) => cell.id !== cellId && cell.occupancy < cell.capacity,
   );
+  const selectedCell = availableCells.find((cell) => cell.id === destinationCellId);
 
-  const canSubmit = destinationCellId !== null && reason.trim() !== '';
+  const canProceedStep1 = destinationCellId !== null;
+  const canProceedStep2 = reason.trim() !== '';
+  const canSubmit = canProceedStep1 && canProceedStep2;
+
+  function goNext(): void {
+    if (step === 1 && canProceedStep1) setStep(2);
+    else if (step === 2 && canProceedStep2) setStep(3);
+  }
+
+  /** `false` quando o passo 1 é o próprio primeiro passo do fluxo — indica que "voltar" deve sair da tela. */
+  function goBack(): boolean {
+    if (step === 1) return false;
+    setStep((current) => (current - 1) as CellChangeStep);
+    return true;
+  }
 
   async function handleConfirm(): Promise<void> {
     if (!canSubmit) return;
-    setConfirmingSubmit(false);
     setSubmitting(true);
     try {
       await movementsApi.cellChange({
@@ -55,8 +72,13 @@ export function useCellChangeViewModel(navigation: Navigation, route: Route) {
 
   return {
     inmate,
+    originCellCode: cellCode,
+    step,
+    goNext,
+    goBack,
     cells: availableCells,
     isLoading: cellsQuery.isLoading,
+    selectedCell,
     destinationCellId,
     setDestinationCellId,
     reason,
@@ -64,10 +86,9 @@ export function useCellChangeViewModel(navigation: Navigation, route: Route) {
     notes,
     setNotes,
     submitting,
+    canProceedStep1,
+    canProceedStep2,
     canSubmit,
-    confirmingSubmit,
-    requestSubmit: () => setConfirmingSubmit(true),
-    cancelSubmit: () => setConfirmingSubmit(false),
     handleConfirm,
   };
 }

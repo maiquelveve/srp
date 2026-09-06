@@ -1,10 +1,11 @@
 import { ActivityIndicator, FlatList, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CloudOff } from 'lucide-react-native';
+import { CloudOff, Search } from 'lucide-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/ui/text';
+import { Input } from '@/components/ui/input';
 import { Icon } from '@/components/ui/icon';
 import ScreenHeader from '@/components/ScreenHeader';
 import { pendingSyncLabel } from '@/features/structure/model';
@@ -30,6 +31,24 @@ export default function InmatesScreen({ navigation, route }: Props): JSX.Element
         </Text>
         <Text className="font-semibold">{viewModel.occupancyLabel}</Text>
       </View>
+
+      {viewModel.hasAnyInmate && (
+        <View className="px-4 pb-3">
+          <View className="relative justify-center">
+            <View className="absolute left-4 z-10">
+              <Icon as={Search} size={18} color={colors.mutedForeground} />
+            </View>
+            <Input
+              value={viewModel.search}
+              onChangeText={viewModel.setSearch}
+              placeholder="Buscar preso..."
+              className="bg-secondary rounded-full border-0 pl-12"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+        </View>
+      )}
 
       {viewModel.pendingSyncCount > 0 && (
         <View className="border-warning bg-warning/10 mx-4 mb-2 flex-row items-center gap-3 rounded-2xl border p-4">
@@ -63,7 +82,7 @@ export default function InmatesScreen({ navigation, route }: Props): JSX.Element
           ListEmptyComponent={
             <View className="p-4">
               <Text variant="muted" className="text-center">
-                Nenhum preso nesta cela.
+                {viewModel.hasAnyInmate ? 'Nenhum preso encontrado para essa busca.' : 'Nenhum preso nesta cela.'}
               </Text>
             </View>
           }

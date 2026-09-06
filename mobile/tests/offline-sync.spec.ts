@@ -115,6 +115,7 @@ describe('Offline sync (quickstart.md Cenário 7, FR-011a)', () => {
       movementTypeId: 4,
       originCellId: 42,
       destinationLocation: 'Enfermaria',
+      reason: 'Consulta',
     });
     mockedApiClient.post.mockResolvedValueOnce({ data: { id: 999 } });
 
@@ -157,12 +158,14 @@ describe('Offline sync (quickstart.md Cenário 7, FR-011a)', () => {
       movementTypeId: 4,
       originCellId: 42,
       destinationLocation: 'Enfermaria',
+      reason: 'Consulta',
     });
     await enqueueMovement({
       inmateId: 2,
       movementTypeId: 4,
       originCellId: 43,
       destinationLocation: 'Ala B',
+      reason: 'Consulta',
     });
     mockedApiClient.post.mockRejectedValueOnce(new Error('network down'));
 

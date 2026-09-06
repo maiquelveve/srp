@@ -24,6 +24,20 @@ export function filterUnitsBySearch(units: Unit[], search: string): Unit[] {
   );
 }
 
+function normalizeForSearch(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase();
+}
+
+/** Busca por substring simples (não fuzzy), ignorando acentos — mesmo critério de `filterMovementTypesBySearch`. */
+export function filterInmatesBySearch(inmates: Inmate[], search: string): Inmate[] {
+  const normalizedSearch = normalizeForSearch(search.trim());
+  if (!normalizedSearch) return inmates;
+  return inmates.filter((inmate) => normalizeForSearch(inmate.name).includes(normalizedSearch));
+}
+
 export function inmateStatusLine(inmate: Inmate): string {
   if (!inmate.inMovement) return 'Na cela';
   return `Fora da cela — ${inmate.currentMovement?.movementTypeName ?? 'movimentação'}`;

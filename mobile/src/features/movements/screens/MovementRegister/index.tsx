@@ -155,17 +155,12 @@ export default function MovementRegister({ route, navigation }: Props): JSX.Elem
                 />
               </View>
 
-              <Input
-                value={viewModel.reason}
-                onChangeText={viewModel.setReason}
-                placeholder="Observações (opcional)"
-                multiline
-                numberOfLines={4}
-                returnKeyType="done"
-                blurOnSubmit
-                textAlignVertical="top"
-                className="bg-card h-auto min-h-[110px] items-start rounded-2xl py-3"
-              />
+              <View className="gap-2">
+                <Text variant="muted" className="text-sm font-bold uppercase">
+                  Motivo
+                </Text>
+                <Input value={viewModel.reason} onChangeText={viewModel.setReason} className="bg-card" />
+              </View>
             </>
           )}
 
