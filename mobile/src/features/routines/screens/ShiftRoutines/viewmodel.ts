@@ -3,11 +3,12 @@ import { useQuery } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { structureApi } from '@/features/structure/api';
 import { routinesApi } from '@/features/routines/api';
+import type { Routine } from '@/features/routines/types';
 import type { RootStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ShiftRoutines'>;
 
-export function useShiftRoutinesViewModel({ route }: Props) {
+export function useShiftRoutinesViewModel({ navigation, route }: Props) {
   const { unitId, unitCode } = route.params;
   const [selectedGalleryId, setSelectedGalleryId] = useState<number | null>(null);
 
@@ -25,8 +26,14 @@ export function useShiftRoutinesViewModel({ route }: Props) {
     enabled: activeGalleryId !== null,
   });
 
+  function goToRoutineDetail(routine: Routine): void {
+    const galleryCode = galleries.find((gallery) => gallery.id === activeGalleryId)?.code ?? '';
+    navigation.navigate('RoutineDetail', { routine, galleryCode });
+  }
+
   return {
     title: `Rotinas — ${unitCode}`,
+    goToRoutineDetail,
     galleries,
     selectedGalleryId: activeGalleryId,
     selectGallery: setSelectedGalleryId,

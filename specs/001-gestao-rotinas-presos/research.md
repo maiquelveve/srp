@@ -1606,3 +1606,26 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
   Salvar bloqueado enquanto inválido, 2 novos testes de integração em `routines.spec.ts` (12/12
   passando). `tsc`/`eslint --max-warnings=0`/`vite build`/backend lint+build+unit+integration
   verdes.
+
+## 46. Mobile: detalhe da rotina (`RoutineDetail`) e cards de altura uniforme
+
+- **Contexto** (2026-09-21): a lista "Rotinas de hoje" do mobile mostrava todos os horários numa
+  linha que quebrava, deixando cards de alturas diferentes (mesmo problema que motivou o limite de
+  3 horários na #45, agora no mobile). O usuário também queria ver a rotina completa ao tocar num
+  card.
+- **Decision — card de uma linha**: `RoutineListItem` usa `numberOfLines={1}` +
+  `ellipsizeMode="tail"` em nome, tipo e horários — se não couber, corta com `...` em vez de
+  quebrar, e todos os cards ficam com a mesma altura. Passou a ser `Pressable > View` (padrão que
+  funciona no app, ver commit `339c870`) com chevron à direita.
+- **Decision — nova tela `RoutineDetail`**: somente leitura (FR-020, sem edição no mobile).
+  Recebe o objeto `routine` + `galleryCode` por param de navegação (mesmo padrão de
+  `MovementRegister` com `inmate`), sem segunda chamada à API — a lista já traz descrição, tipo,
+  `locked`, `active` e `schedules`. Mostra: ícone/nome/badges de tipo e situação, "Informações
+  gerais" (Tipo, Galeria, Origem Padrão/Específica), "Descrição" (estado vazio tratado) e
+  "Horários (N)" — de 1 a 3, cada um em cartão com dia da semana + hora em destaque dourado;
+  horário `active: false` aparece esmaecido com o rótulo "Inativo". Só a seção "Horários" rola
+  (`ScrollView` próprio); o resto da tela fica fixo. Reaproveita `DetailRow` de
+  `InmateDetailScreen`.
+- **Impact**: substitui a nota anterior de que os cards de rotina não tinham `onPress` — agora
+  têm, a tela continua 100% leitura. `tsc --noEmit` do mobile verde; layout validado pelo usuário
+  no emulador.

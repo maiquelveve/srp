@@ -57,7 +57,9 @@ export default function ShiftRoutines(props: Props): JSX.Element {
           data={viewModel.routines}
           keyExtractor={(item) => String(item.id)}
           contentContainerClassName="gap-6 px-4 pb-6"
-          renderItem={({ item }) => <RoutineListItem routine={item} />}
+          renderItem={({ item }) => (
+            <RoutineListItem routine={item} onPress={() => viewModel.goToRoutineDetail(item)} />
+          )}
           ListEmptyComponent={
             <View className="p-4">
               <Text variant="muted" className="text-center">

@@ -1,4 +1,5 @@
 import type { Inmate } from '@/features/structure/types';
+import type { Routine } from '@/features/routines/types';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -46,4 +47,7 @@ export type RootStackParamList = {
   // código da unidade (não o nome completo) no título — cabe no header sem
   // cortar, mesmo padrão do chip "Selecionar Unidade" da Home.
   ShiftRoutines: { unitId: number; unitCode: string };
+  // Detalhe de uma rotina — recebe o objeto já carregado pela lista (sem
+  // segunda chamada à API), mesmo padrão de `MovementRegister` com `inmate`.
+  RoutineDetail: { routine: Routine; galleryCode: string };
 };
