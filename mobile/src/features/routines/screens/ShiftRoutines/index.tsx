@@ -23,10 +23,15 @@ export default function ShiftRoutines(props: Props): JSX.Element {
     >
       <ScreenHeader title={viewModel.title} />
 
+      <Text variant="muted" className="px-4 pb-4 pt-6 text-sm font-bold uppercase">
+        Galerias
+      </Text>
+
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerClassName="gap-2 px-4 pb-3 pt-6"
+        className="h-28 grow-0"
+        contentContainerClassName="flex-row items-start gap-3 px-4"
       >
         {viewModel.galleries.map((gallery) => (
           <GalleryChip
@@ -38,7 +43,7 @@ export default function ShiftRoutines(props: Props): JSX.Element {
         ))}
       </ScrollView>
 
-      <Text variant="muted" className="px-4 pb-3 text-sm font-bold uppercase">
+      <Text variant="muted" className="px-4 pb-4 pt-4 text-sm font-bold uppercase">
         Rotinas de hoje
       </Text>
 
@@ -51,7 +56,7 @@ export default function ShiftRoutines(props: Props): JSX.Element {
           className="flex-1"
           data={viewModel.routines}
           keyExtractor={(item) => String(item.id)}
-          contentContainerClassName="gap-5 px-4 pb-4"
+          contentContainerClassName="gap-6 px-4 pb-6"
           renderItem={({ item }) => <RoutineListItem routine={item} />}
           ListEmptyComponent={
             <View className="p-4">

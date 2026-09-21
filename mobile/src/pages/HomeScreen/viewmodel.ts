@@ -53,7 +53,7 @@ export function useHomeScreenViewModel(navigation: Navigation) {
       navigation.navigate('SelectUnit');
       return;
     }
-    navigation.navigate('ShiftRoutines', { unitId, unitName: currentUnitName ?? '' });
+    navigation.navigate('ShiftRoutines', { unitId, unitCode: currentUnitCode ?? '' });
   }
 
   function goToProfile(): void {

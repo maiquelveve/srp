@@ -8,7 +8,7 @@ import type { RootStackParamList } from '@/navigation/types';
 type Props = NativeStackScreenProps<RootStackParamList, 'ShiftRoutines'>;
 
 export function useShiftRoutinesViewModel({ route }: Props) {
-  const { unitId, unitName } = route.params;
+  const { unitId, unitCode } = route.params;
   const [selectedGalleryId, setSelectedGalleryId] = useState<number | null>(null);
 
   const galleriesQuery = useQuery({
@@ -26,7 +26,7 @@ export function useShiftRoutinesViewModel({ route }: Props) {
   });
 
   return {
-    title: `Rotinas — ${unitName}`,
+    title: `Rotinas — ${unitCode}`,
     galleries,
     selectedGalleryId: activeGalleryId,
     selectGallery: setSelectedGalleryId,

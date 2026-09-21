@@ -42,6 +42,8 @@ export type RootStackParamList = {
     galleryCode: string;
   };
   // Rotinas do turno (US4, FR-020) — leitura, sem escrita no mobile
-  // (contracts/routines.md restringe criação/edição ao painel web).
-  ShiftRoutines: { unitId: number; unitName: string };
+  // (contracts/routines.md restringe criação/edição ao painel web). Usa o
+  // código da unidade (não o nome completo) no título — cabe no header sem
+  // cortar, mesmo padrão do chip "Selecionar Unidade" da Home.
+  ShiftRoutines: { unitId: number; unitCode: string };
 };

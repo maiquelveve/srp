@@ -4,6 +4,7 @@ import { colors } from '@/theme/colors';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { ROUTINE_TYPE_LABEL, weekdayLabel } from '@/features/routines/labels';
+import { toHHMM } from '@/features/routines/time';
 import type { Routine } from '@/features/routines/types';
 
 export default function RoutineListItem({ routine }: { routine: Routine }): JSX.Element {
@@ -18,7 +19,9 @@ export default function RoutineListItem({ routine }: { routine: Routine }): JSX.
           {ROUTINE_TYPE_LABEL[routine.type]}
         </Text>
         <Text variant="muted" className="mt-1 text-sm">
-          {routine.schedules.map((s) => `${weekdayLabel(s.weekday)} ${s.time}`).join(' · ')}
+          {routine.schedules
+            .map((schedule) => `${weekdayLabel(schedule.weekday)} ${toHHMM(schedule.time)}`)
+            .join(' · ')}
         </Text>
       </View>
     </View>
