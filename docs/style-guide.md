@@ -51,13 +51,22 @@ um a partir do outro; ao mudar uma cor, edite os dois arquivos.
   `cva` do próprio arquivo (é assim que `success`/`warning` foram adicionados
   a `Badge`, que não existem no shadcn padrão).
 - Inventário atual: `alert`, `alert-dialog`, `avatar`, `badge`, `button`,
-  `card`, `collapsible`, `command`, `dialog`, `dropdown-menu`, `input`,
-  `label`, `popover`, `select`, `separator`, `sheet`, `sidebar`, `skeleton`,
-  `sonner`, `table`, `tabs`, `tooltip`. `command` é a base do combobox com
-  busca (`Popover` + `Command`/cmdk) — usar em vez de `Select` puro sempre
-  que a lista de opções puder crescer o bastante pra valer a pena filtrar
-  digitando, em vez de rolar (ex.: escolher um preso entre os ocupantes de
-  uma cela). Ao precisar de um componente novo, primeiro rodar
+  `calendar`, `card`, `checkbox`, `collapsible`, `command`, `dialog`,
+  `dropdown-menu`, `input`, `label`, `popover`, `select`, `separator`,
+  `sheet`, `sidebar`, `skeleton`, `sonner`, `table`, `tabs`, `tooltip`.
+  `command` é a base do combobox com busca (`Popover` + `Command`/cmdk) —
+  usar em vez de `Select` puro sempre que a lista de opções puder crescer o
+  bastante pra valer a pena filtrar digitando, em vez de rolar (ex.: escolher
+  um preso entre os ocupantes de uma cela). `calendar` (`react-day-picker`)
+  é a base de um seletor de data — usar `Popover` + `Calendar` (ver
+  `frontend/src/features/routines/components/DatePicker/`) em vez de
+  `<input type="date">` nativo: o popup nativo do navegador não aceita ser
+  tingido com as cores do sistema de forma confiável entre navegadores
+  (`color-scheme`/`accent-color` funcionam parcial ou nada dependendo do
+  navegador — research.md #44), enquanto `Calendar` é DOM/CSS normal e usa
+  `bg-primary`/`text-primary-foreground` do próprio tema. Sempre passar
+  `locale={ptBR}` (de `react-day-picker/locale`) — sem isso o calendário
+  renderiza em inglês. Ao precisar de um componente novo, primeiro rodar
   `npx shadcn@latest add <componente>` em vez de escrever do zero.
 - **Button** (`buttonVariants`): `default | destructive | outline |
   secondary | ghost | link`, tamanhos `default | sm | lg | icon`. Ação
@@ -128,6 +137,15 @@ Padrão fixo, visto em `InmateDialog` e `EntityDialog`:
   `CellTransferDialog`/`FinalSituationDialog`/`MovementDialog`. Se o corpo do
   formulário já tinha um campo somente-leitura repetindo esse mesmo nome,
   remover — fica redundante com o cabeçalho.
+- **Título de modal que edita uma Rotina existente** (`ScheduleDialog`,
+  `ActivationDialog` em `frontend/src/features/routines/`): exceção ao padrão
+  acima de `DialogDescription` em texto simples — usa um cartão de destaque
+  logo abaixo do `DialogHeader`, `RoutineHeaderCard`
+  (`frontend/src/features/routines/components/RoutineHeaderCard/`): borda
+  `border-primary`, ícone à esquerda num quadrado `bg-accent`/`text-primary`
+  (mesmo ícone `CalendarClock` do item "Rotinas" do menu lateral), rótulo
+  "ROTINA" em uppercase/`text-primary` acima do nome em negrito — o nome da
+  rotina sem esse destaque passava despercebido (feedback do usuário).
 - **Nome de preso é sempre exibido em maiúsculo** — em toda tela/dialog/
   toast que mostra `inmate.name` ou o nome de outro preso (ex. o candidato de
   permuta). Prefira a classe utilitária `uppercase` (CSS puro, não altera o

@@ -67,6 +67,12 @@
 }
 
 .dark {
+  /* Aplica o tema escuro também a controles nativos do navegador (calendário
+     do <input type="date">, spinners, etc.) — sem isso eles renderizam no
+     tema claro do SO, destoando do resto da UI. `color-scheme` é herdado por
+     padrão, então basta no `.dark` (aplicado em <html>, index.html). */
+  color-scheme: dark;
+
   --background: 240 10% 4%;
   --foreground: 240 5% 96%;
 
@@ -124,8 +130,12 @@
   * {
     @apply border-border;
   }
+  /* accent-primary: tinge controles nativos (checkbox, radio, range, e o dia
+     selecionado/botões do calendário do <input type="date">) com o dourado
+     do tema em vez do azul padrão do navegador. Herdado por padrão, então
+     basta no body. */
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground accent-primary;
   }
 
   /* Barra de rolagem nos mesmos tokens do resto do sistema — sem isso, todo

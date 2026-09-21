@@ -511,23 +511,27 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
     dar F5, a seleção se mantém (em vez de voltar pra primeira da lista).
 ## 22. Página/menu "Início" — decisão de conteúdo explicitamente adiada
 
-- **Decision**: **Conteúdo ainda não resolvido, de forma intencional — casca já implementada.**
-  Existe um item de navegação "Início" em `AppShell` (research.md #18), primeiro item do menu,
-  apontando pra `frontend/src/pages/HomePage/index.tsx` (folder-per-component per research.md
-  #17) — mas a página em si é **em branco**. O que ela efetivamente mostra (dashboard com
-  métricas, atalhos pras telas mais usadas, widgets customizáveis, ou combinação disso) ainda não
-  foi definido pelo dono do produto; isso é uma decisão separada, posterior, que substituirá este
-  bullet quando tomada.
+- **Decision (conteúdo definido, 2026-09-21, tasks.md T034k)**: nada de dashboard/atalhos/widgets
+  — a "Início" mostra só o logo da Polícia Penal RS centralizado (`frontend/src/assets/logo-pp-rs.png`)
+  com "Sistema de Rotinas Penitenciárias" abaixo, mesmo par logo+nome já usado em
+  `LoginPage`/`AppShell` (research.md #18). `HomePage`
+  (`frontend/src/pages/HomePage/index.tsx`) vira `flex flex-1 flex-col items-center justify-center`
+  preenchendo a área de conteúdo do `AppShell` (`<main className="flex flex-1 flex-col ...">`
+  em `layouts/AppShell/index.tsx`). Decisão explícita do dono do produto: uma landing "vazia" com
+  identidade visual da instituição é suficiente por ora — métricas/atalhos ficam para uma
+  iteração futura, sem task aberta associada até serem pedidos.
+- Histórico da decisão adiada (até 2026-09-21): existia um item de navegação "Início" em
+  `AppShell` (research.md #18), primeiro item do menu, apontando pra
+  `frontend/src/pages/HomePage/index.tsx` (folder-per-component per research.md #17) — mas a
+  página em si era **em branco**. O que ela efetivamente mostraria (dashboard com métricas,
+  atalhos pras telas mais usadas, widgets customizáveis, ou combinação disso) ainda não tinha sido
+  definido pelo dono do produto.
 - **Rationale**: Definido explicitamente pelo usuário do projeto (2026-08-08): existir uma tela
   "Início" já é certo (todo sistema com `AppShell`/sidebar como esse tipicamente tem uma landing
   page própria, separada das telas operacionais como Mapa da Unidade), mas o *conteúdo* dela
   depende de decisões de produto (o que priorizar mostrar pra cada perfil de usuário) que ainda não
   foram tomadas — construir a casca agora evita que a decisão de conteúdo bloqueie o item de
   navegação/rota em si.
-- **Follow-up necessário antes do conteúdo poder ser definido**: decidir o que a página mostra
-  (dashboard/atalhos/widgets/outra coisa), então voltar a este item e substituir este bullet por
-  uma decisão concreta de layout/conteúdo (tasks.md T034k, ainda bloqueada por essa decisão de
-  produto).
 - **Rota padrão + 404 (tasks.md T034j, 2026-08-14)**: decisão explícita do usuário do projeto —
   "Início" (`/inicio`) virou o destino padrão pós-login (`LoginPage` navega pra lá em vez de
   `/mapa-da-unidade`) e o alvo de `/` (`<Navigate to="/inicio" replace />` em `App.tsx`, antes do
@@ -1338,4 +1342,267 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
      inteiro, não só pra esse combobox.
 - **Impact**: `docs/style-guide.md` atualizado (inventário de componentes shadcn + os dois novos
   padrões — cabeçalho de modal ação+sujeito, e combobox em vez de `Select` para listas longas).
+
+## 40. Rotinas (US4, Fase 6): ativação por data específica e interpretação de `shift=today`
+
+- **Contexto** (2026-09-06): `docs/srp_spec_database_model.md`/`data-model.md` já definiam
+  `routines`/`routine_schedules` (criados na Fase 2, T010) mas nenhuma tabela pra "ativar/desativar
+  a rotina para uma data específica" (`PATCH /routines/:id/activation`, contracts/routines.md,
+  exemplo: desativar "Pátio" só no dia de visita). `RoutineSchedule.active` é o default por
+  dia-da-semana/horário recorrente — reaproveitá-lo para uma exceção pontual de uma única data
+  significaria ou mutar o schedule padrão (perdendo o valor original) ou criar-e-apagar linhas a
+  cada ativação/desativação, nenhuma das duas com histórico auditável limpo.
+- **Decision**: nova entidade `RoutineDateOverride` (tabela `routine_date_overrides` —
+  `routine_id`, `date`, `active`, `updated_by`; único em `(routine_id, date)`, migration
+  `AddRoutineDateOverrides`), não documentada no `docs/srp_spec_database_model.md` original. `GET
+  /routines` resolve o `active` efetivo de cada rotina, para a data consultada, como: o valor do
+  override daquela data, se existir; senão, o `Routine.active` (default `true`) — nunca sobrescreve
+  o `RoutineSchedule`/`Routine.active` em si. Uma rotina só aparece na listagem se (a) tiver um
+  `RoutineSchedule` cujo `weekday` bate com o dia da semana da data consultada (`weekday IS NULL` =
+  todo dia) E (b) esse `active` efetivo for `true`.
+- **Consequência prática pra tela web de gestão** (`frontend/src/features/routines/`, T060):
+  desativar uma rotina só para hoje faz ela sumir da listagem filtrada por "hoje" — não é um bug,
+  é o comportamento correto (a rotina não se aplica hoje). Ela reaparece assim que o filtro de
+  "Data" da tela muda pra qualquer outro dia, já que a desativação nunca toca o `active` base.
+  Verificado via Playwright: desativar para uma data específica → some do filtro nessa data →
+  reaparece em qualquer outra data.
+- **Decision — `shift=today`**: `Routine` nunca teve um conceito de turno próprio (só
+  `weekday`/`time` via `RoutineSchedule`) — `shift=today`, o único exemplo do contrato, é aceito
+  como um alias literal pra "usar a data de hoje" (já o default quando `date` não é informado). Um
+  parâmetro `date=YYYY-MM-DD` adicional (não documentado no contrato original, mas necessário pro
+  cenário de teste do quickstart.md — "nos demais dias, lista normalmente") permite consultar
+  qualquer data específica, não só hoje.
+- **Impact**: `contracts/routines.md` continua descrevendo só `shift=today` como exemplo — `date` é
+  um parâmetro adicional aceito pela mesma rota, não uma rota nova, então não precisou de uma nova
+  linha na tabela de endpoints. `DELETE /routines/:id` (já estava na tabela de endpoints do
+  contrato, mas sem task própria em `tasks.md`) foi implementado junto com o resto do módulo em
+  T055 — hard delete de verdade (não o soft `active: false` usado em Unidade/Galeria/Cela), `409`
+  se `locked=true`, cascata manual (`RoutineSchedule`/`RoutineDateOverride`) numa transação já que
+  não há `ON DELETE CASCADE` nas FKs geradas.
+
+## 41. Correção pós-implementação de US4: `includeInactive`, default do diálogo de ativação, clareza de "Padrão"
+
+- **Contexto** (2026-09-06, teste manual do usuário do projeto na tela `/rotinas` logo após T060):
+  5 pontos reportados de uma vez — 2 bugs reais, 3 pedidos de clareza/UX.
+- **Bug 1 — diálogo de ativação sempre "nascia" mostrando Inativa**: `ActivationDialog`
+  inicializava seu `Select` de status com o literal `'false'`, independente do estado real da
+  rotina — dava a falsa impressão de que toda rotina recém-criada já nascia desativada, quando na
+  verdade `RoutinesService.create()` sempre grava `active: true` (§40). Corrigido: o `Select` agora
+  parte de `routine.active` (a rotina é ativa por padrão; desativar por uma data é a exceção
+  pontual que o usuário escolhe fazer, não o estado inicial).
+- **Bug 2 — rotina desativada numa data simplesmente sumia da listagem de gestão**: era o
+  comportamento correto de `GET /routines` para consulta somente-leitura (mobile, FR-020 —
+  "programação do turno atual"), mas ruim para a tela de **gestão** web: um WARDEN/SUPERVISOR que
+  desativasse uma rotina para uma data não tinha nenhum jeito de ver isso na tabela — a linha
+  simplesmente desaparecia, sem indicar que existia e estava inativa. **Decision**: novo parâmetro
+  `includeInactive=true` em `GET /routines` (`ListRoutinesQueryDto`, `RoutinesService.list()`) —
+  quando presente, a filtragem por `RoutineSchedule` (dia da semana) e por `active` efetivo é
+  ignorada, toda rotina da galeria é retornada, e `active`/`schedules` no DTO continuam refletindo
+  o status/horários reais daquela data (não os defaults brutos). A tela web (`/rotinas`) passa
+  sempre `includeInactive=true` e ganhou uma coluna "Status" (badge Ativa/Inativa) pra mostrar o
+  resultado; o consumo mobile (`mobile/src/features/routines/`, T061) não muda — continua sem
+  passar o parâmetro, mantendo o filtro de consulta original.
+- **Clareza — coluna "Padrão"**: o termo (vocabulário do domínio, FR-018) não explicava sozinho o
+  que `locked=true` bloqueia — nem toda a extensão da regra (bloqueia edição de horário/ativação
+  por Supervisor **e** exclusão por qualquer perfil, contracts/routines.md). Adicionado um "?"
+  (`CircleHelpIcon`) no cabeçalho da coluna com tooltip explicando as duas restrições — mesmo
+  padrão já usado em `/configuracoes` (research.md #39-round3), reaproveitado aqui em vez de
+  inventar um mecanismo novo.
+- **Clareza — ícone de "Editar horários"**: um `ClockIcon` isolado não lia como uma ação de edição.
+  Trocado por um `ClockIcon` com um `PencilIcon` pequeno sobreposto no canto inferior-direito
+  (`EditScheduleIcon`, `frontend/src/features/routines/index.tsx`) — pedido explícito do usuário
+  ("relógio com um lápis"), os outros dois ícones de ação (calendário/lixeira) já estavam OK.
+- **Impact**: `backend/test/integration/routines.spec.ts` ganhou uma asserção cobrindo
+  `includeInactive=true` numa data desativada (dentro do teste de ativação existente, não um `it`
+  novo). Verificado via Playwright de ponta a ponta (criar → confirmar default "Ativa" no diálogo →
+  desativar numa data futura → confirmar que a linha continua visível nessa data com badge
+  "Inativa" → volta pra "Ativa" noutra data → excluir), 0 erros de console. Backend
+  lint/build/unit/integration (10/10 em `routines.spec.ts`) e frontend `tsc`/`eslint`/`vite build`
+  todos verdes após a correção.
+
+## 42. Correção pós-implementação de US4 (rodada 2): campos de hora/data em `ScheduleFieldsEditor`/`ActivationDialog`
+
+- **Contexto** (2026-09-06, mesmo dia, segunda rodada de teste manual do usuário): `<input
+  type="time">` nativo tinha um seletor cujo dropdown só oferece horários a partir da hora atual em
+  diante — comportamento do navegador, fora do controle da aplicação, mas confuso pro usuário.
+  `<input type="date">` só abria o calendário nativo clicando exatamente no ícone (extremo direito
+  do campo), não em qualquer ponto — também reportado como inconsistente.
+- **Decision — hora sempre digitável**: `<input type="time">` substituído por um campo de texto
+  controlado (`TimeInput`, `frontend/src/features/routines/components/TimeInput/`) com máscara
+  (dígitos digitados são reformatados como `HH:mm` a cada tecla —
+  `frontend/src/features/routines/time.ts#formatTimeInput`) e validação (`isValidTime`, mesma regex
+  do backend `RoutineScheduleItemDto`). Campo inválido (incompleto ou fora de faixa) ao perder foco
+  vira borda vermelha + texto "HORA INVÁLIDA" abaixo — nunca bloqueia a digitação em si, só o envio
+  (`canSubmit` em `RoutineDialog`/`ScheduleDialog` passou a checar `isValidTime`, não só
+  `time.length > 0`).
+- **Decision — data sempre abre calendário no clique**: `DateInput`
+  (`frontend/src/features/routines/components/DateInput/`) chama `input.showPicker()` em qualquer
+  clique no campo (`try/catch` — `showPicker` pode lançar fora de um gesto do usuário em casos de
+  borda), em vez de depender do usuário acertar o ícone nativo.
+- **Decision — tema escuro em controles nativos**: adicionado `color-scheme: dark` no bloco `.dark`
+  de `frontend/src/index.css` (propriedade herdada, cascata a partir de `<html class="dark">`) e
+  `<meta name="color-scheme" content="dark">` em `frontend/index.html` (mecanismo complementar que
+  alguns navegadores usam especificamente pra UI nativa). **Resultado parcial**: verificado via
+  Playwright que ambos os mecanismos estão corretamente computados (`getComputedStyle` confirma
+  `color-scheme: dark` em `<html>`/`<body>`/no próprio `<input>`), mas o popup do calendário nativo
+  do `<input type="date">` continuou renderizando em tema claro nesse ambiente de teste (Chromium
+  automatizado). Como a aplicação já expõe os dois sinais padrão documentados pra isso e o
+  navegador simplesmente não os aplica ao próprio popup, este é um limite de renderização do
+  navegador/ambiente de teste, não algo corrigível por mais CSS do lado da aplicação — próxima
+  alternativa seria um calendário customizado (componente próprio em vez do `<input type="date">`
+  nativo), não tentada aqui por ser desproporcional ao problema (pode renderizar diferente em
+  Chrome/Edge de desktop reais; vale reconfirmar lá antes de investir nisso).
+- **Decision — espaçamento do botão "Adicionar horário"**: o anel de foco dourado do último campo
+  de horário encostava visualmente no botão abaixo (`gap-1.5` do container pai não bastava para a
+  extensão do `box-shadow` do ring). Adicionado `mt-2` diretamente no botão
+  (`ScheduleFieldsEditor`), sem alterar o espaçamento entre os outros elementos do formulário.
+- **Impact**: linha das linhas de horário mudou de `items-center` pra `items-start` no
+  `ScheduleFieldsEditor` — necessário porque `TimeInput` agora pode crescer em altura (linha de erro
+  abaixo do campo), e `items-center` desalinharia o `Select`/botão de remover nesse caso. Verificado
+  via Playwright: máscara formatando ao digitar, erro "HORA INVÁLIDA" aparecendo/sumindo
+  corretamente, `Salvar` bloqueado com erro pendente, calendário abrindo em qualquer clique no
+  campo de data (tanto no filtro da página quanto no `ActivationDialog`), 0 erros de console em
+  toda a rodada.
   Nenhum contrato, endpoint ou schema afetado.
+  **Superseded por §43** — `TimeInput` foi reescrito (máscara real por posição de dígito, não mais
+  reformatação de string livre) e a mensagem de erro mudou de "HORA INVÁLIDA" para "Hora inválida."
+  no estilo `LoginPage`, depois de feedback do usuário na rodada seguinte.
+
+## 43. Correção pós-implementação de US4 (rodada 3): `accent-color`, data só por calendário, `TimeInput` como máscara de verdade
+
+- **Contexto** (2026-09-06, mesmo dia, terceira rodada — usuário confirmou que o fundo escuro do
+  calendário da §42 funcionou no navegador real dele, mas reportou 4 pontos novos).
+- **Decision — cor de destaque do calendário**: `color-scheme: dark` (§42) só troca o fundo/paleta
+  base dos controles nativos, não a cor de "destaque" (accent) usada pelo próprio Chromium pra
+  pintar o dia selecionado e botões do popup do `<input type="date">` — essa cor vem de
+  `accent-color` (propriedade CSS separada, também usada em checkbox/radio/range nativos).
+  Adicionado `accent-primary` (Tailwind, mapeia pra `hsl(var(--primary))`) no `body` dentro de
+  `@layer base` — herdado por padrão, não precisa repetir em cada input.
+- **Decision — data só por calendário, nunca digitada**: usuário observou que, mesmo já podendo
+  escolher a data pelo calendário, o campo continuava aceitando digitação manual livre — dois
+  caminhos pra um mesmo valor, um deles sem validação de fato (o navegador restringe dígito por
+  segmento, mas não impede completamente um valor "digitado por engano"). `DateInput` ganhou
+  `onKeyDown` bloqueando (`preventDefault`) toda tecla exceto `Tab` (navegação de foco) e
+  `Enter`/`Espaço` (que chamam `showPicker()`, mesmo efeito do clique) — o valor do campo só muda
+  através da seleção no popup do calendário.
+- **Decision — "Hora inválida." no padrão de `LoginPage`**: o usuário explicou que escreveu "HORA
+  INVÁLIDA" (tudo maiúsculo) na própria mensagem de feedback só pra dar ênfase *pra mim*, não como
+  especificação de design — pediu pra eu seguir "o padrão dos outros inputs" na implementação real.
+  `LoginPage` (`errors.email`/`errors.password`, react-hook-form) já tinha o padrão estabelecido:
+  `<p className="text-sm text-destructive">{message}</p>` abaixo do campo, sem alterar a borda do
+  input. `TimeInput` foi alinhado a esse padrão exatamente — texto trocado pra "Hora inválida."
+  (frase normal, com ponto) e a borda vermelha (`border-destructive`/`focus-visible:ring-destructive`)
+  que a §42 tinha adicionado foi removida (o padrão existente nunca mexe na borda, só no texto
+  abaixo).
+- **Decision — segundos nunca exibidos**: `RoutineSchedule.time` volta do backend como `HH:mm:ss`
+  (coluna `TIME` do Postgres, sem truncamento — já era um problema conhecido, sinalizado mas não
+  corrigido na verificação da Fase 6 original). Nova função `toHHMM()`
+  (`frontend/src/features/routines/time.ts`, `time.slice(0, 5)`) aplicada em toda exibição: coluna
+  "Horários" da tabela e prefill do `ScheduleDialog` ao abrir uma rotina existente pra editar.
+- **Decision — `TimeInput` reescrito como máscara de verdade**: a versão da §42 reformatava uma
+  string digitada livremente a cada tecla (extrair dígitos, reinserir ":") — funcional, mas o
+  usuário pediu explicitamente "ao clicar nele deixe a máscara fixa". Reescrito para manter um
+  template `__:__` sempre visível como o próprio valor exibido (não um `placeholder` que some ao
+  digitar): cada tecla de dígito (`onKeyDown`, com `preventDefault` sempre) preenche a próxima
+  posição em branco da esquerda pra direita; `Backspace`/`Delete` limpa a última posição preenchida
+  da direita pra esquerda; qualquer outra tecla (letras, colar texto) é ignorada — o `onChange`
+  nativo do `<input>` fica vazio de propósito (só o `onKeyDown` decide o valor), o que também
+  bloqueia colar texto livre (`Ctrl+V`), já que o valor colado nunca é lido. `Tab`/`Shift`/
+  `Ctrl`/`Cmd`/`Alt` continuam passando direto (navegação de foco, atalhos do navegador intactos).
+- **Impact**: `formatTimeInput()` (§42) removida de `time.ts` — sem mais usos, substituída pela
+  lógica de posição-de-dígito dentro do próprio `TimeInput`. Verificado via Playwright: máscara
+  preenchendo dígito a dígito, backspace limpando da direita pra esquerda, "abc"/colar rejeitados,
+  "Hora inválida." no estilo/cor corretos (confirmado via `getComputedStyle`, sem borda vermelha no
+  input), data rejeitando digitação mas aceitando seleção via calendário (inclusive por teclado
+  dentro do popup nativo), sem segundos em nenhuma exibição. `accent-color` dourado confirmado
+  computado corretamente no `body` via Playwright, mas o popup nativo do Chromium automatizado usado
+  pra teste continuou mostrando o dia selecionado em azul. 0 erros de console. `tsc`/
+  `eslint --max-warnings=0`/`vite build` verdes. Nenhum contrato, endpoint ou schema afetado.
+- **Correção** (mesmo dia, feedback do usuário no navegador real dele): o fundo escuro (via
+  `color-scheme`) funcionou, mas o dia selecionado/botões do calendário continuaram azuis mesmo com
+  `accent-color: hsl(var(--primary))` aplicado no `body` — a hipótese inicial (só limitação do
+  Chromium automatizado de teste) estava errada; o popup nativo do `<input type="date">` não herda
+  `accent-color` pela cascata normal do DOM como a maioria das propriedades CSS herdadas, só lê o
+  valor computado diretamente no próprio elemento `<input>` (diferente de `color-scheme`, que herda
+  normalmente e por isso funcionou vindo do `body`). Corrigido aplicando `accent-color` via `style`
+  inline direto no `<input>` dentro de `DateInput` (`frontend/src/features/routines/components/DateInput/`),
+  em vez de depender só da regra global — a regra global no `body` foi mantida (ainda tinge
+  checkbox/radio/range nativos que herdam normalmente).
+- **Correção final** (mesmo dia, usuário testou no navegador real e o dia selecionado continuou
+  azul mesmo com `accent-color` no próprio elemento): confirmado que não é questão de herança —
+  esse navegador simplesmente não aplica `accent-color` ao popup nativo do `<input type="date">`
+  de jeito nenhum. Sem mais alavanca de CSS pra tentar, decisão do usuário: trocar o `<input
+  type="date">` nativo por um calendário customizado de verdade. Ver §44.
+
+## 44. `<input type="date">` nativo substituído por calendário customizado (`Popover` + `Calendar`)
+
+- **Contexto** (2026-09-06, mesmo dia, quarta rodada): depois de duas tentativas de tingir o popup
+  nativo do `<input type="date">` com as cores do sistema (`color-scheme` — funcionou só o fundo;
+  `accent-color`, global e depois inline no elemento — não funcionou de jeito nenhum pro dia
+  selecionado/botões), ficou claro que o popup nativo é renderizado fora do alcance real do CSS da
+  aplicação, de forma inconsistente entre navegadores. Decisão do usuário: trocar por uma biblioteca
+  de calendário customizável de verdade.
+- **Decision**: `npx shadcn@latest add calendar` — instala `Calendar` (wrapper shadcn sobre
+  `react-day-picker@^10`, já usando `bg-primary`/`text-primary-foreground` nas classes do dia
+  selecionado, ou seja, as cores do tema já vêm certas por padrão, sem CSS extra) e a dependência
+  `date-fns@^4`. Novo componente `DatePicker`
+  (`frontend/src/features/routines/components/DatePicker/`) compõe `Popover` (trigger = `Button`
+  com ícone de calendário + data em `dd/MM/yyyy`) + `Calendar` (`mode="single"`), substituindo o
+  `DateInput` (§42/§43, removido) nos dois lugares que usavam data na Fase 6: o filtro "Data" da
+  própria tela e o campo "Data" de `ActivationDialog`. `docs/style-guide.md` atualizado (novo item
+  do inventário shadcn + regra "usar `Popover`+`Calendar` em vez de `<input type="date">` nativo").
+- **Decision — conversão de data sem bug de fuso horário**: `Calendar`/`react-day-picker` trabalham
+  com objetos `Date` do JavaScript, mas o contrato do backend é uma string `YYYY-MM-DD` (coluna
+  `DATE`, sem componente de hora). Fazer `new Date("2026-09-06")` parseia como UTC meia-noite — em
+  fusos negativos (Brasil, UTC-3), exibir essa data em hora local mostraria "05/09/2026", um dia
+  errado. `parseIsoDate`/`toIsoDate` (dentro de `DatePicker/index.tsx`) evitam isso construindo/lendo
+  o `Date` sempre em componentes locais (`new Date(year, month - 1, day)`,
+  `date.getFullYear()`/`getMonth()`/`getDate()`), nunca via string ISO direto no construtor `Date`.
+- **Decision — localização em português**: `Calendar` recebe `locale={ptBR}` de
+  `react-day-picker/locale` (nome de mês/dias da semana), e o texto do botão-gatilho usa
+  `format(date, 'dd/MM/yyyy', { locale: ptBR })` de `date-fns/locale` — sem isso o padrão do
+  `react-day-picker` é inglês (`enUS`).
+- **Decision — só seleção, nunca digitação**: diferente do `<input type="date">` nativo (que, mesmo
+  com o `onKeyDown` bloqueador da §43, ainda era tecnicamente um campo de texto por baixo), o
+  `PopoverTrigger` aqui é um `<button type="button">` — não existe nenhuma superfície de texto pra
+  digitar, a única forma de mudar o valor é clicando num dia do calendário.
+- **Impact**: `DateInput` (§42/§43) removido por completo (pasta apagada, sem mais usos). Regras
+  globais `color-scheme: dark`/`accent-color` (`frontend/src/index.css`) mantidas — ainda se aplicam
+  a outro `<input type="date">` nativo existente fora do escopo desta feature
+  (`frontend/src/features/structure/components/InmateDialog/`, campo "Data de nascimento"), não
+  tocado aqui (fora do pedido do usuário, que era especificamente sobre a tela de Rotinas). Verificado
+  via Playwright: popup é DOM real (não picker do SO), mês/dias da semana em português, dia
+  selecionado com `background-color` dourado confirmado via `getComputedStyle`, seleção por clique
+  fecha o popup e atualiza o botão, nenhuma superfície de digitação encontrada via inspeção do DOM,
+  fluxo completo (criar rotina → abrir `ActivationDialog` com o novo calendário → excluir) sem
+  erros de console. `tsc`/`eslint --max-warnings=0`/`vite build` verdes.
+
+## 45. Limite de 3 horários por rotina e proibição de horário repetido
+
+- **Contexto** (2026-09-06, mesmo dia): usuário testou criando uma rotina com muitos horários
+  (ex.: "Pátio de Sol", 8 linhas) e reportou que a coluna "Horários" da tabela ficava ilegível —
+  quebrar a linha deixaria as linhas da tabela com alturas diferentes, o que também não é bom.
+  Proposta do próprio usuário, adotada como está: limitar a 3 horários por rotina, e proibir
+  horário repetido na mesma rotina (uma rotina que precise do mesmo horário todo dia já usa "Todos
+  os dias" numa única linha — nunca é necessário repetir).
+- **Decision — limite de 3**: `@ArrayMaxSize(3)` em `CreateRoutineDto.schedules` e
+  `UpdateRoutineScheduleDto.schedules` (`backend/src/routines/dto/`, ao lado do `@ArrayMinSize(1)`
+  já existente). Frontend: `ScheduleFieldsEditor` esconde o botão "Adicionar horário" ao atingir 3
+  linhas, substituindo por um texto "Máximo de 3 horários por rotina." — evita a viagem ao backend
+  só pra descobrir o limite.
+- **Decision — sem horário repetido**: novo `RoutinesService.assertNoDuplicateTimes()` (comparação
+  de `time` via `Set`, ignorando `weekday` — repetir o mesmo horário em dias diferentes também é
+  bloqueado, já que "Todos os dias" cobre esse caso), chamado em `create()` e `updateSchedule()`,
+  `400` se houver duplicata. Frontend: `ScheduleFieldsEditor` calcula duplicatas entre as linhas
+  visíveis e passa um `error` pro `TimeInput` da(s) linha(s) em conflito, mostrando "Horário
+  repetido nesta rotina." (só quando o valor já é um horário válido — não interfere com a mensagem
+  de máscara incompleta) — `RoutineDialog`/`ScheduleDialog` bloqueiam o Salvar enquanto houver
+  qualquer duplicata, nova função `hasNoDuplicateTimes()` em `time.ts`.
+- **Impact**: o limite não é retroativo — uma rotina criada antes desta mudança com mais de 3
+  horários (o caso real que motivou o pedido) continua exibindo todos os horários que já tinha até
+  ser editada; só uma tentativa de salvar (criar nova ou editar horários de uma existente) passa a
+  respeitar as duas regras. Verificado via Playwright: limite de 3 aplicado tanto na criação quanto
+  na edição de horários existentes, mensagem de duplicata aparecendo/sumindo nas linhas certas,
+  Salvar bloqueado enquanto inválido, 2 novos testes de integração em `routines.spec.ts` (12/12
+  passando). `tsc`/`eslint --max-warnings=0`/`vite build`/backend lint+build+unit+integration
+  verdes.

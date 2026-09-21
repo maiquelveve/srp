@@ -13,6 +13,7 @@ import MovementRegister from '@/features/movements/screens/MovementRegister';
 import CellTransferSelect from '@/features/movements/screens/CellTransferSelect';
 import CellChange from '@/features/movements/screens/CellChange';
 import CellSwap from '@/features/movements/screens/CellSwap';
+import ShiftRoutines from '@/features/routines/screens/ShiftRoutines';
 import { colors } from '@/theme/colors';
 import type { RootStackParamList } from './types';
 
@@ -55,6 +56,7 @@ export default function RootNavigator(): JSX.Element {
             <Stack.Screen name="CellTransferSelect" component={CellTransferSelect} />
             <Stack.Screen name="CellChange" component={CellChange} />
             <Stack.Screen name="CellSwap" component={CellSwap} />
+            <Stack.Screen name="ShiftRoutines" component={ShiftRoutines} />
           </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />

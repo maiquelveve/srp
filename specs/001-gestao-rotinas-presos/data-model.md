@@ -242,6 +242,26 @@ Linha do tempo de ocupação de celas por um Inmate, usada para reconstruir loca
 
 - **Regra**: combinação (`routine`, `weekday`, `time`) é única.
 
+### RoutineDateOverride (`routine_date_overrides`)
+
+Não fazia parte do modelo original (`docs/srp_spec_database_model.md`) — adicionada na
+implementação de US4 (Fase 6) para suportar `PATCH /routines/:id/activation`
+(ativar/desativar uma Rotina para uma **data específica**, distinto do `active` recorrente de
+`RoutineSchedule`). Ver research.md #40 para o raciocínio completo.
+
+| Campo | Tipo/Regra |
+|---|---|
+| `routine` | referência obrigatória |
+| `date` | obrigatório |
+| `active` | boolean, obrigatório |
+| `updatedBy` | User, opcional |
+
+- **Regra**: combinação (`routine`, `date`) é única (upsert em `PATCH .../activation`).
+- **Regra (resolução de efetividade)**: o `active` "efetivo" de uma Rotina numa data qualquer é o
+  valor do override daquela data, se existir; senão, `Routine.active`. `GET /routines` só lista
+  rotinas com efetividade `true` **e** um `RoutineSchedule` cujo `weekday` bate com a data
+  consultada.
+
 ### StaffSchedule (`staff_schedules`)
 
 | Campo | Tipo/Regra |

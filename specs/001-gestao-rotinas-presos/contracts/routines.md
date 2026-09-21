@@ -10,7 +10,7 @@ Ver research.md #26 para a distinção completa.
 
 | Método | Rota | Perfis | Descrição |
 |---|---|---|---|
-| GET | `/api/v1/routines?galleryId=&shift=today` | qualquer autenticado | Lista rotinas programadas, com filtro por galeria/turno atual (FR-020). |
+| GET | `/api/v1/routines?galleryId=&shift=today` | qualquer autenticado | Lista rotinas programadas, com filtro por galeria/turno atual (FR-020). Aceita também `date=YYYY-MM-DD` no lugar de `shift=today` para consultar uma data específica (usado pela tela web de gestão para verificar/reverter uma desativação pontual — research.md #40), e `includeInactive=true` para listar toda rotina da galeria (inclusive inativa naquela data) com o `active` real por data, em vez de omitir as inativas — usado pela tela web de gestão, não pela consulta somente-leitura do mobile (research.md #41). |
 | POST | `/api/v1/routines` | WARDEN | Cria rotina (nome, tipo, horários, escopo) (FR-017/FR-018). |
 | PATCH | `/api/v1/routines/:id/schedule` | SUPERVISOR, WARDEN | Ajusta horários de uma rotina existente (FR-019). |
 | PATCH | `/api/v1/routines/:id/activation` | SUPERVISOR, WARDEN | Ativa/desativa a rotina para uma data específica (FR-019). |

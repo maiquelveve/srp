@@ -1,6 +1,6 @@
 import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MapPin, ClipboardList, User } from 'lucide-react-native';
+import { MapPin, ClipboardList, CalendarClock, User } from 'lucide-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import { colors } from '@/theme/colors';
@@ -47,6 +47,12 @@ export default function HomeScreen({ navigation }: Props): JSX.Element {
           label="Movimentação"
           detail="Consultar presos e registrar"
           onPress={viewModel.goToMovement}
+        />
+        <OptionCard
+          icon={CalendarClock}
+          label="Rotinas"
+          detail="Programação do turno atual"
+          onPress={viewModel.goToShiftRoutines}
         />
         <OptionCard
           icon={User}

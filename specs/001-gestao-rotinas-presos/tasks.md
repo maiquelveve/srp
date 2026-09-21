@@ -166,7 +166,7 @@ frontend/src/
   **Revised (same day, user feedback)**: first pass read as cramped (small `404`/heading/text bunched together with little breathing room). Scaled everything up and added spacing — `text-6xl` → `text-9xl` on "404", `text-xl` → `text-3xl` on the heading, body text `text-lg` with a `max-w-md` cap so it wraps into a readable paragraph instead of one long line, outer `gap-4` → `gap-8`, button `size="lg"`. Also swapped the second sentence — "ou foi movido" felt off ("foi movido" implied a redirect/alias that doesn't exist in this app) — keeping "O endereço acessado não existe." as the first sentence and replacing only what followed with the user's picked wording: **"O endereço acessado não existe. Verifique o endereço ou entre em contato com o administrador do sistema."** Verified visually via Playwright screenshot.
   **Revised again (same day, user feedback)**: scaling *everything* up (previous round) missed the actual ask — only the "404" number itself should stand out to grab attention, the rest of the page should read at a normal size. Dialed back: "404" `text-9xl` → `text-8xl` (still the clear visual anchor, just not as extreme), heading `text-3xl` → `text-2xl`, body copy dropped `text-lg` (back to default size), button dropped `size="lg"` (back to default), outer `gap-8` → `gap-6`. Verified visually via Playwright screenshot — "404" now reads as the one enlarged, attention-grabbing element instead of the whole page being oversized.
   **Revised a third time (same day, user feedback)**: `text-8xl` (previous round) didn't read as visibly bigger than before — Tailwind's default scale tops out at `text-9xl` (8rem/128px), too close to the prior size to register as a real change. Went past the built-in scale with an arbitrary value, `text-[11rem]` (176px, `leading-none` added so the taller glyph doesn't add extra vertical gap) — only the "404" span touched, heading/body/button left exactly as the previous round set them. Verified visually via Playwright screenshot — "404" now reads as clearly, deliberately larger.
-- [ ] T034k [P] Document the finished "Início" page content/layout in `research.md` #22 once its content is designed and T034j is extended past the blank-placeholder stage (depends on T034j). **Still blocked**: T034j's shell (route/nav/default-redirect/404) is done, but the page's actual content is a product decision nobody has made yet — this stays open until that decision happens.
+- [X] T034k [P] Document the finished "Início" page content/layout in `research.md` #22 once its content is designed and T034j is extended past the blank-placeholder stage (depends on T034j). **Landed on (2026-09-21)**: decisão do dono do produto — nada de dashboard/atalhos/widgets, só o logo da Polícia Penal RS centralizado com "Sistema de Rotinas Penitenciárias" abaixo (mesmo par logo+nome de `LoginPage`/`AppShell`). `frontend/src/pages/HomePage/index.tsx` passou de `<div className="p-6" />` pra `flex flex-1 flex-col items-center justify-center`, preenchendo a área de conteúdo do `AppShell`. `tsc`/`eslint --max-warnings=0`/`vite build` verdes.
 
 **Checkpoint**: Shared layout foundation and folder convention ready — Phase 4+ screens (movements, routines, staff, reports) reuse `AppShell` and follow the same folder-per-component convention instead of one-off page layouts
 
@@ -354,17 +354,101 @@ pendente de validação manual (T104).
 
 ### Tests for User Story 4
 
-- [ ] T054 [P] [US4] Backend integration tests for `contracts/routines.md` (incl. 403 on `locked` routine edited by Supervisor) in `backend/test/integration/routines.spec.ts`
+- [X] T054 [P] [US4] Backend integration tests for `contracts/routines.md` (incl. 403 on `locked` routine edited by Supervisor) in `backend/test/integration/routines.spec.ts`
 
 ### Implementation for User Story 4
 
-- [ ] T055 [P] [US4] Implement Routines module (Controller/Service/Repository/DTOs) in `backend/src/routines/`
-- [ ] T056 [US4] Implement Rotina Horários sub-resource (multiple schedules per day/routine) in `backend/src/routines/` (depends on T055)
-- [ ] T057 [US4] Implement `POST /api/v1/routines` (WARDEN only, `locked` flag) in `backend/src/routines/` (depends on T056)
-- [ ] T058 [US4] Implement `PATCH /routines/:id/schedule` and `/activation` with blocked-routine guard in `backend/src/routines/` (depends on T057)
-- [ ] T059 [US4] Implement `GET /api/v1/routines` with shift/gallery filter in `backend/src/routines/` (depends on T056)
-- [ ] T060 [P] [US4] Build web frontend Rotinas management screens in `frontend/src/features/routines/` (depends on T057, T058)
-- [ ] T061 [P] [US4] Build mobile "rotinas do turno" read-only screen in `mobile/src/screens/ShiftRoutines.tsx` (depends on T059)
+- [X] T055 [P] [US4] Implement Routines module (Controller/Service/Repository/DTOs) in `backend/src/routines/`. **Landed on**: `Routine`/`RoutineSchedule` entities already existed from Phase 2 (T010); added a new `RoutineDateOverride` entity (`routine_date_overrides`, migration `AddRoutineDateOverrides`) not in the original `docs/srp_spec_database_model.md` — needed to make `PATCH .../activation`'s "ativar/desativar para uma data específica" (contracts/routines.md) win over `Routine.active` for exactly one calendar date without touching the routine's own default or its weekday-recurring schedules. Also implemented `DELETE /routines/:id` (WARDEN, `409` if `locked`) — in the contract table but not its own task line; folded into this one since it's part of the same module scaffold.
+- [X] T056 [US4] Implement Rotina Horários sub-resource (multiple schedules per day/routine) in `backend/src/routines/` (depends on T055). **Landed on**: `RoutineScheduleItemDto` (`weekday`/`time`/`active`) reused by both `POST /routines` (initial schedules) and `PATCH .../schedule` (full replace — delete-all-then-reinsert in a transaction).
+- [X] T057 [US4] Implement `POST /api/v1/routines` (WARDEN only, `locked` flag) in `backend/src/routines/` (depends on T056)
+- [X] T058 [US4] Implement `PATCH /routines/:id/schedule` and `/activation` with blocked-routine guard in `backend/src/routines/` (depends on T057). WARDEN can always edit even when `locked=true`; only `SUPERVISOR` gets `403` on a locked routine (contracts/routines.md).
+- [X] T059 [US4] Implement `GET /api/v1/routines` with shift/gallery filter in `backend/src/routines/` (depends on T056). **Landed on**: `Routine` has no `shift` concept of its own (only weekday/time via `RoutineSchedule`) — `shift=today` from the contract's own example is accepted as a literal alias for "use today's date" (already the default), and an additional `date=YYYY-MM-DD` param lets a caller check any specific day (needed by quickstart.md Cenário 4's "nos demais dias, lista normalmente" check). Only routines with a schedule matching that date's weekday AND an effective active state of `true` (override for that date, else the routine's stored `active`) are returned; `active`/`schedules` on the list response reflect that per-date resolution, not the raw stored defaults.
+- [X] T060 [P] [US4] Build web frontend Rotinas management screens in `frontend/src/features/routines/` (depends on T057, T058). **Landed on**: `/rotinas` route (nav item already existed in `AppShell`, unwired until now), filter bar (Unidade/Galeria selects + a "Data" date input, defaulting to today — style-guide.md §4 pattern) driving one `Card`+`Table` (Nome/Tipo/Horários/Padrão/Ações). No PATCH exists for a routine's own base fields (name/type/description/locked) — only `/schedule` and `/activation` — so `RoutineDialog` is create-only (`docs/style-guide.md`'s create-and-edit-in-one-form convention doesn't apply here, unlike `EntityDialog`/`InmateDialog`); `ScheduleDialog` and `ActivationDialog` are separate per-row dialogs matching those two endpoints, and `DeleteRoutineAlert` is a real hard-delete confirmation (not the soft `active:false` pattern used for Unit/Gallery/Cell — Rotina has no such persisted state). Schedule/activation action buttons are pre-disabled with a tooltip when `routine.locked && user.role === 'SUPERVISOR'`, mirroring the backend's own 403 rule instead of letting the request round-trip just to fail. Added the `checkbox` shadcn primitive (`npx shadcn@latest add checkbox`, first real use in the codebase — needed a genuine boolean toggle for "Definir como rotina padrão" in `RoutineDialog`, not a fake-toggle Badge like `EntityDialog`'s one-way reactivate). Verified live via Playwright as WARDEN: create → edit schedule (live update, no reload) → deactivate for one specific date → confirmed the row disappears from that date's filtered view and reappears on any other date (proves the deactivation is scoped per-date, not to the routine's base `active`) → delete. 0 console errors across every step. `tsc -b`, `eslint --max-warnings=0`, `vite build` all green.
+- [X] T061 [P] [US4] Build mobile "rotinas do turno" read-only screen in `mobile/src/screens/ShiftRoutines.tsx` (depends on T059). **Landed on**: folder-per-component convention (research.md #27) put it at `mobile/src/features/routines/screens/ShiftRoutines/` instead of the literal path in this task's description — same override already applied to every other mobile screen since T093. New "Rotinas" `OptionCard` on `HomeScreen` (alongside "Selecionar Unidade"/"Movimentação"/"Perfil") navigates to it with the globally-selected `unitId` (`UnitContext`, research.md #29) — falls back to `SelectUnit` first if none chosen yet, same guard as `goToMovement`. Screen shows the unit's galleries as a horizontal chip row (new `GalleryChip` component — no existing chip/segmented-control pattern in the codebase to reuse) defaulting to the first gallery, with today's routines for the selected gallery listed below (`RoutineListItem`, `CellCard`-style row). Read-only by design (contracts/routines.md restricts write endpoints to web-reachable roles/flows) — no create/edit/activation UI on mobile. **Verification note**: same pre-existing Linux/WSL sandbox limitation as T095 (`mobile/node_modules` incomplete — `lucide-react-native`, `@rn-primitives/*`, `nativewind`, `expo-linear-gradient` types unresolved project-wide, breaking `tsc --noEmit`/`jest` for every file, old and new) — `npm run lint` passes clean; full typecheck/on-device verification deferred to the separate Windows-side instance per the user's established workflow for this project.
+
+### Correções pós-implementação (revisão do usuário sobre T060, research.md #41)
+
+Usuário testou a tela `/rotinas` manualmente e reportou 5 pontos; 2 eram bugs reais, 3 eram falta de
+clareza na UI (respondidos e corrigidos abaixo, sem task numerada própria — mesmo padrão de US3's
+"Correções pós-implementação").
+
+- Bug: `ActivationDialog`'s "Status nesta data" `Select` estava fixo em "Inativa" por padrão,
+  independente do estado real da rotina — fazia parecer que toda rotina nascia desativada. Corrigido
+  para partir de `routine.active` (uma rotina nova é `active: true` por padrão; desativar por data é
+  a exceção pontual, não o estado inicial).
+- Bug: coluna "Ações" tinha os ícones desalinhados com o cabeçalho (`flex items-center gap-1`
+  faltava `justify-center`, mesmo bug já corrigido em `/configuracoes` no research.md #39-round7).
+  Corrigido.
+- Falta de clareza: coluna "Padrão" sozinha não explicava o que `locked=true` bloqueia (edição por
+  Supervisor E exclusão por qualquer perfil) — adicionado "?" tooltip no cabeçalho, mesmo padrão
+  já usado em `/configuracoes` (research.md #39-round3).
+- Falta de clareza: não havia como ver se uma rotina está ativa/inativa numa data — `GET /routines`
+  simplesmente omitia rotinas inativas da data consultada (correto pra consulta somente-leitura do
+  mobile, ruim pra gestão: a linha sumia sem explicação). Novo parâmetro `includeInactive=true`
+  (`backend/src/routines/`) faz a tela web listar todas as rotinas da galeria com o status real por
+  data, e uma nova coluna "Status" (badge Ativa/Inativa) exibe isso.
+- Pedido de UX: ícone de "Editar horários" era um relógio isolado, pouco claro como ação de edição —
+  virou relógio + lápis sobreposto (`EditScheduleIcon`, `frontend/src/features/routines/index.tsx`).
+- Todos os 5 pontos verificados via Playwright (WARDEN): criar rotina → confirmar Status "Ativa" por
+  padrão no diálogo de ativação → desativar numa data futura → confirmar que a linha continua
+  visível nessa data com badge "Inativa" (não some mais) → volta pra "Ativa" em outra data → excluir.
+  0 erros de console. Backend: 10/10 testes de integração de `routines.spec.ts` (incl. novo caso
+  `includeInactive=true`), lint/build/unit/integration completos verdes.
+
+**Rodada 2** (mesmo dia, `research.md` #42): campo de hora nativo (`<input type="time">`) trocado por
+`TimeInput` (máscara + validação, "HORA INVÁLIDA" abaixo do campo), campo de data nativo continuou
+`<input type="date">` mas ganhou `DateInput` (`showPicker()` em qualquer clique, não só no ícone),
+`color-scheme: dark` + espaçamento do botão "Adicionar horário" ajustado. Verificado via Playwright,
+0 erros de console — exceto o popup do calendário nativo continuar renderizando claro no Chromium
+automatizado apesar do `color-scheme` correto (sinalizado como possível limite do ambiente de teste,
+a confirmar num Chrome/Edge real).
+
+**Rodada 3** (mesmo dia, revisão do usuário sobre a Rodada 2, `research.md` #43): usuário confirmou
+que o fundo escuro do calendário funcionou no navegador real dele, mas reportou 4 pontos novos —
+todos corrigidos:
+- Cor de destaque do calendário (dia selecionado/botões) ainda azul (padrão do navegador), devia ser
+  dourada — `accent-color: hsl(var(--primary))` adicionado globalmente (`body`, `@layer base`),
+  propriedade herdada que também tinge checkbox/radio/range nativos, não só o calendário.
+- Campo de data ainda aceitava digitação manual mesmo já podendo escolher pelo calendário — `DateInput`
+  ganhou um `onKeyDown` que bloqueia toda tecla exceto Tab (navegação) e Enter/Espaço (abre o
+  calendário, mesmo efeito do clique); o valor só muda pela seleção no calendário.
+- Mensagem "HORA INVÁLIDA" (tudo maiúsculo, o usuário explicou que era só ênfase na própria
+  mensagem pra mim, não um requisito de design) — trocada por "Hora inválida." e restilizada pra
+  seguir exatamente o padrão já usado em `LoginPage` (`text-sm text-destructive`, sem borda vermelha
+  no input), em vez do estilo inventado (`text-xs font-medium` + borda) da primeira versão.
+- Horário sempre exibido com segundos vindos do backend (`HH:mm:ss`, round-trip da coluna TIME do
+  Postgres) — `toHHMM()` (`frontend/src/features/routines/time.ts`) descarta os segundos em toda
+  exibição (tabela "Horários", prefill do `ScheduleDialog`).
+- Pedido adicional, mesma rodada: "ao clicar [no campo de hora], deixe a máscara fixa" — `TimeInput`
+  reescrito do zero: em vez de reformatar uma string digitada livremente, mantém uma máscara
+  `__:__` sempre visível, cada dígito digitado preenche o próximo espaço em branco via `onKeyDown`
+  (Backspace/Delete limpa o último preenchido), texto colado ou letras são ignorados — máscara de
+  verdade, não mais heurística de string.
+- Todos os pontos verificados via Playwright: máscara preenchendo dígito a dígito, backspace
+  limpando da direita pra esquerda, colar texto sendo rejeitado, "Hora inválida." no estilo correto,
+  data rejeitando digitação mas aceitando seleção via calendário (inclusive por teclado dentro do
+  popup), sem segundos em nenhuma exibição. Cor dourada do calendário: `accent-color` computado
+  corretamente (confirmado via `getComputedStyle`), mas o popup nativo do Chromium automatizado
+  continuou mostrando azul — mesma limitação de ambiente de teste da Rodada 2, não algo corrigível
+  do lado da aplicação; usuário deve reconfirmar no navegador real (onde o fundo escuro já
+  funcionou). 0 erros de console em toda a rodada. `tsc`/`eslint --max-warnings=0`/`vite build`
+  verdes.
+
+**Rodada 4** (mesmo dia, `research.md` #44): usuário testou no navegador real e o dia selecionado
+continuou azul mesmo com `accent-color` direto no elemento (não era questão de herança — esse
+navegador simplesmente não aplica a propriedade ao popup nativo). Sem mais alavanca de CSS,
+decisão do usuário: trocar o `<input type="date">` nativo por um calendário customizado de
+verdade. `npx shadcn@latest add calendar` (`react-day-picker@^10` + `date-fns@^4`) — novo
+`DatePicker` (`Popover` + `Calendar`, `frontend/src/features/routines/components/DatePicker/`)
+substitui `DateInput` (removido) nos dois campos de data da Fase 6. Cores do tema já vêm certas por
+padrão (o `Calendar` do shadcn usa `bg-primary`/`text-primary-foreground`, DOM/CSS normal, sem
+depender de nenhuma propriedade nativa do navegador), `locale={ptBR}` garante mês/dias da semana em
+português, e o campo virou um botão (nunca mais um campo de texto — sem superfície de digitação
+nenhuma). Verificado via Playwright, 9/9 itens passando (popup é DOM real, português confirmado,
+dia selecionado dourado via `getComputedStyle`, seleção por clique funcionando, nenhuma digitação
+possível, fluxo completo criar→ativar→excluir sem erros de console). `tsc`/
+`eslint --max-warnings=0`/`vite build` verdes. `docs/style-guide.md` atualizado com o novo
+componente e a regra de preferir `Popover`+`Calendar` a `<input type="date">` nativo.
 
 **Checkpoint**: User Stories 1–4 all work independently
 

@@ -55,6 +55,7 @@ async function main(): Promise<void> {
     'audit_logs',
     'minimum_staffing_config',
     'staff_schedules',
+    'routine_date_overrides',
     'routine_schedules',
     'routines',
     'movements',

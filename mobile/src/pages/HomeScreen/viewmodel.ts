@@ -48,6 +48,14 @@ export function useHomeScreenViewModel(navigation: Navigation) {
     navigation.navigate('Galleries', { unitId, unitName: currentUnitName ?? '' });
   }
 
+  function goToShiftRoutines(): void {
+    if (unitId === null) {
+      navigation.navigate('SelectUnit');
+      return;
+    }
+    navigation.navigate('ShiftRoutines', { unitId, unitName: currentUnitName ?? '' });
+  }
+
   function goToProfile(): void {
     navigation.navigate('Profile');
   }
@@ -65,6 +73,7 @@ export function useHomeScreenViewModel(navigation: Navigation) {
     openMovementsTotal: openMovementsQuery.data ?? 0,
     goToSelectUnit,
     goToMovement,
+    goToShiftRoutines,
     goToProfile,
   };
 }
