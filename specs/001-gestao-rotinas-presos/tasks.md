@@ -491,14 +491,16 @@ componente e a regra de preferir `Popover`+`Calendar` a `<input type="date">` na
 
 ### Tests for User Story 6
 
-- [ ] T068 [P] [US6] Backend integration tests for `contracts/reports-audit.md` (incl. 403 for `PRISON_OFFICER`, unit-scope filtering) in `backend/test/integration/reports-audit.spec.ts`
+- [X] T068 [P] [US6] Backend integration tests for `contracts/reports-audit.md` (incl. 403 for `PRISON_OFFICER`, unit-scope filtering) in `backend/test/integration/reports-audit.spec.ts`
 
 ### Implementation for User Story 6
 
-- [ ] T069 [P] [US6] Implement Reports module queries — movements-by-inmate, longest-out-of-cell, inconsistencies, routine-execution, staff-vs-movements, cell-occupancy-history — in `backend/src/reports/` (depends on T042, T052, T059, T066)
-- [ ] T070 [US6] Implement `GET /api/v1/audit` read-only endpoint with filters in `backend/src/audit/` (depends on T016)
-- [ ] T071 [US6] Apply SUPERVISOR/WARDEN-only + unit-scope guard to all reports/audit endpoints (depends on T019, T069, T070)
-- [ ] T072 [P] [US6] Build web frontend Relatórios + Auditoria screens in `frontend/src/features/reports/` (depends on T069, T070)
+- [X] T069 [P] [US6] Implement Reports module queries — movements-by-inmate, longest-out-of-cell, inconsistencies, routine-execution, staff-vs-movements, cell-occupancy-history — in `backend/src/reports/` (depends on T042, T052, T059, T066)
+- [X] T070 [US6] Implement `GET /api/v1/audit` read-only endpoint with filters in `backend/src/audit/` (depends on T016)
+- [X] T071 [US6] Apply SUPERVISOR/WARDEN-only + unit-scope guard to all reports/audit endpoints (depends on T019, T069, T070)
+- [X] T072 [P] [US6] Build web frontend Relatórios + Auditoria screens in `frontend/src/features/reports/` (depends on T069, T070)
+
+> **Nota de implementação (US6)**: rotinas são coletivas e o sistema não registra a execução de cada uma (FR-017, Entidades-Chave), então `routine-execution` devolve ocorrências programadas × desativadas por data (`executionTracked: false`) e `routinesNotExecuted` é sempre `[]`. Web: `/relatorios` (abas, com modal de ajuda e paginação no servidor) e `/auditoria`. Decisões em research.md #49.
 
 **Checkpoint**: All user stories independently functional
 
@@ -612,3 +614,9 @@ With multiple developers, after Setup + Foundational:
 - Commit after each task or logical group
 - Stop at any checkpoint to validate a story independently
 - Avoid: vague tasks, same-file conflicts, cross-story dependencies that break independent testability
+
+---
+
+## Phase 10: Convergence
+
+- [ ] T105 Add a database-level guard (migration with `BEFORE UPDATE OR DELETE` trigger, or revoked `UPDATE`/`DELETE` grants on `audit_logs` for the application role) so audit records cannot be altered or removed even by administrative profiles or direct DB access, plus an integration test asserting `UPDATE`/`DELETE` on `audit_logs` is rejected, per FR-027 / Constitution III (partial)

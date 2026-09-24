@@ -1687,3 +1687,36 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
 - **Impact**: contracts/staff.md, data-model.md, spec.md (FR-022, FR-023), quickstart.md; frontend
   (`ScheduleDialog`, `MinimumStaffingSummary`) e testes de integração de `staff`. Sem migration.
 
+
+## 49. Relatórios e auditoria (US6): rotinas sem execução, escopo da auditoria e paginação
+
+- **Contexto** (2026-09-24): implementação da US6 (`/api/v1/reports/*`, `/api/v1/audit`, telas web
+  `/relatorios` e `/auditoria`), validada contra os dados do banco de desenvolvimento e no navegador.
+- **Decision — rotinas não têm registro de execução**: rotina é atividade coletiva (FR-017) e não
+  existe evento de "rotina executada". `GET /reports/routine-execution` devolve, por rotina e galeria,
+  as ocorrências **programadas** e as **desativadas por data** (mesma regra de ativação de
+  `GET /routines`: o override da data vence `Routine.active`), com `executionTracked: false`.
+  `routinesNotExecuted` de `/reports/inconsistencies` é sempre `[]`. Medir cumprimento/atraso exigiria
+  um registro de execução (fora do escopo desta versão).
+- **Decision — escopo de unidade da auditoria**: `audit_logs` não tem unidade; `GET /audit` devolve só
+  entradas cujo **autor** pertence a alguma unidade do usuário (`user_units`). Entradas sem autor
+  (ex.: login recusado de e-mail desconhecido) não aparecem. Somente `GET`, sem escrita (FR-027).
+- **Decision — valores anteriores**: o `AuditInterceptor` grava só `newData`; `oldData` só existe onde o
+  serviço chama `AuditService.record()` com o estado anterior (usuários, troca/permuta de cela,
+  situação final). Ler o estado antes de todo `PATCH`/`DELETE` foi rejeitado por dobrar o custo de
+  escrita. A tela mostra o "Dados do registro" (novo valor) e só exibe "Valores anteriores" quando
+  o dado existe.
+- **Decision — paginação no servidor**: todas as listas dos relatórios aceitam `limit` (padrão 25,
+  máx. 100) e `offset` e devolvem `total`; `/reports/inconsistencies` pagina as duas listas de forma
+  independente (`withoutReturnOffset`/`withoutReasonOffset`); `/reports/staff-vs-movements` sempre
+  devolve os dois turnos. Web: 10 itens por página nos relatórios e 25 na auditoria.
+- **Decision — turnos em horário local**: `staff-vs-movements` agrupa movimentações pelo turno
+  (diurno 07h–19h, noturno 19h–07h) em `America/Sao_Paulo`, contando pela cela de origem.
+- **Decision — interface**: cada aba de relatório tem um botão de ajuda com modal explicativo
+  (`helpContent.ts`); `Badge` ganhou a variante `info` (azul) para Login/Logout, prevista no guia de
+  estilo para "informativo neutro".
+- **Alternatives considered**: (1) filtrar a auditoria por tabela de origem em vez de por autor —
+  rejeitado, exigiria unidade em toda entrada; (2) paginar no cliente — rejeitado, as listas crescem
+  sem limite; (3) criar `routine_executions` agora — adiado.
+- **Impact**: contracts/reports-audit.md, tasks.md (T068–T072), testes `reports-audit.spec.ts`. Sem
+  migration.

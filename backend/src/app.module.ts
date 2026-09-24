@@ -15,6 +15,7 @@ import { MovementsModule } from './movements/movements.module';
 import { RoutinesModule } from './routines/routines.module';
 import { PostsModule } from './posts/posts.module';
 import { StaffModule } from './staff/staff.module';
+import { ReportsModule } from './reports/reports.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { createGlobalValidationPipe } from './common/pipes/validation-pipe.factory';
 import { RequestLoggingMiddleware } from './common/logging/request-logging.middleware';
@@ -38,6 +39,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     RoutinesModule,
     PostsModule,
     StaffModule,
+    ReportsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

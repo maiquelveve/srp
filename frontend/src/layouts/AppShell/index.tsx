@@ -1,5 +1,6 @@
 import {
   ArrowLeftRight,
+  BarChart3,
   BookOpen,
   CalendarClock,
   FileText,
@@ -58,7 +59,8 @@ const DOCUMENT_MORE_ITEMS: NavDocumentsItem[] = [
     icon: Settings,
     roles: ['WARDEN'],
   },
-  { to: '/auditoria', label: 'Auditoria', icon: ShieldAlert },
+  { to: '/relatorios', label: 'Relatórios', icon: BarChart3, roles: ['SUPERVISOR', 'WARDEN'] },
+  { to: '/auditoria', label: 'Auditoria', icon: ShieldAlert, roles: ['SUPERVISOR', 'WARDEN'] },
 ];
 
 const SECONDARY_ITEMS: NavSecondaryItem[] = [
