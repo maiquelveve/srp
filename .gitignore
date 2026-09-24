@@ -42,3 +42,6 @@ frontend/vite.config.d.ts
 
 # Playwright MCP screenshots/console logs (local dev inspection only)
 .playwright-mcp/
+
+# ADB screenshots/uiautomator dumps from manual mobile QA (local inspection only)
+mobile/.qa-shots/

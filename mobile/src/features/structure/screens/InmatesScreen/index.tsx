@@ -1,12 +1,13 @@
 import { ActivityIndicator, FlatList, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CloudOff, Search } from 'lucide-react-native';
+import { CloudOff, RefreshCw, Search } from 'lucide-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/ui/text';
 import { Input } from '@/components/ui/input';
 import { Icon } from '@/components/ui/icon';
+import { Button } from '@/components/ui/button';
 import ScreenHeader from '@/components/ScreenHeader';
 import { pendingSyncLabel } from '@/features/structure/model';
 import InmateRow from './components/InmateRow';
@@ -51,11 +52,33 @@ export default function InmatesScreen({ navigation, route }: Props): JSX.Element
       )}
 
       {viewModel.pendingSyncCount > 0 && (
-        <View className="border-warning bg-warning/10 mx-4 mb-2 flex-row items-center gap-3 rounded-2xl border p-4">
-          <Icon as={CloudOff} size={18} color={colors.warning} />
-          <Text className="text-warning flex-1 text-sm font-semibold">
-            {pendingSyncLabel(viewModel.pendingSyncCount)}
-          </Text>
+        <View className="border-warning bg-warning/10 mx-4 mb-2 gap-3 rounded-2xl border p-4">
+          <View className="flex-row items-center gap-3">
+            <Icon as={CloudOff} size={18} color={colors.warning} />
+            <Text className="text-warning flex-1 text-sm font-semibold">
+              {pendingSyncLabel(viewModel.pendingSyncCount)}
+            </Text>
+          </View>
+          {/* Sincronização automática já roda ao reconectar e no boot do app
+              (App.tsx) — este botão força a tentativa na hora, pra quando o
+              evento de conectividade não dispara (visto no QA de 2026-09-24
+              no emulador Android). */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-warning bg-transparent self-end rounded-full"
+            onPress={viewModel.forceSync}
+            disabled={viewModel.syncing}
+          >
+            {viewModel.syncing ? (
+              <ActivityIndicator size="small" color={colors.warning} />
+            ) : (
+              <Icon as={RefreshCw} size={14} color={colors.warning} />
+            )}
+            <Text className="text-warning text-xs font-bold">
+              {viewModel.syncing ? 'Sincronizando...' : 'Sincronizar agora'}
+            </Text>
+          </Button>
         </View>
       )}
 

@@ -64,6 +64,10 @@ jest.mock('../src/offline/database', () => {
       } else if (sql.startsWith('UPDATE pending_returns')) {
         const row = returns.find((r) => r.id === params[0]);
         if (row) row.synced_at = new Date().toISOString();
+      } else if (sql.startsWith('DELETE FROM pending_movements')) {
+        movements = movements.filter((m) => m.id !== params[0]);
+      } else if (sql.startsWith('DELETE FROM pending_returns')) {
+        returns = returns.filter((r) => r.id !== params[0]);
       }
     },
     getAllAsync: async (sql: string) => {
@@ -180,5 +184,114 @@ describe('Offline sync (quickstart.md Cenário 7, FR-011a)', () => {
 
     expect(mockedApiClient.post).toHaveBeenCalledTimes(3);
     expect(await getPendingMovements()).toHaveLength(0);
+  });
+
+  // Achados do QA de 2026-09-24 (quickstart.md Cenário 7) — regra definida
+  // com o usuário: uma nova saída pendente pro mesmo preso substitui
+  // qualquer saída anterior ainda não sincronizada (a mais recente é sempre
+  // a válida), e uma recusa definitiva do servidor não trava os itens
+  // seguintes da fila (antes travava, inclusive itens de outros presos).
+
+  it('supersedes an unsynced pending exit for the same inmate, keeping only the latest', async () => {
+    await enqueueMovement({
+      inmateId: 16,
+      movementTypeId: 5,
+      originCellId: 1,
+      destinationLocation: 'Forum Central',
+      reason: 'Audiência',
+    });
+    await enqueueMovement({
+      inmateId: 16,
+      movementTypeId: 1,
+      originCellId: 1,
+      destinationLocation: 'Hospital',
+      reason: 'Atendimento psicológico',
+    });
+
+    const pending = await getPendingMovements();
+    expect(pending).toHaveLength(1);
+    expect(pending[0].payload).toMatchObject({ movementTypeId: 1, reason: 'Atendimento psicológico' });
+  });
+
+  it('does not supersede a pending exit for a different inmate', async () => {
+    await enqueueMovement({
+      inmateId: 16,
+      movementTypeId: 5,
+      originCellId: 1,
+      destinationLocation: 'Forum Central',
+      reason: 'Audiência',
+    });
+    await enqueueMovement({
+      inmateId: 17,
+      movementTypeId: 1,
+      originCellId: 1,
+      destinationLocation: 'Hospital',
+      reason: 'Atendimento psicológico',
+    });
+
+    expect(await getPendingMovements()).toHaveLength(2);
+  });
+
+  it('supersedes an unsynced pending return for the same movement', async () => {
+    await enqueueReturn(63);
+    const secondKey = await enqueueReturn(63);
+
+    const pending = await getPendingReturns();
+    expect(pending).toHaveLength(1);
+    expect(pending[0].idempotencyKey).toBe(secondKey);
+  });
+
+  it('skips a definite server rejection and keeps syncing the rest of the queue, without blocking other inmates', async () => {
+    await enqueueMovement({
+      inmateId: 16,
+      movementTypeId: 1,
+      originCellId: 1,
+      destinationLocation: 'Hospital',
+      reason: 'Já tem saída ativa — backend vai recusar (409)',
+    });
+    await enqueueMovement({
+      inmateId: 14,
+      movementTypeId: 2,
+      originCellId: 1,
+      destinationLocation: 'Enfermaria',
+      reason: 'Consulta',
+    });
+
+    mockedApiClient.post
+      .mockRejectedValueOnce({ isAxiosError: true, response: { status: 409, data: {} } })
+      .mockResolvedValueOnce({ data: {} });
+
+    const result = await syncPendingMovements();
+
+    expect(mockedApiClient.post).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({ syncedMovements: 1, syncedReturns: 0, rejected: 1 });
+    // O item recusado continua na fila (para inspeção), o outro preso sincronizou normalmente.
+    const stillPending = await getPendingMovements();
+    expect(stillPending).toHaveLength(1);
+    expect(stillPending[0].payload.inmateId).toBe(16);
+  });
+
+  it('still aborts the whole batch on a real network failure (no server response)', async () => {
+    await enqueueMovement({
+      inmateId: 16,
+      movementTypeId: 1,
+      originCellId: 1,
+      destinationLocation: 'Hospital',
+      reason: 'Sem rede',
+    });
+    await enqueueMovement({
+      inmateId: 14,
+      movementTypeId: 2,
+      originCellId: 1,
+      destinationLocation: 'Enfermaria',
+      reason: 'Consulta',
+    });
+    mockedApiClient.post.mockRejectedValueOnce(new Error('network down'));
+
+    const result = await syncPendingMovements();
+
+    expect(mockedApiClient.post).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ syncedMovements: 0, syncedReturns: 0, rejected: 0 });
+    expect(await getPendingMovements()).toHaveLength(2);
   });
 });

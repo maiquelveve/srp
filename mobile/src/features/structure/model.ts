@@ -74,3 +74,10 @@ export function pendingSyncLabel(count: number): string {
   const adjective = count === 1 ? 'pendente' : 'pendentes';
   return `${count} ${noun} ${adjective} de sincronização`;
 }
+
+/** "1 movimentação sincronizada" / "3 movimentações sincronizadas" — mesmo padrão de `pendingSyncLabel`, reaproveitado no toast do botão "Sincronizar agora". */
+export function countedMovementsLabel(count: number, singularAdjective: string, pluralAdjective: string): string {
+  const noun = count === 1 ? 'movimentação' : 'movimentações';
+  const adjective = count === 1 ? singularAdjective : pluralAdjective;
+  return `${count} ${noun} ${adjective}`;
+}

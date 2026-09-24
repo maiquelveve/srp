@@ -6,10 +6,16 @@ import type {
   NativeStackScreenProps,
 } from '@react-navigation/native-stack';
 import { structureApi } from '@/features/structure/api';
-import { filterInmatesBySearch, inmateMovementActionLabel, inmateStatusLine } from '@/features/structure/model';
+import {
+  countedMovementsLabel,
+  filterInmatesBySearch,
+  inmateMovementActionLabel,
+  inmateStatusLine,
+} from '@/features/structure/model';
 import type { Inmate } from '@/features/structure/types';
 import type { RootStackParamList } from '@/navigation/types';
 import { countPending } from '@/offline/offline-queue';
+import { syncPendingMovements } from '@/offline/sync-service';
 import { toast } from '@/lib/toast';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Inmates'>;
@@ -25,6 +31,7 @@ export function useInmatesScreenViewModel(navigation: Navigation, route: Route) 
   });
 
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [syncing, setSyncing] = useState(false);
   const [search, setSearch] = useState('');
 
   // Sem isso, voltar pra cá depois de registrar uma troca/permuta/movimentação
@@ -62,6 +69,39 @@ export function useInmatesScreenViewModel(navigation: Navigation, route: Route) 
     navigation.navigate('CellTransferSelect', { inmate, cellId, cellCode, galleryId, galleryCode });
   }
 
+  // Botão manual de sincronização (pedido do usuário no QA de 2026-09-24) —
+  // a fila já sincroniza sozinha ao reconectar e no boot do app
+  // (startOfflineSyncListener, App.tsx), mas isso depende do listener do
+  // NetInfo disparar; esse botão dá um jeito confiável de forçar a tentativa
+  // na hora, sem esperar o próximo evento de conectividade.
+  async function forceSync(): Promise<void> {
+    setSyncing(true);
+    try {
+      const pendingBefore = await countPending();
+      const result = await syncPendingMovements();
+      const totalSynced = result.syncedMovements + result.syncedReturns;
+      const synced = countedMovementsLabel(totalSynced, 'sincronizada', 'sincronizadas');
+      const rejectedAdjective = result.rejected === 1 ? 'recusada' : 'recusadas';
+
+      if (totalSynced > 0 && result.rejected === 0) {
+        toast.success(`${synced}.`);
+      } else if (totalSynced > 0 && result.rejected > 0) {
+        toast.warning(`${synced}, ${result.rejected} ${rejectedAdjective} pelo servidor.`);
+      } else if (result.rejected > 0) {
+        toast.warning(`${countedMovementsLabel(result.rejected, 'recusada', 'recusadas')} pelo servidor. Consulte a supervisão.`);
+      } else if (pendingBefore > 0) {
+        toast.error('Não foi possível sincronizar. Verifique a conexão e tente novamente.');
+      } else {
+        toast.info('Nenhuma movimentação pendente de sincronização.');
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['inmates', cellId] });
+      setPendingSyncCount(await countPending());
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   return {
     title: `Galeria ${galleryCode}   /   Cela ${cellCode}`.toUpperCase(),
     dateLabel: new Date().toLocaleDateString('pt-BR', {
@@ -81,6 +121,8 @@ export function useInmatesScreenViewModel(navigation: Navigation, route: Route) 
     search,
     setSearch,
     pendingSyncCount,
+    syncing,
+    forceSync,
     statusLine: inmateStatusLine,
     movementActionLabel: inmateMovementActionLabel,
     goToDetail,

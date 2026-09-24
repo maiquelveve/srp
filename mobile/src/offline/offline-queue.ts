@@ -40,9 +40,29 @@ interface PendingReturnRow {
   created_at: string;
 }
 
-/** Enqueues a movement exit locally and returns its idempotency key (FR-011a). */
+/**
+ * Enqueues a movement exit locally and returns its idempotency key (FR-011a).
+ *
+ * Regra definida com o usuário em 2026-09-24, após o QA do Cenário 7 achar
+ * que registrar duas saídas offline pro mesmo preso enfileirava as duas — a
+ * segunda sempre é rejeitada pelo backend (o preso só pode ter uma
+ * movimentação temporária ativa por vez, ver `movements.service.ts`), e
+ * antes isso travava a sincronização de TODA a fila (ver sync-service.ts).
+ * A oficial continua podendo registrar quantas saídas quiser pro mesmo preso
+ * enquanto está offline (a UI não bloqueia isso), mas só a mais recente é
+ * mantida na fila local — qualquer saída anterior ainda não sincronizada pro
+ * mesmo preso é descartada antes mesmo de tentar ir pro servidor.
+ */
 export async function enqueueMovement(payload: MovementPayload): Promise<string> {
   const db = await getDatabase();
+
+  const stalePending = await getPendingMovements();
+  for (const stale of stalePending) {
+    if (stale.payload.inmateId === payload.inmateId) {
+      await db.runAsync('DELETE FROM pending_movements WHERE id = ?;', stale.id);
+    }
+  }
+
   const idempotencyKey = generateIdempotencyKey();
   await db.runAsync(
     'INSERT INTO pending_movements (idempotency_key, payload) VALUES (?, ?);',
@@ -76,9 +96,22 @@ export async function markMovementSynced(id: number): Promise<void> {
  * ever comes from an online `GET /inmates` response (the app never lets an
  * officer pick a not-yet-synced local exit to return, so there's no case of
  * "return a movement that only exists as a queued exit" to resolve here).
+ *
+ * Mesma regra de "mantém só a mais recente" do `enqueueMovement` acima,
+ * aplicada aqui por simetria — evita duas tentativas de retorno pendentes
+ * pro mesmo `movementId` (ex.: o oficial toca "Confirmar Retorno" duas vezes
+ * offline), o que faria a segunda ser recusada pelo backend (já retornado).
  */
 export async function enqueueReturn(movementId: number): Promise<string> {
   const db = await getDatabase();
+
+  const stalePending = await getPendingReturns();
+  for (const stale of stalePending) {
+    if (stale.movementId === movementId) {
+      await db.runAsync('DELETE FROM pending_returns WHERE id = ?;', stale.id);
+    }
+  }
+
   const idempotencyKey = generateIdempotencyKey();
   await db.runAsync(
     'INSERT INTO pending_returns (idempotency_key, movement_id) VALUES (?, ?);',
