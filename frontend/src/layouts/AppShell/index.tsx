@@ -2,19 +2,18 @@ import {
   ArrowLeftRight,
   BookOpen,
   CalendarClock,
-  CheckCircle2,
-  ClipboardList,
   FileText,
   HelpCircle,
   HomeIcon,
-  LayoutGrid,
   ListChecks,
-  MapPin,
   Settings,
   ShieldAlert,
+  Signpost,
   Users,
 } from 'lucide-react';
 import { Outlet, useLocation } from 'react-router-dom';
+import type { RoleName } from '@/features/structure/types';
+import { useAuth } from '@/hooks/useAuth';
 import logoPpRs from '@/assets/logo-pp-rs.png';
 import {
   Sidebar,
@@ -38,12 +37,10 @@ import SiteHeader from './components/SiteHeader';
 // page — research.md #18.
 const NAV_ITEMS: NavMainItem[] = [
   { to: '/inicio', label: 'Início', icon: HomeIcon },
-  { to: '/mapa-da-unidade', label: 'Mapa da Unidade', icon: LayoutGrid },
-  { to: '/movimentacoes', label: 'Movimentações', icon: ArrowLeftRight },
-  { to: '/situacoes-definitivas', label: 'Situações Definitivas', icon: CheckCircle2 },
+  { to: '/mapa-da-unidade', label: 'Movimentações', icon: ArrowLeftRight },
   { to: '/rotinas', label: 'Rotinas', icon: CalendarClock },
-  { to: '/efetivo', label: 'Efetivo', icon: Users },
-  { to: '/relatorios-e-auditoria', label: 'Relatórios e Auditoria', icon: ClipboardList },
+  { to: '/efetivo', label: 'Efetivo', icon: Users, roles: ['SUPERVISOR', 'WARDEN'] },
+  { to: '/efetivo/postos', label: 'Postos de Serviço', icon: Signpost, roles: ['WARDEN'] },
 ];
 
 // Illustrative — mirrors the shadcn "Documents" group; not all of these map
@@ -55,9 +52,13 @@ const DOCUMENT_ITEMS: NavDocumentsItem[] = [
 ];
 
 const DOCUMENT_MORE_ITEMS: NavDocumentsItem[] = [
-  { to: '/efetivo/configuracao-minima', label: 'Efetivo Mínimo', icon: Settings },
+  {
+    to: '/efetivo/configuracao-minima',
+    label: 'Efetivo Mínimo',
+    icon: Settings,
+    roles: ['WARDEN'],
+  },
   { to: '/auditoria', label: 'Auditoria', icon: ShieldAlert },
-  { to: '/historico-localizacao', label: 'Histórico de Localização', icon: MapPin },
 ];
 
 const SECONDARY_ITEMS: NavSecondaryItem[] = [
@@ -72,10 +73,15 @@ const SECONDARY_ITEMS: NavSecondaryItem[] = [
  */
 export default function AppShell(): JSX.Element {
   const { pathname } = useLocation();
+  const { user } = useAuth();
+  const visibleTo = <Item extends { roles?: RoleName[] }>(items: Item[]): Item[] =>
+    items.filter((item) => !item.roles || (user !== null && item.roles.includes(user.role)));
   const pageTitle =
-    [...NAV_ITEMS, ...DOCUMENT_ITEMS, ...DOCUMENT_MORE_ITEMS, ...SECONDARY_ITEMS].find(
-      (item) => item.to === pathname,
-    )?.label ?? 'SRP';
+    pathname === '/perfil'
+      ? 'Perfil'
+      : ([...NAV_ITEMS, ...DOCUMENT_ITEMS, ...DOCUMENT_MORE_ITEMS, ...SECONDARY_ITEMS].find(
+          (item) => item.to === pathname,
+        )?.label ?? 'SRP');
 
   return (
     <SidebarProvider>
@@ -83,7 +89,10 @@ export default function AppShell(): JSX.Element {
         <SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton size="lg" className="!h-auto items-center justify-center gap-3 py-3">
+              <SidebarMenuButton
+                size="lg"
+                className="!h-auto items-center justify-center gap-3 py-3"
+              >
                 <img src={logoPpRs} alt="Polícia Penal RS" className="h-12 w-auto shrink-0" />
                 <span className="!whitespace-normal text-center text-base font-semibold leading-tight">
                   Sistema de Rotinas Penitenciárias
@@ -93,8 +102,12 @@ export default function AppShell(): JSX.Element {
           </SidebarMenu>
         </SidebarHeader>
         <SidebarContent>
-          <NavMain items={NAV_ITEMS} />
-          <NavDocuments label="Documentos" items={DOCUMENT_ITEMS} moreItems={DOCUMENT_MORE_ITEMS} />
+          <NavMain items={visibleTo(NAV_ITEMS)} />
+          <NavDocuments
+            label="Extras"
+            items={visibleTo(DOCUMENT_ITEMS)}
+            moreItems={visibleTo(DOCUMENT_MORE_ITEMS)}
+          />
           <NavSecondary items={SECONDARY_ITEMS} className="mt-auto" />
         </SidebarContent>
         <SidebarFooter>

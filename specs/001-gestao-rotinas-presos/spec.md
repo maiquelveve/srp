@@ -86,17 +86,17 @@ Chefia/Diretor cria rotinas (nome, tipo, horários, unidades/galerias onde se ap
 
 ### User Story 5 - Controle de Efetivo (Priority: P5)
 
-Supervisor cadastra e controla a escala de serviço dos policiais penais (turnos, datas, setores), registra presença/faltas/abonos/horas extras, e visualiza relatórios de efetivo mínimo por turno e setor.
+Supervisor cadastra e controla a escala de serviço dos policiais penais (turnos, datas, postos de serviço, carga horária), registra presença/faltas, e visualiza relatórios de efetivo mínimo por turno e posto.
 
 **Why this priority**: Suporta o planejamento de pessoal, mas é operacionalmente independente do fluxo de movimentações/rotinas de presos e pode ser entregue em uma fase posterior sem bloquear o valor central de segurança e rastreabilidade.
 
-**Independent Test**: Pode ser testado de forma independente criando uma escala para um policial penal em um turno e setor específicos e verificando que ele aparece corretamente no relatório de efetivo daquele turno.
+**Independent Test**: Pode ser testado de forma independente criando uma escala para um policial penal em um turno e posto específicos e verificando que ele aparece corretamente no relatório de efetivo daquele turno.
 
 **Acceptance Scenarios**:
 
-1. **Given** um policial penal cadastrado, **When** um supervisor cria uma escala para ele em um turno, data e setor, **Then** a escala aparece no relatório de efetivo daquele turno/setor.
-2. **Given** uma escala existente, **When** o supervisor registra uma falta ou abono para o policial naquele turno, **Then** o relatório de efetivo reflete a ausência e o motivo.
-3. **Given** várias escalas cadastradas para um turno, **When** a chefia consulta o relatório de efetivo mínimo, **Then** o sistema indica se o setor está abaixo do efetivo mínimo esperado.
+1. **Given** um policial penal cadastrado, **When** um supervisor cria uma escala para ele em um turno, data, posto e carga horária, **Then** a escala aparece no relatório de efetivo daquele turno/posto.
+2. **Given** uma escala existente, **When** o supervisor registra uma falta para o policial naquele turno, **Then** o relatório de efetivo reflete a ausência e o motivo.
+3. **Given** várias escalas cadastradas para um turno, **When** a chefia consulta o relatório de efetivo mínimo, **Then** o sistema indica se o posto está abaixo do efetivo mínimo esperado.
 
 ---
 
@@ -182,9 +182,11 @@ Supervisor e chefia/diretor consultam relatórios operacionais (movimentações 
 **Controle de Efetivo**
 
 - **FR-021**: O sistema MUST permitir o cadastro de policiais penais com identificação, matrícula, cargo e unidade.
-- **FR-022**: O sistema MUST permitir criar escalas de serviço associando policial, turno (manhã, tarde, noite), data e setor.
-- **FR-023**: O sistema MUST permitir registrar presença, faltas, abonos e horas extras associados a uma escala.
-- **FR-024**: O sistema MUST gerar relatórios de efetivo mínimo por turno e setor, indicando quando o efetivo está abaixo do mínimo esperado.
+- **FR-022**: O sistema MUST permitir criar escalas de serviço associando policial, turno (diurno ou noturno), data, posto de serviço e carga horária do dia. O cadastro MUST registrar o dia do policial de uma só vez (carga horária e um posto por turno, pelo menos um turno), sem deixar escalas pela metade se algum dado for inválido.
+- **FR-022a**: O sistema MUST manter o cadastro de postos de serviço por unidade (uma galeria, um posto que cobre mais de uma galeria como "A/B", pórtico, garita, Infopen etc.). Somente a Chefia/Diretor MUST poder criar, alterar e desativar postos; o Supervisor apenas escala policiais nos postos existentes. Um posto desativado não recebe novas escalas, mas preserva as já cadastradas.
+- **FR-022b**: A carga horária (1 a 24 horas) MUST ser informada obrigatoriamente ao criar a escala e vale para o **dia** do policial, não para o turno: todas as escalas dele na mesma data têm a mesma carga horária, embora o posto possa mudar de um turno para o outro (ex.: plantão de 24 h, diurno e noturno).
+- **FR-023**: O sistema MUST permitir registrar presença e faltas do policial no dia, valendo para todas as escalas dele na data. A falta MUST descontar do efetivo do posto (não há ninguém no posto) no relatório de efetivo mínimo.
+- **FR-024**: O sistema MUST gerar relatórios de efetivo mínimo por turno e posto, indicando quando o efetivo está abaixo do mínimo esperado.
 
 **Relatórios e Auditoria**
 
@@ -210,7 +212,7 @@ Supervisor e chefia/diretor consultam relatórios operacionais (movimentações 
 - **Tipo de Movimentação**: categoria de movimentação individual (atendimento médico interno/externo, visita, liberdade, tornozeleira, transferência, troca de cela, permuta de cela, troca de galeria, permuta de galeria) e se é temporária ou definitiva. Não inclui pátio/corre/faxina — ver Rotina.
 - **Rotina**: atividade **coletiva** programada (nome, tipo, horários, escopo, status) aplicada a uma galeria/unidade inteira, sem gerar nenhum registro por preso individual (ex.: horário de pátio, horário de corre, horário de faxina, dias/horários de visita). Diferença-chave para Movimentação: Rotina define **quando a galeria é liberada** para a atividade; Movimentação (quando aplicável, ex.: levar um preso específico até sua visita) registra **o deslocamento daquele preso** dentro desse horário.
 - **Horário de Rotina**: um horário específico associado a uma rotina, podendo variar por dia da semana.
-- **Escala de Efetivo**: alocação de um policial penal a um turno, data e setor, incluindo presença/faltas/abonos/horas extras.
+- **Escala de Efetivo**: alocação de um policial penal a um turno, data e posto de serviço, com a carga horária do dia, incluindo presença/faltas.
 - **Log de Auditoria**: registro imutável de uma operação de criação/alteração/remoção, com autor, data/hora, entidade afetada e valores antigos/novos.
 
 ## Success Criteria *(mandatory)*
@@ -231,4 +233,4 @@ Supervisor e chefia/diretor consultam relatórios operacionais (movimentações 
 - Uma rotina "bloqueada"/padrão definida pela Chefia/Diretor não pode ser excluída ou ter seu tipo alterado por Supervisores, apenas ativada/desativada por dia ou ter horários ajustados dentro do permitido.
 - O acesso ao sistema (web para Supervisor/Chefia e mobile para Policial Penal) requer autenticação prévia; o mecanismo específico de autenticação é detalhe de implementação a ser definido na fase de planejamento técnico.
 - Fotos e documentos anexados a presos e situações definitivas são armazenados de forma segura, mas o mecanismo de armazenamento é detalhe de implementação a ser definido na fase de planejamento técnico.
-- Relatórios de efetivo mínimo usam um valor de efetivo mínimo configurável por setor/turno, definido pela Chefia/Diretor; o valor padrão exato não é especificado nesta fase.
+- Relatórios de efetivo mínimo usam um valor de efetivo mínimo configurável por posto/turno, definido pela Chefia/Diretor; o valor padrão exato não é especificado nesta fase.

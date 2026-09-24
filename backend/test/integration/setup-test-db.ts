@@ -54,6 +54,7 @@ async function main(): Promise<void> {
   const tables = [
     'audit_logs',
     'minimum_staffing_config',
+    'posts',
     'staff_schedules',
     'routine_date_overrides',
     'routine_schedules',

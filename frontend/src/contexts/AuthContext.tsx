@@ -1,6 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { apiClient } from '@/services/api-client';
-import { tokenStorage, AUTH_SESSION_EXPIRED_EVENT, AUTH_USER_REFRESHED_EVENT } from '@/services/token-storage';
+import {
+  tokenStorage,
+  AUTH_SESSION_EXPIRED_EVENT,
+  AUTH_USER_REFRESHED_EVENT,
+} from '@/services/token-storage';
 import { AuthContext, type AuthUser } from './auth-context';
 
 interface LoginResponse {

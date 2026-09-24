@@ -1629,3 +1629,61 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
 - **Impact**: substitui a nota anterior de que os cards de rotina não tinham `onPress` — agora
   têm, a tela continua 100% leitura. `tsc --noEmit` do mobile verde; layout validado pelo usuário
   no emulador.
+
+## 47. Postos de serviço (`posts`), dois turnos e carga horária do dia (US5)
+
+- **Contexto** (2026-09-21): a primeira versão da US5 usava três turnos (manhã, tarde, noite) e
+  "setor" como texto livre. O usuário corrigiu, ao testar: só existem **dois turnos** (diurno e
+  noturno); a **carga horária** (ex.: 24 h) é do **dia** do policial e é sempre a mesma nos dois
+  turnos, enquanto o **posto** pode mudar de um turno para o outro; e nem todo posto é uma
+  galeria (pórtico, garita, Infopen) nem uma galeria só (um posto "A/B" cobre as galerias A e B).
+- **Decision — tabela `posts`**: entidade própria por unidade (`name` único, `active`), em vez de
+  reaproveitar `Gallery` ou manter texto livre. Só `WARDEN` cria/renomeia/desativa
+  (`POST`/`PATCH /api/v1/posts`); `SUPERVISOR` só lista para escalar. Desativar é `active=false`
+  (mesmo padrão de Unidade/Galeria/Cela): o posto sai das novas escalas e do efetivo mínimo, mas o
+  histórico de escalas continua apontando para ele. Escala e efetivo mínimo passam a referenciar
+  `post_id`; `sector` e `gallery_id` saem de `staff_schedules`, e `unit_id`/`sector` saem de
+  `minimum_staffing_config` (a unidade vem do posto).
+- **Decision — dois turnos**: `Shift = DAY | NIGHT` (identificadores em inglês, rótulos "Diurno" e
+  "Noturno" só na interface). Na UI, o turno padrão é o corrente (diurno das 07h às 19h).
+- **Decision — carga horária**: `workload_hours` (1 a 24) obrigatório em cada escala, mas
+  semanticamente do dia. A regra "todas as escalas do mesmo policial na mesma data têm o mesmo
+  valor" é validada no service (`422`), não por constraint, porque depende de outras linhas. Na
+  UI, o valor já definido para o dia vem preenchido e travado ao escalar o segundo turno. As
+  opções oferecidas são 6, 8, 12 e 24 h (a API aceita qualquer inteiro de 1 a 24).
+- **Migration** (`AddPostsAndWorkload`): preserva os dados do modelo antigo. Cada setor distinto vira
+  um posto de mesmo nome (escalas sem setor caem em "Não informado"); MORNING/AFTERNOON viram DAY,
+  mantendo uma só linha quando isso colide com as unicidades (a escala mais antiga; o maior
+  mínimo); escalas antigas recebem 12 h por não terem carga horária. O `down` restaura a
+  estrutura, mas não a distinção manhã/tarde.
+- **Alternatives considered**: (1) posto = `Gallery` — rejeitado, há postos que não são galeria e
+  postos que cobrem várias; (2) carga horária como tabela própria por (policial, data) — rejeitado
+  por ora, uma coluna com validação cobre o caso sem uma entidade a mais; (3) manter texto livre
+  para o posto — rejeitado, permitia divergência entre escala e efetivo mínimo por erro de
+  digitação e não dava ao diretor controle do cadastro.
+- **Impact**: contracts/staff.md, data-model.md, spec.md (FR-022, FR-022a, FR-022b, FR-024) e
+  quickstart.md atualizados. `docs/srp_spec_database_model.md` reflete o novo esquema.
+
+## 48. Escala do dia numa única chamada e falta que desconta do efetivo (US5)
+
+- **Contexto** (2026-09-21): a primeira versão de "Nova escala" criava uma escala por turno, então
+  um plantão de 24 h exigia dois cadastros repetindo a carga horária. Além disso, o relatório de
+  efetivo mínimo contava como "escalado" quem já tinha sido marcado com falta, o que escondia
+  postos sem ninguém.
+- **Decision — `POST /schedules` registra o dia**: o corpo passa a ser `{ userId, unitId, date,
+  workloadHours, assignments: [{ shift, postId }] }` (1 ou 2 itens, sem repetir turno) e cria uma
+  escala por item numa **transação** (tudo ou nada); a resposta é `{ data, total }`. Como a carga
+  horária é do dia, ela deixa de ser repetida por turno. Continua possível completar depois o
+  turno que ficou de fora (nova chamada, mesma carga horária, senão `422`; turno já escalado
+  responde `409`).
+- **Decision — falta desconta**: no `GET /schedules/minimum-staffing`, `staffed` passa a ser
+  quem está de fato no posto. Escalas com `attendanceStatus` `ABSENT` saem de
+  `staffed` e entram no novo campo `absent`; presença ainda não registrada (`null`) conta como
+  escalado (é o planejado) e `PRESENT` conta. Não existe abono (só presença e falta). Trocar isso é mudar uma condição no `StaffService`.
+- **Alternatives considered**: (1) manter uma chamada por turno e o frontend chamar duas vezes —
+  rejeitado, a segunda pode falhar e deixar o dia pela metade; (2) endpoint separado só para o dia
+  inteiro — rejeitado, duplicaria a rota sem necessidade, uma escala de um turno só é o caso
+  particular de um item em `assignments`; (3) manter o abono — descartado, o usuário definiu só presença e falta.
+- **Impact**: contracts/staff.md, data-model.md, spec.md (FR-022, FR-023), quickstart.md; frontend
+  (`ScheduleDialog`, `MinimumStaffingSummary`) e testes de integração de `staff`. Sem migration.
+

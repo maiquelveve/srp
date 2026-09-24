@@ -1,18 +1,17 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Unit } from '../../units/entities/unit.entity';
-import { Gallery } from '../../galleries/entities/gallery.entity';
+import { ServicePost } from '../../posts/entities/service-post.entity';
 
+/** Só há dois turnos (FR-022): diurno e noturno. */
 export enum Shift {
-  MORNING = 'MORNING',
-  AFTERNOON = 'AFTERNOON',
+  DAY = 'DAY',
   NIGHT = 'NIGHT',
 }
 
 export enum AttendanceStatus {
   PRESENT = 'PRESENT',
   ABSENT = 'ABSENT',
-  EXCUSED = 'EXCUSED',
 }
 
 @Entity('staff_schedules')
@@ -30,9 +29,10 @@ export class StaffSchedule {
   @JoinColumn({ name: 'unit_id' })
   unit: Unit;
 
-  @ManyToOne(() => Gallery, { nullable: true })
-  @JoinColumn({ name: 'gallery_id' })
-  gallery: Gallery | null;
+  /** Posto onde o policial fica neste turno; pode mudar de um turno para o outro do mesmo dia. */
+  @ManyToOne(() => ServicePost, { nullable: false })
+  @JoinColumn({ name: 'post_id' })
+  post: ServicePost;
 
   @Column({ type: 'date' })
   date: string;
@@ -40,15 +40,16 @@ export class StaffSchedule {
   @Column({ type: 'varchar', length: 20 })
   shift: Shift;
 
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  sector: string | null;
+  /**
+   * Carga horária do policial no DIA (ex.: 24 h), não do turno: é igual em
+   * todas as escalas dele na mesma data (validado no service).
+   */
+  @Column({ type: 'int' })
+  workloadHours: number;
 
   @Column({ type: 'varchar', length: 20, nullable: true })
   attendanceStatus: AttendanceStatus | null;
 
   @Column({ type: 'text', nullable: true })
   absenceReason: string | null;
-
-  @Column({ type: 'numeric', precision: 5, scale: 2, default: 0 })
-  overtimeHours: number;
 }

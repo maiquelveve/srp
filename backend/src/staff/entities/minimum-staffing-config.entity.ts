@@ -7,23 +7,20 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Unit } from '../../units/entities/unit.entity';
 import { User } from '../../users/entities/user.entity';
+import { ServicePost } from '../../posts/entities/service-post.entity';
 import { Shift } from './staff-schedule.entity';
 
-/** Configurable minimum headcount per unit/sector/shift (FR-024, research.md #12). */
+/** Configurable minimum headcount per post/shift (FR-024, research.md #12). */
 @Entity('minimum_staffing_config')
-@Index(['unit', 'sector', 'shift'], { unique: true })
+@Index(['post', 'shift'], { unique: true })
 export class MinimumStaffingConfig {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Unit, { nullable: false })
-  @JoinColumn({ name: 'unit_id' })
-  unit: Unit;
-
-  @Column({ type: 'varchar', length: 100 })
-  sector: string;
+  @ManyToOne(() => ServicePost, { nullable: false })
+  @JoinColumn({ name: 'post_id' })
+  post: ServicePost;
 
   @Column({ type: 'varchar', length: 20 })
   shift: Shift;

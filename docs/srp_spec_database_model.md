@@ -208,6 +208,24 @@ CREATE TABLE movements (
 );
 ```
 
+## Tabela `posts`
+
+Postos de serviço (FR-022a, research.md #47): onde um policial é escalado num turno. Só a
+Chefia/Diretor cria, altera e desativa. Não é o mesmo que `galleries`: há postos que não são
+galeria (pórtico, garita, Infopen) e um posto pode cobrir mais de uma galeria ("A/B").
+
+```sql
+CREATE TABLE posts (
+    id SERIAL PRIMARY KEY,
+    unit_id INTEGER NOT NULL REFERENCES units(id),
+    name VARCHAR(100) NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(unit_id, name)
+);
+```
+
 ## Tabela `staff_schedules`
 
 ```sql
@@ -215,30 +233,29 @@ CREATE TABLE staff_schedules (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id),
     unit_id INTEGER NOT NULL REFERENCES units(id),
-    gallery_id INTEGER REFERENCES galleries(id),
+    post_id INTEGER NOT NULL REFERENCES posts(id),
     date DATE NOT NULL,
-    shift VARCHAR(20) NOT NULL, -- 'MORNING', 'AFTERNOON', 'NIGHT'
-    sector VARCHAR(100), -- 'GALLERY_A', 'FRONT_DESK', etc.
-    attendance_status VARCHAR(20), -- 'PRESENT', 'ABSENT', 'EXCUSED'
-    overtime_hours NUMERIC(5,2) DEFAULT 0,
+    shift VARCHAR(20) NOT NULL, -- 'DAY', 'NIGHT'
+    workload_hours INTEGER NOT NULL, -- carga horária do DIA (1 a 24), igual em todas as escalas do policial na data
+    attendance_status VARCHAR(20), -- 'PRESENT', 'ABSENT'
+    absence_reason TEXT,
     UNIQUE(user_id, date, shift)
 );
 ```
 
 ## Tabela `minimum_staffing_config`
 
-Valor mínimo de efetivo configurável por setor/turno/unidade (FR-024, research.md #12).
+Valor mínimo de efetivo configurável por posto/turno (FR-024, research.md #12).
 
 ```sql
 CREATE TABLE minimum_staffing_config (
     id SERIAL PRIMARY KEY,
-    unit_id INTEGER NOT NULL REFERENCES units(id),
-    sector VARCHAR(100) NOT NULL,
-    shift VARCHAR(20) NOT NULL, -- 'MORNING', 'AFTERNOON', 'NIGHT'
+    post_id INTEGER NOT NULL REFERENCES posts(id),
+    shift VARCHAR(20) NOT NULL, -- 'DAY', 'NIGHT'
     minimum_headcount INTEGER NOT NULL,
     updated_by INTEGER REFERENCES users(id),
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(unit_id, sector, shift)
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(post_id, shift)
 );
 ```
 

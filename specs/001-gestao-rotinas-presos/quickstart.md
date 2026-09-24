@@ -66,15 +66,21 @@ Guia para validar, de ponta a ponta, que o sistema atende às User Stories de
 
 ## Cenário 5 — Controle de efetivo (User Story 5)
 
-1. Login como `WARDEN`; `PATCH /api/v1/staff/minimum-staffing-config` definindo o mínimo de um
-   setor/turno (FR-024, research.md #12). Se necessário, `POST /api/v1/users` com
+1. Login como `WARDEN`; `POST /api/v1/posts` para cadastrar os postos da unidade (ex.: "A/B",
+   "Pórtico"; FR-022a, research.md #47), e `PATCH /api/v1/staff/minimum-staffing-config` definindo o
+   mínimo de um posto/turno (FR-024, research.md #12). Se necessário, `POST /api/v1/users` com
    `role=PRISON_OFFICER` para cadastrar um novo policial (não há endpoint `/staff` separado —
    policial penal é um `User`, research.md #15).
-2. Login como `SUPERVISOR`; `GET /api/v1/users?role=PRISON_OFFICER` para obter o roster, então
-   `POST /api/v1/schedules` para um desses policiais em um turno/data/setor.
+2. Login como `SUPERVISOR`; `GET /api/v1/posts` e `GET /api/v1/users?role=PRISON_OFFICER` para obter
+   postos e roster, então `POST /api/v1/schedules` para um desses policiais com `date`, `workloadHours`
+   (obrigatório) e `assignments` (um posto por turno `DAY`/`NIGHT`, ex.: o plantão de 24 h nos dois
+   turnos, cada um com seu posto). Escalar depois só o outro turno com carga diferente responde
+   `422`.
+   **Esperado**: `SUPERVISOR` recebe `403` em `POST`/`PATCH /api/v1/posts`.
 3. `GET /api/v1/schedules/minimum-staffing?date=&shift=`.
-   **Esperado**: setor aparece com o total escalado; se abaixo do mínimo configurado no passo 1,
-   `belowMinimum=true`.
+   **Esperado**: posto aparece com o efetivo no posto; se abaixo do mínimo configurado no passo 1,
+   `belowMinimum=true`. Depois de `PATCH /api/v1/schedules/:id/attendance` com `ABSENT`, o policial
+   sai de `staffed` e entra em `absent`.
 
 ## Cenário 6 — Relatórios e auditoria (User Story 6)
 

@@ -1,24 +1,39 @@
 import { useState } from 'react';
 import { MoreHorizontalIcon, type LucideIcon } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
+import type { RoleName } from '@/features/structure/types';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import {
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from '@/components/ui/sidebar';
 
 export interface NavDocumentsItem {
   to: string;
   label: string;
   icon: LucideIcon;
+  /** Perfis que veem o item; omitido = todos. A API continua sendo quem autoriza de fato. */
+  roles?: RoleName[];
 }
 
-function DocumentItem({ to, label, icon: Icon, isActive }: NavDocumentsItem & { isActive: boolean }): JSX.Element {
+function DocumentItem({
+  to,
+  label,
+  icon: Icon,
+  isActive,
+}: NavDocumentsItem & { isActive: boolean }): JSX.Element {
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
         asChild
         isActive={isActive}
         className={cn(
-          isActive && '!bg-primary !text-primary-foreground hover:!bg-primary/90 hover:!text-primary-foreground',
+          isActive &&
+            '!bg-primary !text-primary-foreground hover:!bg-primary/90 hover:!text-primary-foreground',
         )}
       >
         <NavLink to={to}>

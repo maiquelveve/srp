@@ -13,6 +13,8 @@ import { CellsModule } from './cells/cells.module';
 import { InmatesModule } from './inmates/inmates.module';
 import { MovementsModule } from './movements/movements.module';
 import { RoutinesModule } from './routines/routines.module';
+import { PostsModule } from './posts/posts.module';
+import { StaffModule } from './staff/staff.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { createGlobalValidationPipe } from './common/pipes/validation-pipe.factory';
 import { RequestLoggingMiddleware } from './common/logging/request-logging.middleware';
@@ -34,6 +36,8 @@ import { RolesGuard } from './auth/guards/roles.guard';
     InmatesModule,
     MovementsModule,
     RoutinesModule,
+    PostsModule,
+    StaffModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

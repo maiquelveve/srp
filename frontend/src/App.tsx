@@ -4,6 +4,10 @@ import HomePage from './pages/HomePage';
 import NotFoundPage from './pages/NotFoundPage';
 import StructurePage from './features/structure';
 import RoutinesPage from './features/routines';
+import StaffPage from './features/staff';
+import MinimumStaffingConfigPage from './features/staff/minimum-staffing';
+import PostsPage from './features/staff/posts';
+import ProfilePage from './features/profile';
 import SettingsPage from './features/settings';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppShell from './layouts/AppShell';
@@ -18,6 +22,10 @@ export default function App(): JSX.Element {
           <Route path="/inicio" element={<HomePage />} />
           <Route path="/mapa-da-unidade" element={<StructurePage />} />
           <Route path="/rotinas" element={<RoutinesPage />} />
+          <Route path="/efetivo" element={<StaffPage />} />
+          <Route path="/efetivo/postos" element={<PostsPage />} />
+          <Route path="/efetivo/configuracao-minima" element={<MinimumStaffingConfigPage />} />
+          <Route path="/perfil" element={<ProfilePage />} />
           <Route path="/configuracoes" element={<SettingsPage />} />
         </Route>
       </Route>

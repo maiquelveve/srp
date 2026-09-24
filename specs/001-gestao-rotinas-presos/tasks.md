@@ -456,23 +456,28 @@ componente e a regra de preferir `Popover`+`Calendar` a `<input type="date">` na
 
 ## Phase 7: User Story 5 - Controle de Efetivo (Priority: P5)
 
-**Goal**: Supervisor cadastra escalas de serviço, registra presença/faltas/abonos/horas extras e consulta efetivo mínimo.
+**Goal**: Supervisor cadastra escalas de serviço, registra presença/faltas e consulta efetivo mínimo.
 
 **Independent Test**: Criar uma escala para um policial em turno/data/setor e confirmar que aparece no relatório de efetivo desse turno.
 
 ### Tests for User Story 5
 
-- [ ] T062 [P] [US5] Backend integration tests for `contracts/staff.md` (incl. schedule uniqueness conflict, and `PATCH /staff/minimum-staffing-config` 403-for-non-WARDEN + persistence, `/speckit-analyze` finding G1-round2) in `backend/test/integration/staff.spec.ts`
+- [X] T062 [P] [US5] Backend integration tests for `contracts/staff.md` (incl. schedule uniqueness conflict, and `PATCH /staff/minimum-staffing-config` 403-for-non-WARDEN + persistence, `/speckit-analyze` finding G1-round2) in `backend/test/integration/staff.spec.ts`
+- [X] T062a [P] [US5] Backend integration tests for Postos de serviço (`POST`/`PATCH`/`GET /api/v1/posts`: WARDEN-only writes, `403` for SUPERVISOR, unique name per unit, deactivation) in `backend/test/integration/posts.spec.ts` (FR-022a, research.md #47)
+
+> **Revisão 2026-09-21 (feedback do usuário ao testar a US5)**: só há dois turnos (diurno/noturno); a carga horária é do dia e obrigatória na escala; "setor" virou "posto de serviço", entidade própria cadastrada só pelo Diretor (research.md #47). T062/T064/T065a/T065b/T066/T067 foram ajustados e T062a/T064a/T067a acrescentados. Segunda revisão (mesmo dia): escala do dia numa única chamada com um posto por turno e falta descontando do efetivo (research.md #48).
 
 ### Implementation for User Story 5
 
 - ~~T063~~ **Removed** (`/speckit-analyze` finding D2, round 3) — redundant with T020a: `GET /api/v1/users?role=&unitId=` (used for the `PRISON_OFFICER` roster, FR-021) is already part of T020a's own contract in `contracts/structure.md`, not a separate increment. No separate Staff entity/module exists (research.md #15).
-- [ ] T064 [US5] Implement Schedules (escalas) with `(user, date, shift)` uniqueness constraint, referencing `User` directly, in `backend/src/staff/` (depends on T020a)
-- [ ] T065 [US5] Implement `PATCH /schedules/:id/attendance` (presença/falta/abono/horas extras) in `backend/src/staff/` (depends on T064)
-- [ ] T065a [P] [US5] Implement `MinimumStaffingConfig` repository/service backed by `minimum_staffing_config` table in `backend/src/staff/` (FR-024, research.md #12, `/speckit-analyze` finding G2; depends on T011)
-- [ ] T065b [US5] Implement `PATCH /api/v1/staff/minimum-staffing-config` per `contracts/staff.md`, restricted to `WARDEN` only, in `backend/src/staff/` (depends on T065a, T019)
-- [ ] T066 [US5] Implement `GET /schedules/minimum-staffing` report reading configured minimums from `minimum_staffing_config` (no hardcoded default) in `backend/src/staff/` (depends on T064, T065a)
-- [ ] T067 [P] [US5] Build web frontend Efetivo/Escalas screens, including minimum-staffing configuration form for `WARDEN`, in `frontend/src/features/staff/` (depends on T065, T065b, T066)
+- [X] T064 [US5] Implement Schedules (escalas) with `(user, date, shift)` uniqueness constraint, referencing `User` directly, in `backend/src/staff/` (depends on T020a)
+- [X] T064a [US5] Implement Posts module (`ServicePost` entity, `/api/v1/posts`) in `backend/src/posts/` and migration `AddPostsAndWorkload` (posts table; `post_id` + `workload_hours` on schedules; `post_id` on minimum staffing config; DAY/NIGHT shifts; data-preserving) — FR-022a/FR-022b, research.md #47
+- [X] T065 [US5] Implement `PATCH /schedules/:id/attendance` (presença/falta) in `backend/src/staff/` (depends on T064)
+- [X] T065a [P] [US5] Implement `MinimumStaffingConfig` repository/service backed by `minimum_staffing_config` table in `backend/src/staff/` (FR-024, research.md #12, `/speckit-analyze` finding G2; depends on T011)
+- [X] T065b [US5] Implement `PATCH /api/v1/staff/minimum-staffing-config` per `contracts/staff.md`, restricted to `WARDEN` only, in `backend/src/staff/` (depends on T065a, T019)
+- [X] T066 [US5] Implement `GET /schedules/minimum-staffing` report reading configured minimums from `minimum_staffing_config` (no hardcoded default) in `backend/src/staff/` (depends on T064, T065a)
+- [X] T067 [P] [US5] Build web frontend Efetivo/Escalas screens, including minimum-staffing configuration form for `WARDEN`, in `frontend/src/features/staff/` (depends on T065, T065b, T066)
+- [X] T067a [US5] Build web Postos de Serviço screen (WARDEN-only create/rename/deactivate/reactivate) in `frontend/src/features/staff/posts/`, plus `Posto` and required `Carga horária do dia` fields in Nova escala (FR-022a/FR-022b)
 
 **Checkpoint**: User Stories 1–5 all work independently
 

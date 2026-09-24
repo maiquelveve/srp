@@ -1,4 +1,5 @@
 import { LogOutIcon, MoreVerticalIcon, UserIcon } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import type { RoleName } from '@/features/structure/types';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -43,7 +44,9 @@ export default function NavUser(): JSX.Element {
       <SidebarMenuItem>
         <div className="flex w-full items-center gap-2 rounded-md p-2 text-sm">
           <Avatar className="h-8 w-8 rounded-lg">
-            <AvatarFallback className="rounded-lg">{user ? initialsOf(user.name) : '?'}</AvatarFallback>
+            <AvatarFallback className="rounded-lg">
+              {user ? initialsOf(user.name) : '?'}
+            </AvatarFallback>
           </Avatar>
           <div className="grid flex-1 text-left text-sm leading-tight">
             <span className="truncate font-medium">{user?.name}</span>
@@ -84,9 +87,11 @@ export default function NavUser(): JSX.Element {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem disabled>
-                <UserIcon />
-                Perfil
+              <DropdownMenuItem asChild>
+                <Link to="/perfil">
+                  <UserIcon />
+                  Perfil
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

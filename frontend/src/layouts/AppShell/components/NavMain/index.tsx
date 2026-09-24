@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
+import type { RoleName } from '@/features/structure/types';
 import { cn } from '@/lib/utils';
 import {
   SidebarGroup,
@@ -13,6 +14,8 @@ export interface NavMainItem {
   to: string;
   label: string;
   icon: LucideIcon;
+  /** Perfis que veem o item; omitido = todos. A API continua sendo quem autoriza de fato. */
+  roles?: RoleName[];
 }
 
 /**

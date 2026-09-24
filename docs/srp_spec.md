@@ -86,7 +86,7 @@ Essas movimentações atualizam o status do preso e geram histórico completo de
 
 - Cadastro de policiais penais: identificação, matrícula, cargo, unidade.
 - Escala de serviço: turnos (manhã, tarde, noite), datas, setores (galeria A, B, portaria, etc.).
-- Registro de presença, faltas, abonos, horas extras.
+- Registro de presença e faltas.
 - Relatórios de efetivo mínimo por turno e setor.
 
 ### 6. Relatórios e Auditoria

@@ -4,6 +4,9 @@ import type { RoleName } from '@/features/structure/types';
 export interface AuthUser {
   id: number;
   name: string;
+  email: string;
+  badgeNumber: string | null;
+  jobTitle: string | null;
   role: RoleName;
   units: number[];
 }

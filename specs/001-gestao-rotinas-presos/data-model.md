@@ -22,7 +22,8 @@ Inmate 1───* CellHistory
 Inmate 1───* Movement *───1 MovementType
 Gallery 1───* Routine 1───* RoutineSchedule
 User(PRISON_OFFICER) 1───* StaffSchedule
-Unit/Gallery/Sector/Shift 1───* MinimumStaffingConfig
+Unit 1───* ServicePost 1───* StaffSchedule
+ServicePost/Shift 1───* MinimumStaffingConfig
 (qualquer entidade) 1───* AuditLog
 ```
 
@@ -262,25 +263,51 @@ implementação de US4 (Fase 6) para suportar `PATCH /routines/:id/activation`
   rotinas com efetividade `true` **e** um `RoutineSchedule` cujo `weekday` bate com a data
   consultada.
 
+### ServicePost (`posts`)
+
+Posto de serviço (FR-022a): onde um policial é escalado num turno. Não é o mesmo que `Gallery`:
+há postos que não são galeria (pórtico, garita, Infopen) e um posto pode cobrir mais de uma
+galeria ("A/B"). Ver research.md #47.
+
+| Campo | Tipo/Regra |
+|---|---|
+| `unit` | referência obrigatória |
+| `name` | obrigatório, até 100 caracteres; único por unidade |
+| `active` | boolean, default `true` |
+| `createdAt`, `updatedAt` | automáticos |
+
+- **Regra**: só `WARDEN` MUST poder criar, renomear e desativar (`POST`/`PATCH /api/v1/posts`);
+  `SUPERVISOR` só consulta para escalar policiais.
+- **Regra**: um posto inativo não recebe novas escalas nem conta no efetivo mínimo, mas as escalas
+  já cadastradas continuam apontando para ele (histórico).
+
 ### StaffSchedule (`staff_schedules`)
 
 | Campo | Tipo/Regra |
 |---|---|
 | `user` (policial) | referência obrigatória |
-| `unit`, `sector` | obrigatório/opcional |
-| `date`, `shift` | `MORNING` \| `AFTERNOON` \| `NIGHT`, obrigatórios |
-| `attendanceStatus`, `absenceReason`, `overtimeHours` | registrados por escala |
+| `unit` | obrigatório |
+| `post` | referência obrigatória a `ServicePost` (mesma unidade, ativo) |
+| `date` | obrigatório |
+| `shift` | `DAY` \| `NIGHT`, obrigatório (FR-022) |
+| `workloadHours` | inteiro 1–24, obrigatório: carga horária do policial no **dia** (FR-022b) |
+| `attendanceStatus`, `absenceReason` | registrados por escala |
 
 - **Regra**: combinação (`user`, `date`, `shift`) é única — um policial não pode ter duas
   escalas conflitantes no mesmo turno/dia.
+- **Regra (FR-022b)**: `workloadHours` é do dia, então todas as escalas do mesmo (`user`, `date`)
+  MUST ter o mesmo valor (ex.: plantão de 24 h = diurno + noturno, ambos com 24). O `post` pode
+  variar de um turno para o outro.
+- **Regra (FR-023/FR-024)**: `attendanceStatus` `ABSENT` (falta) tira o policial
+  do efetivo do posto no relatório de efetivo mínimo; `PRESENT` ou ainda não registrado conta.
 
 ### MinimumStaffingConfig (`minimum_staffing_config`)
 
-Valor mínimo de efetivo configurável por setor/turno/unidade (FR-024, research.md #12).
+Valor mínimo de efetivo configurável por posto/turno (FR-024, research.md #12).
 
 | Campo | Tipo/Regra |
 |---|---|
-| `unit`, `sector`, `shift` | obrigatórios; combinação única |
+| `post`, `shift` | obrigatórios; combinação única |
 | `minimumHeadcount` | inteiro > 0 |
 | `updatedBy` | User (`WARDEN`) |
 

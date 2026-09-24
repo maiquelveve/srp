@@ -16,6 +16,7 @@ import { Movement } from '../movements/entities/movement.entity';
 import { Routine } from '../routines/entities/routine.entity';
 import { RoutineSchedule } from '../routines/entities/routine-schedule.entity';
 import { RoutineDateOverride } from '../routines/entities/routine-date-override.entity';
+import { ServicePost } from '../posts/entities/service-post.entity';
 import { StaffSchedule } from '../staff/entities/staff-schedule.entity';
 import { MinimumStaffingConfig } from '../staff/entities/minimum-staffing-config.entity';
 import { AuditLog } from '../audit/entities/audit-log.entity';
@@ -55,6 +56,7 @@ export const dataSourceOptions: DataSourceOptions = {
     Routine,
     RoutineSchedule,
     RoutineDateOverride,
+    ServicePost,
     StaffSchedule,
     MinimumStaffingConfig,
     AuditLog,
