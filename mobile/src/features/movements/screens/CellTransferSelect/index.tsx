@@ -47,7 +47,7 @@ export default function CellTransferSelect({ navigation, route }: Props): JSX.El
         <TransferTypeOption
           icon={Repeat}
           label="Permuta de cela"
-          detail="Troca o preso com outro, ambos na mesma galeria — sem precisar de vaga."
+          detail="Troca o preso com outro, ambos na mesma galeria. Não precisa de vaga."
           checking={viewModel.checkingAvailability}
           available={viewModel.cellSwapAvailable}
           unavailableReason="Nenhuma outra cela ocupada nesta galeria no momento."

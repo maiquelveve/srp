@@ -1,5 +1,11 @@
 import { Body, Controller, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiForbiddenResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { GalleriesService } from './galleries.service';
 import { CreateGalleryDto } from './dto/create-gallery.dto';
 import { UpdateGalleryDto } from './dto/update-gallery.dto';
@@ -11,10 +17,16 @@ import { JwtPayload } from '../auth/types/jwt-payload.type';
 
 @ApiTags('galleries')
 @ApiBearerAuth()
+@ApiUnauthorizedResponse({ description: 'Token de acesso ausente, inválido ou expirado' })
+@ApiForbiddenResponse({
+  description:
+    'Perfil sem permissão para a operação ou recurso fora do escopo de unidade do usuário',
+})
 @Controller('api/v1/galleries')
 export class GalleriesController {
   constructor(private readonly galleriesService: GalleriesService) {}
 
+  @ApiOperation({ summary: 'Cadastra uma galeria em uma unidade' })
   @Post()
   @Roles(RoleName.WARDEN)
   create(
@@ -24,6 +36,9 @@ export class GalleriesController {
     return this.galleriesService.create(dto, currentUser.units);
   }
 
+  @ApiOperation({
+    summary: 'Altera dados de uma galeria ou a desativa/reativa (desativar propaga para as celas)',
+  })
   @Patch(':id')
   @Roles(RoleName.WARDEN)
   update(

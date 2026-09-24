@@ -11,7 +11,13 @@ import {
   Query,
   Res,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiForbiddenResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import type { Response } from 'express';
 import { MovementsService } from './movements.service';
 import { CreateMovementDto } from './dto/create-movement.dto';
@@ -29,14 +35,22 @@ import { SkipAutoAudit } from '../common/decorators/skip-auto-audit.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { RoleName } from '../roles/entities/role.entity';
 import { JwtPayload } from '../auth/types/jwt-payload.type';
+import { ApiPaginatedResponse } from '../common/decorators/api-paginated-response.decorator';
 
 /** Cobre User Story 2 (FR-008…FR-011a) — contracts/movements.md. Any authenticated role may call these. */
 @ApiTags('movements')
 @ApiBearerAuth()
+@ApiUnauthorizedResponse({ description: 'Token de acesso ausente, inválido ou expirado' })
+@ApiForbiddenResponse({
+  description:
+    'Perfil sem permissão para a operação ou recurso fora do escopo de unidade do usuário',
+})
 @Controller('api/v1/movements')
 export class MovementsController {
   constructor(private readonly movementsService: MovementsService) {}
 
+  @ApiOperation({ summary: 'Lista movimentações com filtros' })
+  @ApiPaginatedResponse(MovementResponseDto)
   @Get()
   list(
     @Query() query: ListMovementsQueryDto,
@@ -45,6 +59,10 @@ export class MovementsController {
     return this.movementsService.list(query, currentUser.units);
   }
 
+  @ApiOperation({
+    summary:
+      'Registra a saída temporária de um preso (aceita Idempotency-Key para sincronização offline)',
+  })
   @Post()
   async create(
     @Body() dto: CreateMovementDto,
@@ -57,6 +75,7 @@ export class MovementsController {
     return result.data;
   }
 
+  @ApiOperation({ summary: 'Corrige dados de uma movimentação existente' })
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -66,6 +85,7 @@ export class MovementsController {
     return this.movementsService.update(id, dto, currentUser.units);
   }
 
+  @ApiOperation({ summary: 'Registra o retorno de uma movimentação temporária' })
   @Patch(':id/return')
   async returnMovement(
     @Param('id', ParseIntPipe) id: number,
@@ -82,6 +102,7 @@ export class MovementsController {
     return result.data;
   }
 
+  @ApiOperation({ summary: 'Registra a liberdade de um preso (somente Chefia/Diretor)' })
   @Post('final/release')
   @Roles(RoleName.WARDEN)
   @SkipAutoAudit() // registerFinal() already records a richer old/new status entry
@@ -92,6 +113,9 @@ export class MovementsController {
     return this.movementsService.createFinalRelease(dto, currentUser);
   }
 
+  @ApiOperation({
+    summary: 'Registra a saída para tornozeleira eletrônica (somente Chefia/Diretor)',
+  })
   @Post('final/ankle-monitor')
   @Roles(RoleName.WARDEN)
   @SkipAutoAudit()
@@ -102,6 +126,9 @@ export class MovementsController {
     return this.movementsService.createFinalAnkleMonitor(dto, currentUser);
   }
 
+  @ApiOperation({
+    summary: 'Registra a transferência de um preso para outra unidade (somente Chefia/Diretor)',
+  })
   @Post('final/transfer')
   @Roles(RoleName.WARDEN)
   @SkipAutoAudit()
@@ -116,6 +143,7 @@ export class MovementsController {
   // permuta de CELA disponíveis a qualquer perfil (nenhum @Roles); troca/
   // permuta de GALERIA restritas a SUPERVISOR/WARDEN.
 
+  @ApiOperation({ summary: 'Troca o preso para outra cela com vaga na mesma galeria' })
   @Post('cell-change')
   @SkipAutoAudit() // registerChange()/registerFinal() already records a richer old/new entry
   createCellChange(
@@ -125,6 +153,7 @@ export class MovementsController {
     return this.movementsService.createCellChange(dto, currentUser);
   }
 
+  @ApiOperation({ summary: 'Permuta duas celas entre dois presos da mesma galeria' })
   @Post('cell-swap')
   @SkipAutoAudit()
   createCellSwap(
@@ -134,6 +163,7 @@ export class MovementsController {
     return this.movementsService.createCellSwap(dto, currentUser);
   }
 
+  @ApiOperation({ summary: 'Troca o preso para uma cela com vaga em outra galeria' })
   @Post('gallery-change')
   @Roles(RoleName.SUPERVISOR, RoleName.WARDEN)
   @SkipAutoAudit()
@@ -144,6 +174,7 @@ export class MovementsController {
     return this.movementsService.createGalleryChange(dto, currentUser);
   }
 
+  @ApiOperation({ summary: 'Permuta de galeria entre dois presos de galerias diferentes' })
   @Post('gallery-swap')
   @Roles(RoleName.SUPERVISOR, RoleName.WARDEN)
   @SkipAutoAudit()

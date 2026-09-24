@@ -46,7 +46,7 @@ export class InconsistenciesReportDto {
   movementsWithoutReturnTotal: number;
   inmatesOutWithoutReason: InmateOutWithoutReasonDto[];
   inmatesOutWithoutReasonTotal: number;
-  routinesNotExecuted: never[];
+  routinesNotExecuted: unknown[];
 }
 
 export class RoutineExecutionItemDto {

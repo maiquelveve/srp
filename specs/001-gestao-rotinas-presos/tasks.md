@@ -511,12 +511,12 @@ componente e a regra de preferir `Popover`+`Calendar` a `<input type="date">` na
 **Purpose**: Improvements that affect multiple user stories
 
 - [ ] T073 [P] Run full `quickstart.md` validation (Cenários 0–8) end-to-end against a seeded environment
-- [ ] T074 [P] Audit codebase for Constitution V/IX/XI violations — no `any`/`@ts-ignore`, no business logic in controllers, no direct DB access outside repositories, no Portuguese identifiers in code/schema
-- [ ] T074a [P] Set up k6 load-test tooling and script `backend/test/load/shift-change.js` simulating 200 concurrent virtual users against login/inmate-lookup/movement flows, with a `p(95)<500` threshold — research.md #14, `/speckit-analyze` finding G4 (depends on T042, T038, T039)
+- [X] T074 [P] Audit codebase for Constitution V/IX/XI violations — no `any`/`@ts-ignore`, no business logic in controllers, no direct DB access outside repositories, no Portuguese identifiers in code/schema
+- [X] T074a [P] Set up k6 load-test tooling and script `backend/test/load/shift-change.js` simulating 200 concurrent virtual users against login/inmate-lookup/movement flows, with a `p(95)<500` threshold — research.md #14, `/speckit-analyze` finding G4 (depends on T042, T038, T039)
 - [ ] T075 [P] Verify performance targets SC-001/SC-003/SC-004 (movement registration <30s, status lookup <5s, p95 <500ms with 200 concurrent users and no 5xx under load per T074a's k6 script)
-- [ ] T076 [P] Complete Swagger/OpenAPI documentation for every `/api/v1` endpoint in `backend/src/`
-- [ ] T077 [P] Update project documentation (`README.md`, module docs) to match implemented behavior (Constitution X)
-- [ ] T078 Verify production build passes lint + build with zero errors for `backend/`, `frontend/`, `mobile/`
+- [X] T076 [P] Complete Swagger/OpenAPI documentation for every `/api/v1` endpoint in `backend/src/`
+- [X] T077 [P] Update project documentation (`README.md`, module docs) to match implemented behavior (Constitution X)
+- [X] T078 Verify production build passes lint + build with zero errors for `backend/`, `frontend/`, `mobile/`
 
 ---
 
@@ -622,3 +622,8 @@ With multiple developers, after Setup + Foundational:
 - [X] T105 Add a database-level guard (migration with `BEFORE UPDATE OR DELETE` trigger, or revoked `UPDATE`/`DELETE` grants on `audit_logs` for the application role) so audit records cannot be altered or removed even by administrative profiles or direct DB access, plus an integration test asserting `UPDATE`/`DELETE` on `audit_logs` is rejected, per FR-027 / Constitution III (partial)
 
 > **Nota de implementação (T105)**: migration `MakeAuditLogsImmutable1790200000000` cria a função `audit_logs_block_change()` e a trigger `audit_logs_immutable` (`BEFORE UPDATE OR DELETE OR TRUNCATE`, por statement) em `audit_logs`; teste em `backend/test/integration/audit-immutability.spec.ts`; `setup-test-db.ts` desliga e religa a trigger só para o reset. Decisões e como operar em research.md #50.
+
+> **Nota de implementação (Phase 9)**: T074, T074a, T076, T077 e T078 concluídas. T073 e T075 ficam abertas só pelo que depende do emulador (que roda no Windows, não no WSL):
+> - **T073**: cenários 0 a 6 validados por `backend/test/quickstart/validate-quickstart.js` (37 de 37) e cenário 8 pelo k6. Falta o **cenário 7** (sincronização offline do app), que precisa do app no emulador.
+> - **T075**: SC-004 medido com k6 (p95 geral de 23,4 ms com 200 usuários, 0 erros e 0 respostas 5xx; ver `backend/test/load/README.md`). SC-001 e SC-003 foram medidos no nível da API (saída, consulta e retorno respondem em dezenas de ms); falta cronometrar o fluxo humano no app (cenário 2, passo 5).
+> Decisões em research.md #51.

@@ -37,9 +37,9 @@ const TRANSFER_LABEL: Record<TransferType, string> = {
 };
 const TRANSFER_DESCRIPTION: Record<TransferType, string> = {
   CELL_CHANGE: 'Move o preso para outra cela com vaga, na mesma galeria.',
-  CELL_SWAP: 'Troca o preso com outro, ambos na mesma galeria — sem precisar de vaga.',
+  CELL_SWAP: 'Troca o preso com outro, ambos na mesma galeria. Não precisa de vaga.',
   GALLERY_CHANGE: 'Move o preso para outra galeria, numa cela com vaga.',
-  GALLERY_SWAP: 'Troca o preso com outro de galeria diferente — sem precisar de vaga.',
+  GALLERY_SWAP: 'Troca o preso com outro de galeria diferente. Não precisa de vaga.',
 };
 const IS_SWAP: Record<TransferType, boolean> = {
   CELL_CHANGE: false,
@@ -392,7 +392,7 @@ export default function CellTransferDialog({
                       <p className="text-xs text-muted-foreground">Consultando ocupantes...</p>
                     ) : destinationCandidates.length === 0 ? (
                       <p className="text-xs text-muted-foreground">
-                        Essa cela não está mais ocupada — escolha outra.
+                        Essa cela não está mais ocupada. Escolha outra.
                       </p>
                     ) : (
                       <>

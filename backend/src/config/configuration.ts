@@ -10,6 +10,11 @@ export interface AppConfig {
   };
   corsAllowedOrigins: string[];
   inviteTokenExpiresIn: string;
+  throttle: {
+    ttlMs: number;
+    limit: number;
+    loginLimit: number;
+  };
 }
 
 function requireEnv(name: string): string {
@@ -33,4 +38,11 @@ export default (): AppConfig => ({
     .map((origin) => origin.trim())
     .filter(Boolean),
   inviteTokenExpiresIn: process.env.INVITE_TOKEN_EXPIRES_IN ?? '24h',
+  // Requests per client IP per window; raised only for load tests, where k6 sends everything from one IP.
+  throttle: {
+    ttlMs: Number(process.env.THROTTLE_TTL_MS ?? 60_000),
+    limit: Number(process.env.THROTTLE_LIMIT ?? 100),
+    // Brute-force guard on POST /auth/login, per client IP per window.
+    loginLimit: Number(process.env.THROTTLE_LOGIN_LIMIT ?? 5),
+  },
 });

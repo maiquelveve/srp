@@ -1,7 +1,8 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { AppConfigModule } from './config/app-config.module';
+import { AppConfigModule, APP_CONFIG } from './config/app-config.module';
+import type { AppConfig } from './config/configuration';
 import { DatabaseModule } from './database/database.module';
 import { CommonModule } from './common/common.module';
 import { AuditModule } from './audit/audit.module';
@@ -26,7 +27,12 @@ import { RolesGuard } from './auth/guards/roles.guard';
   imports: [
     AppConfigModule,
     DatabaseModule,
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+    ThrottlerModule.forRootAsync({
+      inject: [APP_CONFIG],
+      useFactory: (config: AppConfig) => [
+        { ttl: config.throttle.ttlMs, limit: config.throttle.limit },
+      ],
+    }),
     CommonModule,
     AuditModule,
     UsersModule,

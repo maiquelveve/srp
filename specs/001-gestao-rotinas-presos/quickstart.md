@@ -13,6 +13,13 @@ Guia para validar, de ponta a ponta, que o sistema atende às User Stories de
   `SUPERVISOR`, `WARDEN`), 3 MovementTypes (ao menos um `TEMPORARY` e um `PERMANENT`).
 - Frontend web (`frontend/`) e/ou cliente HTTP (curl/Insomnia) para exercitar a API.
 
+> **Automação**: os cenários 0 a 6 são executados por `backend/test/quickstart/validate-quickstart.js`
+> (cabeçalho do arquivo explica como subir um backend isolado) e o cenário 8 por
+> `backend/test/load/shift-change.js` (ver `backend/test/load/README.md`). O cenário 7 e o
+> cronômetro do cenário 2 são manuais e ficam por conta do emulador, que roda no **Windows**:
+> rode o Expo pelo Windows com `EXPO_PUBLIC_API_BASE_URL` apontando para o backend (no emulador
+> Android padrão, `http://10.0.2.2:3000/api/v1`).
+
 ## Cenário 0 — Gestão de usuários (FR-030…FR-032)
 
 1. Login como `WARDEN` (`POST /api/v1/auth/login`).

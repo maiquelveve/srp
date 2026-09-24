@@ -1756,3 +1756,47 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
   externo — excessivo para o escopo.
 - **Impact**: migration nova, `setup-test-db.ts`, teste `audit-immutability.spec.ts`, data-model.md,
   `docs/srp_spec_database_model.md` e tasks.md (T105). Sem mudança na API nem no frontend.
+
+## 51. Fase de polimento: auditoria da Constituição, OpenAPI, carga e validação ponta a ponta
+
+- **Contexto** (2026-09-24): fechamento da Phase 9 (T073 a T078).
+- **Auditoria da Constituição (T074)**:
+  - **V (camadas)**: nenhum controller injeta repositório ou `DataSource` nem contém regra de
+    negócio (só delegam a services); acesso ao banco fica em services via repositórios do TypeORM e
+    no helper `inmates/helpers/countActiveInmatesInScope`. Sem violação.
+  - **XI (idioma)**: varredura dos identificadores TypeScript (backend, frontend, mobile e testes) e
+    dos nomes de tabelas, colunas e valores de enum do esquema: tudo em inglês. Nenhum `any`,
+    `@ts-ignore` ou `@ts-expect-error` no código. Textos de interface em português.
+  - **IX (manutenção)**: achada lógica duplicada, `resolveUnitScope` em `StaffService` e
+    `ReportsService`; unificada em `UnitsService.resolveScope`. Restam 6 `eslint-disable` de
+    `react-hooks/exhaustive-deps` no frontend (efeitos que dependem de valor inicial), aceitos.
+  - **Texto de interface**: frases unidas por travessão (regra de UI registrada pelo usuário)
+    trocadas por frases separadas em 6 pontos (web e mobile). Travessão usado só como marcador de
+    campo vazio (`?? '—'`) foi mantido.
+- **OpenAPI (T076)**: as 54 operações de `/api/v1` têm `@ApiOperation` (resumo em português) e as
+  respostas 401 e 403 nos controllers autenticados. Os esquemas dos DTOs vêm do plugin do Swagger
+  na CLI do Nest (`nest-cli.json`, `classValidatorShim` e `introspectComments`); listas paginadas
+  usam o decorator `ApiPaginatedResponse(Item)`, porque o plugin não resolve genéricos. O teste
+  `swagger.spec.ts` falha se uma operação ficar sem resumo ou sem 401/403. O plugin só age em
+  `nest build`/`nest start`, não sob ts-jest.
+- **Limites de requisição configuráveis**: `THROTTLE_LIMIT`, `THROTTLE_TTL_MS` e
+  `THROTTLE_LOGIN_LIMIT` (padrões 100, 60000 e 5, iguais ao comportamento anterior). Existem só
+  para o teste de carga: o k6 envia tudo de um IP e bateria no 429 (o login tem limite próprio de 5
+  por minuto, que é a proteção contra força bruta e continua ativa por padrão).
+- **Carga (T074a e T075)**: `backend/test/load/shift-change.js` (k6, binário nativo; a imagem Docker
+  não enxerga o `localhost` do WSL). 200 usuários virtuais, backend isolado em `srp_db_test`:
+  p95 geral 23,4 ms (login 106 ms, consulta 11,9 ms, movimentação 27,9 ms), 0% de falha e 0 respostas
+  5xx em 20.212 requisições. SC-004 atendido nesse ambiente; repetir no ambiente de destino.
+- **Validação ponta a ponta (T073)**: `backend/test/quickstart/validate-quickstart.js` executa os
+  cenários 0 a 6 (37 verificações, todas passando) e confirma que nenhuma tentativa negativa
+  responde 5xx. O cenário 7 (fila offline do app) e o cronômetro humano do cenário 2 (SC-001) só
+  podem ser feitos no emulador, que roda no **Windows**; ver o passo a passo em `quickstart.md`.
+- **Alternatives considered**: (1) manter o `resolveUnitScope` duplicado — rejeitado, é regra de
+  escopo de unidade (FR-004a) e divergir dela seria um problema de segurança; (2) descrever o
+  Swagger só com decorators manuais nos DTOs — rejeitado, custo alto e fácil de esquecer; o plugin
+  gera a partir dos tipos; (3) desligar o limite de login no código para o teste — rejeitado, o
+  limite passa a ser configurável e continua em 5 por padrão.
+- **Impact**: `nest-cli.json`, controllers (decorators), `common/decorators/api-paginated-response`,
+  `config/configuration.ts`, `app.module.ts`, `auth.controller.ts`, `units.service.ts`, novos testes
+  e scripts em `backend/test/`, README.md (antes vazio) e `.env.example`. Nenhuma regra de negócio
+  nem migration.

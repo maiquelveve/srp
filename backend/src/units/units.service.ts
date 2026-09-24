@@ -77,6 +77,21 @@ export class UnitsService {
     return UnitResponseDto.fromEntity(await this.findEntityInScope(id, callerUnitIds));
   }
 
+  /**
+   * Unit ids a listing or report should cover: an explicit `unitId` must be in the
+   * caller's scope; otherwise it falls back to all of the caller's units (FR-004a).
+   */
+  async resolveScope(
+    requestedUnitId: number | undefined,
+    callerUnitIds: number[],
+  ): Promise<number[]> {
+    if (requestedUnitId === undefined) {
+      return callerUnitIds;
+    }
+    const unit = await this.findEntityInScope(requestedUnitId, callerUnitIds);
+    return [unit.id];
+  }
+
   /** Used by other modules (Galleries) to validate a unitId is real and in scope. */
   async findEntityInScope(id: number, callerUnitIds: number[]): Promise<Unit> {
     const unit = await this.unitRepository.findOne({ where: { id } });

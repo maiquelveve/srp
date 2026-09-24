@@ -144,7 +144,7 @@ export default function EntityDialog(props: EntityDialogProps): JSX.Element {
               <Label>Status</Label>
               <button type="button" onClick={() => setActive(true)} className="w-fit">
                 <Badge variant={active ? 'success' : 'secondary'}>
-                  {active ? 'Ativo — será reativada ao salvar' : 'Inativo — clique para reativar'}
+                  {active ? 'Ativo. Será reativada ao salvar' : 'Inativo. Clique para reativar'}
                 </Badge>
               </button>
             </div>

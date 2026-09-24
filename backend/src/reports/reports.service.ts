@@ -107,7 +107,7 @@ export class ReportsService {
     query: LongestOutOfCellQueryDto,
     callerUnitIds: number[],
   ): Promise<PaginatedResponseDto<LongestOutOfCellItemDto>> {
-    const unitIds = await this.resolveUnitScope(query.unitId, callerUnitIds);
+    const unitIds = await this.unitsService.resolveScope(query.unitId, callerUnitIds);
     if (unitIds.length === 0) {
       return new PaginatedResponseDto([], 0);
     }
@@ -171,7 +171,7 @@ export class ReportsService {
     report.inmatesOutWithoutReasonTotal = 0;
     report.routinesNotExecuted = [];
 
-    const unitIds = await this.resolveUnitScope(query.unitId, callerUnitIds);
+    const unitIds = await this.unitsService.resolveScope(query.unitId, callerUnitIds);
     if (unitIds.length === 0) {
       return report;
     }
@@ -241,7 +241,7 @@ export class ReportsService {
     report.data = [];
     report.total = 0;
 
-    const unitIds = await this.resolveUnitScope(query.unitId, callerUnitIds);
+    const unitIds = await this.unitsService.resolveScope(query.unitId, callerUnitIds);
     if (unitIds.length === 0) {
       return report;
     }
@@ -297,7 +297,7 @@ export class ReportsService {
     query: StaffVsMovementsQueryDto,
     callerUnitIds: number[],
   ): Promise<PaginatedResponseDto<StaffVsMovementsItemDto>> {
-    const unitIds = await this.resolveUnitScope(query.unitId, callerUnitIds);
+    const unitIds = await this.unitsService.resolveScope(query.unitId, callerUnitIds);
     const items = [Shift.DAY, Shift.NIGHT].map((shift) => {
       const item = new StaffVsMovementsItemDto();
       item.shift = shift;
@@ -405,17 +405,6 @@ export class ReportsService {
       return item;
     });
     return new PaginatedResponseDto(items, total);
-  }
-
-  private async resolveUnitScope(
-    requestedUnitId: number | undefined,
-    callerUnitIds: number[],
-  ): Promise<number[]> {
-    if (requestedUnitId === undefined) {
-      return callerUnitIds;
-    }
-    const unit = await this.unitsService.findEntityInScope(requestedUnitId, callerUnitIds);
-    return [unit.id];
   }
 
   /** Últimos `days` dias (inclusive hoje), em `YYYY-MM-DD`, do mais antigo ao mais recente. */

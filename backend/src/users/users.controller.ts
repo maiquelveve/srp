@@ -1,5 +1,11 @@
 import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiForbiddenResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
@@ -10,14 +16,22 @@ import { SkipAutoAudit } from '../common/decorators/skip-auto-audit.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { RoleName } from '../roles/entities/role.entity';
 import { JwtPayload } from '../auth/types/jwt-payload.type';
+import { ApiPaginatedResponse } from '../common/decorators/api-paginated-response.decorator';
 
 /** Cobre gestão de usuários (FR-030…FR-032) — contracts/structure.md. */
 @ApiTags('users')
 @ApiBearerAuth()
+@ApiUnauthorizedResponse({ description: 'Token de acesso ausente, inválido ou expirado' })
+@ApiForbiddenResponse({
+  description:
+    'Perfil sem permissão para a operação ou recurso fora do escopo de unidade do usuário',
+})
 @Controller('api/v1/users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @ApiOperation({ summary: 'Lista usuários, com filtro por perfil e unidade' })
+  @ApiPaginatedResponse(UserResponseDto)
   @Get()
   @Roles(RoleName.SUPERVISOR, RoleName.WARDEN)
   list(
@@ -27,6 +41,7 @@ export class UsersController {
     return this.usersService.list(query, currentUser.units);
   }
 
+  @ApiOperation({ summary: 'Cadastra um usuário (somente Chefia/Diretor)' })
   @Post()
   @Roles(RoleName.WARDEN)
   create(
@@ -36,6 +51,7 @@ export class UsersController {
     return this.usersService.create(dto, currentUser.units);
   }
 
+  @ApiOperation({ summary: 'Desativa um usuário (somente Chefia/Diretor)' })
   @Patch(':id/deactivate')
   @Roles(RoleName.WARDEN)
   @SkipAutoAudit() // UsersService.deactivate() already records a richer before/after entry

@@ -48,7 +48,7 @@ export class StaffService {
     query: ListSchedulesQueryDto,
     callerUnitIds: number[],
   ): Promise<PaginatedResponseDto<ScheduleResponseDto>> {
-    const unitIds = await this.resolveUnitScope(query.unitId, callerUnitIds);
+    const unitIds = await this.unitsService.resolveScope(query.unitId, callerUnitIds);
     if (unitIds.length === 0) {
       return new PaginatedResponseDto([], 0);
     }
@@ -198,7 +198,7 @@ export class StaffService {
     query: MinimumStaffingQueryDto,
     callerUnitIds: number[],
   ): Promise<MinimumStaffingReportDto> {
-    const unitIds = await this.resolveUnitScope(query.unitId, callerUnitIds);
+    const unitIds = await this.unitsService.resolveScope(query.unitId, callerUnitIds);
     const postTotals = new Map<number, MinimumStaffingPostDto>();
     const totalsFor = (postId: number, postName: string): MinimumStaffingPostDto => {
       let totals = postTotals.get(postId);
@@ -239,18 +239,6 @@ export class StaffService {
       .sort((first, second) => first.postName.localeCompare(second.postName));
 
     return { date: query.date, shift: query.shift, posts };
-  }
-
-  /** An explicit `unitId` must be in the caller's scope; otherwise fall back to all of the caller's units. */
-  private async resolveUnitScope(
-    requestedUnitId: number | undefined,
-    callerUnitIds: number[],
-  ): Promise<number[]> {
-    if (requestedUnitId === undefined) {
-      return callerUnitIds;
-    }
-    const unit = await this.unitsService.findEntityInScope(requestedUnitId, callerUnitIds);
-    return [unit.id];
   }
 
   private async findOfficerInUnit(userId: number, unitId: number): Promise<User> {

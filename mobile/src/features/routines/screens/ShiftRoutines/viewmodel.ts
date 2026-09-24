@@ -32,7 +32,7 @@ export function useShiftRoutinesViewModel({ navigation, route }: Props) {
   }
 
   return {
-    title: `Rotinas — ${unitCode}`,
+    title: `Rotinas: ${unitCode}`,
     goToRoutineDetail,
     galleries,
     selectedGalleryId: activeGalleryId,

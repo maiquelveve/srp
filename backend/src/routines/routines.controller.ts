@@ -11,7 +11,15 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiForbiddenResponse,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { RoutinesService } from './routines.service';
 import { CreateRoutineDto } from './dto/create-routine.dto';
 import { UpdateRoutineScheduleDto } from './dto/update-routine-schedule.dto';
@@ -23,14 +31,25 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { RoleName } from '../roles/entities/role.entity';
 import { JwtPayload } from '../auth/types/jwt-payload.type';
+import { ApiPaginatedResponse } from '../common/decorators/api-paginated-response.decorator';
 
 /** Cobre User Story 4 (FR-017…FR-020) — contracts/routines.md. */
 @ApiTags('routines')
 @ApiBearerAuth()
+@ApiUnauthorizedResponse({ description: 'Token de acesso ausente, inválido ou expirado' })
+@ApiForbiddenResponse({
+  description:
+    'Perfil sem permissão para a operação ou recurso fora do escopo de unidade do usuário',
+})
 @Controller('api/v1/routines')
 export class RoutinesController {
   constructor(private readonly routinesService: RoutinesService) {}
 
+  @ApiPaginatedResponse(RoutineResponseDto)
+  @ApiOperation({
+    summary:
+      'Lista as rotinas programadas para uma data e turno, com filtros por unidade e galeria',
+  })
   @Get()
   list(
     @Query() query: ListRoutinesQueryDto,
@@ -39,6 +58,7 @@ export class RoutinesController {
     return this.routinesService.list(query, currentUser.units);
   }
 
+  @ApiOperation({ summary: 'Cadastra uma rotina (somente Chefia/Diretor)' })
   @Post()
   @Roles(RoleName.WARDEN)
   create(
@@ -48,6 +68,7 @@ export class RoutinesController {
     return this.routinesService.create(dto, currentUser);
   }
 
+  @ApiOperation({ summary: 'Ajusta os horários de uma rotina' })
   @Patch(':id/schedule')
   @Roles(RoleName.SUPERVISOR, RoleName.WARDEN)
   updateSchedule(
@@ -58,6 +79,16 @@ export class RoutinesController {
     return this.routinesService.updateSchedule(id, dto, currentUser);
   }
 
+  @ApiOperation({ summary: 'Ativa ou desativa uma rotina, por padrão ou para uma data específica' })
+  @ApiOkResponse({
+    schema: {
+      properties: {
+        routineId: { type: 'integer' },
+        date: { type: 'string', format: 'date' },
+        active: { type: 'boolean' },
+      },
+    },
+  })
   @Patch(':id/activation')
   @Roles(RoleName.SUPERVISOR, RoleName.WARDEN)
   updateActivation(
@@ -68,6 +99,8 @@ export class RoutinesController {
     return this.routinesService.updateActivation(id, dto, currentUser);
   }
 
+  @ApiOperation({ summary: 'Remove uma rotina (somente Chefia/Diretor)' })
+  @ApiNoContentResponse({ description: 'Rotina removida' })
   @Delete(':id')
   @Roles(RoleName.WARDEN)
   @HttpCode(HttpStatus.NO_CONTENT)
