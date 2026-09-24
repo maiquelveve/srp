@@ -272,6 +272,17 @@ CREATE TABLE audit_logs (
     new_data JSONB, -- idem
     timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Imutável (Constituição III, FR-027): qualquer UPDATE, DELETE ou TRUNCATE falha.
+CREATE FUNCTION audit_logs_block_change() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    RAISE EXCEPTION 'audit_logs is immutable: % is not allowed', TG_OP
+        USING ERRCODE = 'restrict_violation';
+END;
+$$;
+CREATE TRIGGER audit_logs_immutable
+    BEFORE UPDATE OR DELETE OR TRUNCATE ON audit_logs
+    FOR EACH STATEMENT EXECUTE FUNCTION audit_logs_block_change();
 ```
 
 ## Índices

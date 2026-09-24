@@ -1720,3 +1720,39 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
   sem limite; (3) criar `routine_executions` agora — adiado.
 - **Impact**: contracts/reports-audit.md, tasks.md (T068–T072), testes `reports-audit.spec.ts`. Sem
   migration.
+
+## 50. Imutabilidade de `audit_logs` garantida no banco (trigger)
+
+- **Contexto** (2026-09-24): a FR-027 e a Constituição III exigem que a auditoria nunca seja alterada
+  ou removida, "mesmo por perfis administrativos". Até aqui isso valia só porque nenhuma API expunha
+  `UPDATE`/`DELETE`; quem tivesse acesso direto ao banco (ou um bug futuro) ainda podia mexer.
+  Fechado como T105 do `/speckit-converge`.
+- **Decision — trigger em vez de permissões**: a migration `MakeAuditLogsImmutable1790200000000` cria
+  a função `audit_logs_block_change()` (dispara `RAISE EXCEPTION 'audit_logs is immutable: <op> is not
+  allowed'`, `ERRCODE restrict_violation`) e a trigger `audit_logs_immutable`
+  (`BEFORE UPDATE OR DELETE OR TRUNCATE`, `FOR EACH STATEMENT`). `INSERT` continua livre, então o
+  `AuditService` e o `AuditInterceptor` não mudaram. Linhas antigas não foram alteradas.
+- **Por que não `REVOKE UPDATE, DELETE`**: a aplicação conecta como `root`, que é dono da tabela e
+  superusuário no ambiente atual; revogar privilégio de dono/superusuário não tem efeito. A trigger
+  vale para qualquer usuário. Se um dia houver um usuário de aplicação separado sem privilégio de
+  alteração, pode-se somar a revogação como segunda camada.
+- **Como operar**:
+  - Aplicar: `npm run migration:run` (em `backend/`). Já aplicada no banco de desenvolvimento em
+    2026-09-24; o banco de teste recebe a migration em `pretest:integration`.
+  - Reverter: `npm run migration:revert` remove a trigger e a função.
+  - Verificar: `\d audit_logs` no `psql` lista `audit_logs_immutable`; ou
+    `BEGIN; UPDATE audit_logs SET action = 'LOGIN' WHERE id = 1; ROLLBACK;` deve falhar.
+  - **Reset dos testes**: `setup-test-db.ts` faz `TRUNCATE ... CASCADE` (que atinge `audit_logs`);
+    por isso desliga a trigger (`ALTER TABLE audit_logs DISABLE TRIGGER audit_logs_immutable`) só
+    durante o reset e a religa em seguida (`finally`). Qualquer novo script que precise esvaziar
+    tabelas pai (`users`, `roles`) com `CASCADE` precisa do mesmo cuidado.
+  - **Nova migration que altere dados de `audit_logs`** (ex.: corrigir uma coluna) falha; ela precisa
+    desligar e religar a trigger de forma explícita e justificada.
+- **Limite conhecido**: dono da tabela ou superusuário ainda consegue desligar ou remover a trigger.
+  Isso só se resolve com controle de acesso ao servidor do banco e backups; a trigger protege contra
+  erro, bug e uso indevido pela aplicação, não contra quem administra o banco.
+- **Alternatives considered**: (1) só `REVOKE` — sem efeito com `root`; (2) regra `RULE ... DO
+  INSTEAD NOTHING` — falha em silêncio, escondendo tentativas; (3) tabela particionada ou WORM
+  externo — excessivo para o escopo.
+- **Impact**: migration nova, `setup-test-db.ts`, teste `audit-immutability.spec.ts`, data-model.md,
+  `docs/srp_spec_database_model.md` e tasks.md (T105). Sem mudança na API nem no frontend.

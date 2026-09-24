@@ -327,6 +327,9 @@ Valor mínimo de efetivo configurável por posto/turno (FR-024, research.md #12)
 - **Regra (Constituição III / FR-026/FR-027)**: imutável após criado — nenhuma API expõe
   update/delete para esta entidade; gerado automaticamente pelo `AuditInterceptor`
   (research.md #6) para toda operação de escrita relevante.
+- **Regra (Constituição III / FR-027, research.md #50)**: a imutabilidade também é garantida
+  **no banco** — a trigger `audit_logs_immutable` rejeita `UPDATE`, `DELETE` e `TRUNCATE` para
+  qualquer usuário, inclusive o dono da tabela. `INSERT` segue livre.
 - **Regra (Constituição II / research.md #6)**: `oldData`/`newData` MUST substituir o valor de
   campos sensíveis (`passwordHash`, `tokenHash`, e demais marcados `@Sensitive()`) por
   `"[REDACTED]"` antes de persistir.

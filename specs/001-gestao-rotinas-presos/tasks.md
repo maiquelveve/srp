@@ -619,4 +619,6 @@ With multiple developers, after Setup + Foundational:
 
 ## Phase 10: Convergence
 
-- [ ] T105 Add a database-level guard (migration with `BEFORE UPDATE OR DELETE` trigger, or revoked `UPDATE`/`DELETE` grants on `audit_logs` for the application role) so audit records cannot be altered or removed even by administrative profiles or direct DB access, plus an integration test asserting `UPDATE`/`DELETE` on `audit_logs` is rejected, per FR-027 / Constitution III (partial)
+- [X] T105 Add a database-level guard (migration with `BEFORE UPDATE OR DELETE` trigger, or revoked `UPDATE`/`DELETE` grants on `audit_logs` for the application role) so audit records cannot be altered or removed even by administrative profiles or direct DB access, plus an integration test asserting `UPDATE`/`DELETE` on `audit_logs` is rejected, per FR-027 / Constitution III (partial)
+
+> **Nota de implementação (T105)**: migration `MakeAuditLogsImmutable1790200000000` cria a função `audit_logs_block_change()` e a trigger `audit_logs_immutable` (`BEFORE UPDATE OR DELETE OR TRUNCATE`, por statement) em `audit_logs`; teste em `backend/test/integration/audit-immutability.spec.ts`; `setup-test-db.ts` desliga e religa a trigger só para o reset. Decisões e como operar em research.md #50.

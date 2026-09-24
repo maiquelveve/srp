@@ -72,9 +72,17 @@ async function main(): Promise<void> {
     'users',
     'roles',
   ];
-  await AppDataSource.query(
-    `TRUNCATE ${tables.map((t) => `"${t}"`).join(', ')} RESTART IDENTITY CASCADE;`,
-  );
+  // `audit_logs` is immutable in production (migration MakeAuditLogsImmutable), so
+  // the reset has to switch its trigger off first and back on right after. Only the
+  // table owner can do this, which is exactly the guarantee the trigger gives.
+  await AppDataSource.query(`ALTER TABLE "audit_logs" DISABLE TRIGGER "audit_logs_immutable"`);
+  try {
+    await AppDataSource.query(
+      `TRUNCATE ${tables.map((t) => `"${t}"`).join(', ')} RESTART IDENTITY CASCADE;`,
+    );
+  } finally {
+    await AppDataSource.query(`ALTER TABLE "audit_logs" ENABLE TRIGGER "audit_logs_immutable"`);
+  }
 
   const roleRepo = AppDataSource.getRepository(Role);
   const unitRepo = AppDataSource.getRepository(Unit);
