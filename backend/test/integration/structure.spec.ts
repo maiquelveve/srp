@@ -532,4 +532,42 @@ describe('Structure endpoints (contracts/structure.md)', () => {
       });
     });
   });
+
+  describe('simultaneous inmate registrations (Constituição IV)', () => {
+    it('never overfills a cell: eight registrations into the last vacancy, one wins and seven get 400', async () => {
+      await app.listen(0);
+      const url = await app.getUrl();
+      const galleryRes = await request(url)
+        .post('/api/v1/galleries')
+        .set('Authorization', `Bearer ${wardenToken}`)
+        .send({ unitId: TEST_FIXTURE.unitAId, code: `RACE-${Date.now()}`, type: 'MALE' });
+      const cellRes = await request(url)
+        .post('/api/v1/cells')
+        .set('Authorization', `Bearer ${wardenToken}`)
+        .send({
+          galleryId: (galleryRes.body as { id: number }).id,
+          code: '01',
+          capacity: 1,
+          type: 'INDIVIDUAL',
+        });
+      const cellId = (cellRes.body as { id: number }).id;
+
+      const responses = await Promise.all(
+        Array.from({ length: 8 }, (_, index) => `Preso Corrida ${index}`).map((name) =>
+          request(url)
+            .post('/api/v1/inmates')
+            .set('Authorization', `Bearer ${wardenToken}`)
+            .send({ name, currentCellId: cellId }),
+        ),
+      );
+
+      expect(responses.map((response) => response.status).sort()).toEqual([
+        201, 400, 400, 400, 400, 400, 400, 400,
+      ]);
+      const inCell = await request(url)
+        .get(`/api/v1/inmates?cellId=${cellId}&status=ACTIVE`)
+        .set('Authorization', `Bearer ${wardenToken}`);
+      expect((inCell.body as { data: unknown[] }).data).toHaveLength(1);
+    });
+  });
 });

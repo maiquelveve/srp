@@ -10,7 +10,7 @@ import { InmatesService } from '../../src/inmates/inmates.service';
 import { CellsService } from '../../src/cells/cells.service';
 import { CellHistoryService } from '../../src/inmates/cell-history.service';
 import { AuditService } from '../../src/audit/audit.service';
-import { Inmate } from '../../src/inmates/entities/inmate.entity';
+import { Inmate, InmateStatus } from '../../src/inmates/entities/inmate.entity';
 import { Cell } from '../../src/cells/entities/cell.entity';
 import { JwtPayload } from '../../src/auth/types/jwt-payload.type';
 import { RoleName } from '../../src/roles/entities/role.entity';
@@ -36,15 +36,36 @@ function mockQueryBuilder(getOneResult: unknown): Partial<SelectQueryBuilder<Mov
   return qb;
 }
 
+/** Row returned by the lock query on the movement (`lockMovementRow`), used by update/return. */
+function mockMovementLockRow(
+  repository: MockRepository<Movement>,
+  row: { returnDateTime: Date | null; returnIdempotencyKey: string | null },
+): void {
+  (repository.createQueryBuilder as jest.Mock).mockReturnValue({
+    setLock: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    getRawOne: jest.fn().mockResolvedValue(row),
+  });
+}
+
 describe('MovementsService', () => {
   let service: MovementsService;
   let movementRepository: MockRepository<Movement>;
   let movementTypesService: { findById: jest.Mock };
   let inmatesService: { findEntityInScope: jest.Mock };
   let cellsService: { findEntityInScope: jest.Mock };
+  let manager: {
+    getRepository: jest.Mock;
+    findOne: jest.Mock;
+    create: jest.Mock;
+    save: jest.Mock;
+    update: jest.Mock;
+  };
 
   const currentUser: JwtPayload = { sub: 1, role: RoleName.PRISON_OFFICER, units: [1] };
-  const inmate = { id: 101 } as Inmate;
+  const inmate = { id: 101, status: InmateStatus.ACTIVE } as Inmate;
   const cell = { id: 42 } as Cell;
   const user = { id: 1 };
   const temporaryType = {
@@ -64,11 +85,34 @@ describe('MovementsService', () => {
     inmatesService = { findEntityInScope: jest.fn().mockResolvedValue(inmate) };
     cellsService = { findEntityInScope: jest.fn().mockResolvedValue(cell) };
 
+    // create() runs check + insert inside dataSource.transaction; the manager delegates to the mock repository.
+    const lockQueryBuilder = {
+      setLock: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOneOrFail: jest.fn().mockResolvedValue(inmate),
+    };
+    manager = {
+      getRepository: jest.fn((entity: unknown) =>
+        entity === Inmate
+          ? { createQueryBuilder: jest.fn().mockReturnValue(lockQueryBuilder) }
+          : movementRepository,
+      ),
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn((_entity: unknown, x: unknown) => x),
+      save: jest.fn((x: unknown) => movementRepository.save!(x)),
+      update: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MovementsService,
         { provide: getRepositoryToken(Movement), useValue: movementRepository },
-        { provide: getDataSourceToken(), useValue: { transaction: jest.fn() } },
+        {
+          provide: getDataSourceToken(),
+          useValue: {
+            transaction: jest.fn((work: (m: typeof manager) => Promise<unknown>) => work(manager)),
+          },
+        },
         { provide: MovementTypesService, useValue: movementTypesService },
         { provide: InmatesService, useValue: inmatesService },
         { provide: CellsService, useValue: cellsService },
@@ -85,6 +129,27 @@ describe('MovementsService', () => {
       (movementRepository.createQueryBuilder as jest.Mock).mockReturnValue(
         mockQueryBuilder({ id: 555 }),
       );
+
+      await expect(
+        service.create(
+          {
+            inmateId: 101,
+            movementTypeId: 4,
+            originCellId: 42,
+            destinationLocation: 'Enfermaria',
+            reason: 'Consulta',
+          },
+          currentUser,
+        ),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(movementRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects a temporary exit for an inmate that is not ACTIVE (409)', async () => {
+      inmatesService.findEntityInScope.mockResolvedValue({
+        ...inmate,
+        status: InmateStatus.RELEASED,
+      });
 
       await expect(
         service.create(
@@ -196,6 +261,10 @@ describe('MovementsService', () => {
         returnDateTime: new Date('2026-01-01T00:00:00Z'),
         user,
       });
+      mockMovementLockRow(movementRepository, {
+        returnDateTime: new Date('2026-01-01T00:00:00Z'),
+        returnIdempotencyKey: null,
+      });
 
       await expect(service.update(1, { destinationLocation: 'Ala B' }, [1])).rejects.toBeInstanceOf(
         ConflictException,
@@ -233,6 +302,7 @@ describe('MovementsService', () => {
       };
       movementRepository.findOne!.mockResolvedValue(open);
       movementRepository.save!.mockImplementation((m) => Promise.resolve(m));
+      mockMovementLockRow(movementRepository, { returnDateTime: null, returnIdempotencyKey: null });
 
       const result = await service.update(
         1,
@@ -257,9 +327,13 @@ describe('MovementsService', () => {
         returnIdempotencyKey: null,
         user,
       });
+      mockMovementLockRow(movementRepository, {
+        returnDateTime: new Date('2026-01-01T00:00:00Z'),
+        returnIdempotencyKey: null,
+      });
 
       await expect(service.returnMovement(1, {}, [1])).rejects.toBeInstanceOf(ConflictException);
-      expect(movementRepository.save).not.toHaveBeenCalled();
+      expect(manager.update).not.toHaveBeenCalled();
     });
 
     it('allows a matching Idempotency-Key replay of an already-returned movement', async () => {
@@ -273,11 +347,15 @@ describe('MovementsService', () => {
         user,
       };
       movementRepository.findOne!.mockResolvedValue(returned);
+      mockMovementLockRow(movementRepository, {
+        returnDateTime: returned.returnDateTime,
+        returnIdempotencyKey: 'return-key',
+      });
 
       const result = await service.returnMovement(1, {}, [1], 'return-key');
 
       expect(result.returned).toBe(false);
-      expect(movementRepository.save).not.toHaveBeenCalled();
+      expect(manager.update).not.toHaveBeenCalled();
     });
 
     it('records the return on an open movement', async () => {
@@ -291,13 +369,13 @@ describe('MovementsService', () => {
         user,
       };
       movementRepository.findOne!.mockResolvedValue(open);
-      movementRepository.save!.mockImplementation((m) => Promise.resolve(m));
+      mockMovementLockRow(movementRepository, { returnDateTime: null, returnIdempotencyKey: null });
 
       const result = await service.returnMovement(1, {}, [1]);
 
       expect(result.returned).toBe(true);
       expect(result.data.returnDateTime).not.toBeNull();
-      expect(movementRepository.save).toHaveBeenCalled();
+      expect(manager.update).toHaveBeenCalled();
     });
   });
 });

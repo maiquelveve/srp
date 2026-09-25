@@ -290,6 +290,58 @@ describe('Movements endpoints — troca/permuta de cela e galeria (contracts/mov
     });
   });
 
+  describe('simultaneous requests (Constituição IV)', () => {
+    let url: string;
+
+    beforeAll(async () => {
+      // Listen on a real port: parallel supertest calls against an un-listened server flake with ECONNRESET.
+      await app.listen(0);
+      url = await app.getUrl();
+    });
+
+    function post(path: string, token: string, body: Record<string, unknown>) {
+      return request(url).post(path).set('Authorization', `Bearer ${token}`).send(body);
+    }
+
+    it('never overfills a cell: two cell-changes into the last vacancy, one wins and one gets 400', async () => {
+      const galleryId = await createGallery();
+      const originCellId = await createCell(galleryId, '01', 4);
+      const destCellId = await createCell(galleryId, '02', 1);
+      const firstInmateId = await createInmate('Preso Vaga A', originCellId);
+      const secondInmateId = await createInmate('Preso Vaga B', originCellId);
+
+      const responses = await Promise.all(
+        [firstInmateId, secondInmateId].map((inmateId) =>
+          post('/api/v1/movements/cell-change', officerToken, {
+            inmateId,
+            destinationCellId: destCellId,
+            reason: 'Corrida pela última vaga',
+          }),
+        ),
+      );
+
+      expect(responses.map((response) => response.status).sort()).toEqual([201, 400]);
+      expect(await cellOccupancy(destCellId, galleryId)).toBe(1);
+    });
+
+    it('registers only one of two simultaneous liberdades for the same inmate (201 and 409)', async () => {
+      const galleryId = await createGallery();
+      const cellId = await createCell(galleryId, '01', 2);
+      const inmateId = await createInmate('Preso Liberdade Dupla', cellId);
+
+      const responses = await Promise.all(
+        [1, 2].map(() =>
+          post('/api/v1/movements/final/release', wardenToken, {
+            inmateId,
+            reason: 'Alvará duplicado',
+          }),
+        ),
+      );
+
+      expect(responses.map((response) => response.status).sort()).toEqual([201, 409]);
+    });
+  });
+
   describe('Bloqueio com movimentação temporária em aberto', () => {
     async function openTemporaryMovement(inmateId: number, cellId: number): Promise<void> {
       await request(app.getHttpServer())

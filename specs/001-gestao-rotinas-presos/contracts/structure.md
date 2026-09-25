@@ -26,6 +26,7 @@ autenticação; escritas exigem perfil `WARDEN` (Chefia/Diretor) (FR-004), excet
 
 - `POST /users` e `PATCH /users/:id/deactivate` MUST responder `403` para qualquer perfil
   diferente de `WARDEN` (FR-032).
+- `POST /users` MUST responder `409` (nunca `500`) quando o e-mail ou a matrícula já pertencem a outro usuário, inclusive quando dois cadastros iguais chegam ao mesmo tempo: o banco tem constraint única nos dois campos e o erro dele é traduzido (FR-030).
 - A senha inicial de um usuário criado via `POST /users` MUST ser gerada pelo backend e nunca
   retornada em texto claro na resposta da API nem persistida sem hash — comunicada via fluxo
   fora de banda (ex.: link de definição de senha com token de uso único), ver research.md #10.

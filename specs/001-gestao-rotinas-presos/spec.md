@@ -8,6 +8,15 @@
 
 **Input**: User description: "~\projetos\spr\docs\srp_spec.md" — sistema digital para gestão das rotinas operacionais do sistema prisional do Rio Grande do Sul, substituindo o controle atual baseado em folhas impressas por um registro eletrônico estruturado e auditável, cobrindo cadastro de presos/unidades/celas, movimentações, situações definitivas, rotinas, controle de efetivo e relatórios/auditoria.
 
+## Clarifications
+
+### Session 2026-09-25
+
+- Q: Como o relatório de inconsistências identifica "rotinas não executadas", se o sistema não registra a execução de uma rotina? → A: Rotina programada que o Supervisor desativou para a data conta como não executada; sem desativação, conta como executada. Nenhum registro manual de execução é criado.
+- Q: O que o sistema faz quando duas rotinas da mesma galeria têm horários sobrepostos? → A: Avisa ("sobrepõe a rotina X") e quem está salvando decide se confirma; não impede o cadastro. Sobreposição = mesmo horário de início, na mesma galeria, em dia em comum (a rotina não tem duração).
+- Q: Os turnos de trabalho são diurno e noturno ou manhã, tarde e noite? (a seção Assumptions dizia três períodos e o FR-022 dizia dois) → A: Somente diurno e noturno.
+- Q: Como corrigir uma liberdade, tornozeleira ou transferência registrada por engano? → A: Reversão feita somente pela Chefia/Diretor: o preso volta a "ativo" numa cela com vaga escolhida na hora, com motivo obrigatório; o registro errado permanece no histórico e a reversão é uma nova movimentação, auditada.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Cadastro e Mapa da Unidade (Priority: P1)
@@ -64,6 +73,7 @@ Chefia/Diretor registra situações em que o preso deixa definitivamente a unida
 6. **Given** um preso ativo numa unidade com vaga disponível em outra galeria da mesma unidade, **When** um Supervisor ou a Chefia/Diretor registra uma troca de galeria, **Then** o preso passa a constar como ocupante da nova galeria/cela e a cela antiga é liberada.
 7. **Given** dois presos ativos em galerias diferentes, **When** um Supervisor ou a Chefia/Diretor registra uma permuta de galeria escolhendo a cela do segundo preso como destino, **Then** o sistema exibe o preso que ocupa essa cela para confirmação e, ao confirmar, os dois presos trocam de galeria/cela simultaneamente, sem que nenhuma vaga seja exigida.
 8. **Given** um Policial Penal autenticado, **When** ele tenta registrar uma troca de galeria, uma permuta de galeria, ou qualquer uma de liberdade/tornozeleira/transferência, **Then** o sistema nega a operação por falta de permissão — apenas troca e permuta de cela (mesma galeria) estão disponíveis para ele, tanto no aplicativo móvel quanto no painel web.
+9. **Given** um preso com liberdade, tornozeleira ou transferência registrada por engano, **When** a Chefia/Diretor registra a reversão informando o motivo e uma cela com vaga, **Then** o status do preso volta para "ativo", ele passa a ocupar a cela escolhida, o registro original permanece no histórico e a reversão consta como nova movimentação; um Supervisor ou Policial Penal que tente a reversão é negado por falta de permissão.
 
 ---
 
@@ -123,10 +133,10 @@ Supervisor e chefia/diretor consultam relatórios operacionais (movimentações 
 - Como o sistema trata presos com movimentação temporária em aberto por tempo muito superior ao esperado (sem retorno registrado)?
 - O que acontece quando uma cela já está na sua capacidade máxima e uma nova movimentação, troca de cela ou troca de galeria tenta alocar mais um preso nela? (Não se aplica a permuta de cela/galeria — a troca é simultânea entre duas celas já ocupadas, nunca exige vaga.)
 - O que acontece se, entre a escolha da cela de destino e a confirmação de uma permuta (de cela ou de galeria), o preso que ocupava aquela cela deixar de ocupá-la (outra movimentação/situação registrada nesse intervalo)?
-- Como o sistema lida com duas rotinas com horários sobrepostos configuradas para a mesma galeria?
+- Como o sistema lida com duas rotinas com horários sobrepostos configuradas para a mesma galeria? → Ao salvar, o sistema MUST avisar qual rotina se sobrepõe; quem está salvando (Chefia/Diretor ao criar, ou Supervisor ao ajustar horários) confirma para salvar mesmo assim. O cadastro não é bloqueado. Como a rotina só tem horário de início (sem duração), o aviso cobre apenas o **mesmo horário de início**: outra rotina ativa da mesma galeria com o mesmo horário em um dia em comum. Cruzamento de intervalos (ex.: 14:00 e 14:30 com duração de 1 hora) não é detectado; exigiria um horário de término na rotina, decisão adiada.
 - O que acontece se dois usuários tentam registrar simultaneamente uma movimentação de saída para o mesmo preso (condição de corrida)?
 - O que acontece quando um supervisor tenta desativar uma rotina marcada como padrão/bloqueada pela chefia?
-- Como o sistema exibe o status de um preso que teve uma situação definitiva (liberdade, transferência) registrada por engano — existe fluxo de correção ou apenas nova movimentação corretiva com trilha de auditoria?
+- Como o sistema exibe o status de um preso que teve uma situação definitiva (liberdade, transferência) registrada por engano? → A Chefia/Diretor registra uma reversão (FR-016a); o registro original não é apagado nem alterado.
 
 ## Requirements *(mandatory)*
 
@@ -171,6 +181,7 @@ Supervisor e chefia/diretor consultam relatórios operacionais (movimentações 
 - **FR-015b**: O sistema MUST permitir registrar troca de galeria de um preso: ele sai de sua cela atual e passa a ocupar uma cela **com vaga disponível em outra galeria**. Restrito aos perfis Supervisor e Chefia/Diretor, disponível apenas no painel web.
 - **FR-015c**: O sistema MUST permitir registrar permuta de galeria entre dois presos de galerias diferentes, com a mesma mecânica de confirmação da FR-015a (escolher destino, confirmar com o preso exibido) — nenhuma vaga é exigida. Restrito aos perfis Supervisor e Chefia/Diretor, disponível apenas no painel web.
 - **FR-016**: Ao registrar liberdade, tornozeleira ou transferência, o sistema MUST atualizar o status do preso e liberar a cela de origem. Ao registrar troca ou permuta de cela/galeria (FR-015–FR-015c), o sistema MUST manter o status do preso como "ativo" e apenas atualizar sua cela atual, liberando a cela de origem. Em qualquer um desses casos, o sistema MUST manter um histórico completo de localização do preso (linha do tempo de celas, unidades e regimes).
+- **FR-016a**: O sistema MUST permitir que a Chefia/Diretor (e somente ela) reverta uma liberdade, tornozeleira ou transferência registrada por engano, tanto no painel web quanto pela API. A reversão MUST exigir motivo (FR-008a) e a escolha de uma cela com vaga disponível no momento da reversão, devolver o status do preso para "ativo" e registrar uma nova movimentação, mantendo a movimentação original intacta no histórico de localização e na auditoria (FR-026/FR-027).
 
 **Rotinas**
 
@@ -190,7 +201,7 @@ Supervisor e chefia/diretor consultam relatórios operacionais (movimentações 
 
 **Relatórios e Auditoria**
 
-- **FR-025**: O sistema MUST gerar relatórios de: movimentações por preso em um período; presos com maior tempo fora da cela; inconsistências (movimentações sem retorno, presos fora da cela sem motivo, rotinas não executadas); execução de rotinas por turno/unidade; efetivo por turno versus movimentações realizadas; e histórico de ocupação de celas e galerias.
+- **FR-025**: O sistema MUST gerar relatórios de: movimentações por preso em um período; presos com maior tempo fora da cela; inconsistências (movimentações sem retorno, presos fora da cela sem motivo, rotinas não executadas — rotina programada que o Supervisor desativou para a data; sem desativação considera-se executada, pois não há registro de execução); execução de rotinas por turno/unidade; efetivo por turno versus movimentações realizadas; e histórico de ocupação de celas e galerias.
 - **FR-026**: O sistema MUST registrar um log de auditoria para toda operação que criar, alterar ou remover dados relevantes, contendo usuário responsável, data/hora, ação executada, entidade afetada, valores anteriores (quando aplicável) e novos valores, conforme os princípios de Auditabilidade da Constituição do projeto.
 - **FR-027**: Os registros de auditoria MUST ser imutáveis após criados — nenhum perfil de usuário pode alterá-los ou excluí-los.
 - **FR-028**: O acesso a relatórios de efetivo e à auditoria completa do sistema MUST ser restrito aos perfis Supervisor e Chefia/Diretor, conforme aplicável a cada relatório.
@@ -229,7 +240,7 @@ Supervisor e chefia/diretor consultam relatórios operacionais (movimentações 
 ## Assumptions
 
 - Cada preso está associado a exatamente uma cela ativa por vez; movimentações temporárias não alteram a cela de origem registrada, apenas o status "fora da cela".
-- O turno de trabalho é organizado em três períodos padrão (manhã, tarde, noite), conforme prática comum em unidades prisionais; períodos adicionais poderão ser configurados futuramente se necessário.
+- O turno de trabalho tem apenas dois períodos: diurno e noturno (FR-022). Não existe divisão em manhã, tarde e noite.
 - Uma rotina "bloqueada"/padrão definida pela Chefia/Diretor não pode ser excluída ou ter seu tipo alterado por Supervisores, apenas ativada/desativada por dia ou ter horários ajustados dentro do permitido.
 - O acesso ao sistema (web para Supervisor/Chefia e mobile para Policial Penal) requer autenticação prévia; o mecanismo específico de autenticação é detalhe de implementação a ser definido na fase de planejamento técnico.
 - Fotos e documentos anexados a presos e situações definitivas são armazenados de forma segura, mas o mecanismo de armazenamento é detalhe de implementação a ser definido na fase de planejamento técnico.

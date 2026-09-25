@@ -13,6 +13,7 @@ import {
 import { structureApi } from '../../api';
 import type { Gallery } from '../../types';
 import InmateDialog from '../InmateDialog';
+import DefinitiveSituations from '../DefinitiveSituations';
 import MovementDialog from '../../../movements/components/MovementDialog';
 import FinalSituationDialog from '../../../movements/components/FinalSituationDialog';
 import CellTransferDialog from '../../../movements/components/CellTransferDialog';
@@ -252,6 +253,8 @@ function CellRowInmates({
           })}
         </>
       )}
+
+      {isWarden && <DefinitiveSituations cellId={cellId} galleries={galleries} />}
 
       {isWarden && (
         <div className="flex justify-end pt-1">

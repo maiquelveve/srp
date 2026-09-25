@@ -39,4 +39,9 @@ export class CreateRoutineDto {
   @ArrayMinSize(1)
   @ArrayMaxSize(3)
   schedules: RoutineScheduleItemDto[];
+
+  /** `true` = a Chefia viu o aviso de horário sobreposto (409) e confirma salvar mesmo assim. */
+  @IsOptional()
+  @IsBoolean()
+  confirmOverlap?: boolean;
 }

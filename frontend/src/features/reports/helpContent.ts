@@ -48,7 +48,8 @@ export const REPORT_HELP = {
   inconsistencies: {
     icon: SearchXIcon,
     title: 'Inconsistências',
-    summary: 'Situações que precisam de atenção: saídas que não voltaram e saídas sem motivo.',
+    summary:
+      'Situações que precisam de atenção: saídas que não voltaram, saídas sem motivo e rotinas desativadas.',
     shows: [
       {
         label: 'Saídas sem retorno',
@@ -58,13 +59,18 @@ export const REPORT_HELP = {
         label: 'Fora da cela sem motivo',
         text: 'Presos com saída em aberto e sem o motivo preenchido.',
       },
+      {
+        label: 'Rotinas não executadas',
+        text: 'Rotinas que o supervisor desativou para um dia dos últimos 7 dias.',
+      },
     ],
     howItWorks: [
       'Escolha o prazo esperado de retorno, de 1 a 72 horas.',
       'Só entram saídas que ainda estão em aberto.',
+      'Uma rotina que não foi desativada para o dia conta como executada.',
       'Cada lista tem a sua própria paginação.',
     ],
-    note: 'Rotinas não executadas não aparecem aqui. O sistema não registra quando uma rotina acontece.',
+    note: 'O sistema não registra quando uma rotina acontece. Por isso só a desativação do dia conta como não executada.',
   },
   byInmate: {
     icon: UserRoundSearchIcon,

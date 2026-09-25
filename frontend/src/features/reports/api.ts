@@ -29,6 +29,7 @@ export const reportsApi = {
     limit: number;
     withoutReturnOffset: number;
     withoutReasonOffset: number;
+    notExecutedOffset: number;
   }) =>
     apiClient
       .get<InconsistenciesReport>('/reports/inconsistencies', { params })

@@ -37,8 +37,8 @@ export class LongestOutOfCellQueryDto extends PageQueryDto {
 }
 
 /**
- * `GET /reports/inconsistencies?unitId=&thresholdHours=&limit=&withoutReturnOffset=&withoutReasonOffset=`
- * (FR-025, SC-005). As duas listas são paginadas de forma independente.
+ * `GET /reports/inconsistencies?unitId=&thresholdHours=&limit=&withoutReturnOffset=&withoutReasonOffset=&notExecutedOffset=`
+ * (FR-025, SC-005). As três listas são paginadas de forma independente.
  */
 export class InconsistenciesQueryDto {
   @IsOptional()
@@ -66,6 +66,11 @@ export class InconsistenciesQueryDto {
   @IsInt()
   @Min(0)
   withoutReasonOffset?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  notExecutedOffset?: number;
 }
 
 /** `GET /reports/routine-execution?unitId=&days=&limit=&offset=` (FR-025). */

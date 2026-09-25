@@ -36,17 +36,27 @@ export class InmateOutWithoutReasonDto {
   exitDateTime: Date;
 }
 
+export class RoutineNotExecutedDto {
+  routineId: number;
+  routineName: string;
+  galleryId: number;
+  galleryCode: string;
+  /** Data (YYYY-MM-DD) para a qual o Supervisor desativou a rotina. */
+  date: string;
+}
+
 /**
- * `routinesNotExecuted` is always empty: routines are collective schedules
- * (FR-017, Entidades-Chave) and the system records no execution event for
- * them, so non-execution cannot be detected (see tasks.md T069 note).
+ * `routinesNotExecuted` (FR-025): o sistema não registra a execução de uma
+ * rotina coletiva, então "não executada" = rotina que o Supervisor desativou
+ * para uma data do período; sem desativação, considera-se executada.
  */
 export class InconsistenciesReportDto {
   movementsWithoutReturn: MovementWithoutReturnDto[];
   movementsWithoutReturnTotal: number;
   inmatesOutWithoutReason: InmateOutWithoutReasonDto[];
   inmatesOutWithoutReasonTotal: number;
-  routinesNotExecuted: unknown[];
+  routinesNotExecuted: RoutineNotExecutedDto[];
+  routinesNotExecutedTotal: number;
 }
 
 export class RoutineExecutionItemDto {

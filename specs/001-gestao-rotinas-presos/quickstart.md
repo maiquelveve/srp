@@ -29,6 +29,11 @@ Guia para validar, de ponta a ponta, que o sistema atende às User Stories de
    **Esperado**: `403 Forbidden` (FR-032).
 4. `PATCH /api/v1/users/:id/deactivate` no usuário criado no passo 2.
    **Esperado**: `200`; login subsequente desse usuário retorna `401`.
+5. Com um access token e um refresh token que o usuário já tinha antes da desativação, chamar
+   qualquer rota autenticada e `POST /api/v1/auth/refresh`.
+   **Esperado**: `401` nos dois casos, na hora, sem esperar o token expirar (FR-031). Coberto por
+   `backend/test/integration/users-deactivation.spec.ts`, porque o script do quickstart não tem
+   senha do usuário recém-criado (ele entra pelo fluxo de convite).
 
 ## Cenário 1 — Cadastro e Mapa da Unidade (User Story 1)
 
@@ -59,6 +64,14 @@ Guia para validar, de ponta a ponta, que o sistema atende às User Stories de
    **Esperado**: `201`; `inmates.status` muda para `RELEASED`; a cela é liberada.
 3. `GET /api/v1/inmates/:id/location-history`.
    **Esperado**: histórico mostra a entrada original na cela e a saída por liberdade (FR-016).
+   Em seguida, `GET /api/v1/audit?table=movements&recordId=<id da liberdade>`.
+   **Esperado**: um registro `INSERT` da própria movimentação, com o motivo (FR-026, SC-002).
+4. Como `SUPERVISOR`, `POST /api/v1/movements/final/reversal` para o mesmo preso.
+   **Esperado**: `403` (FR-016a, só a Chefia reverte).
+5. Como `WARDEN`, `POST /api/v1/movements/final/reversal` com `inmateId`, `destinationCellId` (cela
+   com vaga) e `reason`.
+   **Esperado**: `201`; `inmates.status` volta a `ACTIVE`; `GET /api/v1/movements?inmateId=` lista a
+   liberdade original e a reversão; repetir a chamada retorna `409` (preso já ativo).
 
 ## Cenário 4 — Gestão de rotinas (User Story 4)
 
@@ -70,6 +83,10 @@ Guia para validar, de ponta a ponta, que o sistema atende às User Stories de
    rotina; nos demais dias, lista normalmente.
 3. Como `SUPERVISOR`, tentar `POST /api/v1/routines` (criar nova rotina).
    **Esperado**: `403` (FR-003/FR-019).
+4. Como `WARDEN`, `POST /api/v1/routines` com outra rotina no mesmo horário e na mesma galeria.
+   **Esperado**: `409` com `details.code = ROUTINE_SCHEDULE_OVERLAP`; repetir com
+   `confirmOverlap: true` retorna `201`. O aviso cobre só o mesmo horário de início (a rotina não
+   tem duração).
 
 ## Cenário 5 — Controle de efetivo (User Story 5)
 
@@ -102,6 +119,10 @@ Guia para validar, de ponta a ponta, que o sistema atende às User Stories de
    (research.md #6).
 5. Repetir o passo 3 autenticado como `PRISON_OFFICER`.
    **Esperado**: `403` (FR-028).
+6. `GET /api/v1/reports/inconsistencies` como `SUPERVISOR`, depois de desativar uma rotina para hoje
+   (Cenário 4).
+   **Esperado**: `routinesNotExecuted` lista essa rotina com a data de hoje (FR-025); uma rotina que
+   não foi desativada não aparece.
 
 ## Cenário 7 — Sincronização offline do app móvel (FR-011a)
 

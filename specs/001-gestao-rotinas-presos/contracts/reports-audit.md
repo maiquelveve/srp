@@ -6,7 +6,7 @@ Cobre User Story 6 (FR-025…FR-028).
 |---|---|---|---|
 | GET | `/api/v1/reports/movements-by-inmate/:inmateId?days=30` | SUPERVISOR, WARDEN | Movimentações de um preso no período (FR-025). |
 | GET | `/api/v1/reports/longest-out-of-cell?unitId=&days=30&limit=10` | SUPERVISOR, WARDEN | Presos com maior tempo fora da cela. |
-| GET | `/api/v1/reports/inconsistencies?unitId=&thresholdHours=24` | SUPERVISOR, WARDEN | Movimentações sem retorno além do prazo, presos fora da cela sem motivo. `routinesNotExecuted` é sempre `[]` (rotinas coletivas não têm registro de execução). |
+| GET | `/api/v1/reports/inconsistencies?unitId=&thresholdHours=24` | SUPERVISOR, WARDEN | Movimentações sem retorno além do prazo, presos fora da cela sem motivo. `routinesNotExecuted` lista as rotinas que o Supervisor desativou para uma data dos últimos 7 dias (rotinas coletivas não têm registro de execução: sem desativação, conta como executada, FR-025). |
 | GET | `/api/v1/reports/routine-execution?unitId=&days=7` | SUPERVISOR, WARDEN | Ocorrências programadas × desativadas por data, por rotina (`executionTracked: false`: não há registro de execução para medir cumprimento/atraso). |
 | GET | `/api/v1/reports/staff-vs-movements?date=&unitId=` | SUPERVISOR, WARDEN | Efetivo por turno (diurno 07h–19h, America/Sao_Paulo) versus movimentações realizadas. |
 | GET | `/api/v1/reports/cell-occupancy-history?cellId=&from=&to=` | SUPERVISOR, WARDEN | Histórico de ocupação de uma cela/galeria. |
@@ -16,9 +16,9 @@ Cobre User Story 6 (FR-025…FR-028).
 
 As listas dos relatórios são paginadas no servidor: `limit` (padrão 25, máximo 100) e `offset` (padrão 0),
 com `total` na resposta (`{ data, total }`). Valores fora do intervalo respondem `400`.
-`/reports/inconsistencies` tem duas listas paginadas de forma independente: `limit`,
-`withoutReturnOffset` e `withoutReasonOffset`, com `movementsWithoutReturnTotal` e
-`inmatesOutWithoutReasonTotal`. `/reports/staff-vs-movements` sempre devolve os dois turnos e não pagina.
+`/reports/inconsistencies` tem três listas paginadas de forma independente: `limit`,
+`withoutReturnOffset`, `withoutReasonOffset` e `notExecutedOffset`, com `movementsWithoutReturnTotal`,
+`inmatesOutWithoutReasonTotal` e `routinesNotExecutedTotal`. `/reports/staff-vs-movements` sempre devolve os dois turnos e não pagina.
 
 ## Regras
 
@@ -37,6 +37,9 @@ Response 200:
   "movementsWithoutReturn": [
     { "movementId": 5501, "inmateId": 101, "exitDateTime": "2026-08-01T08:00:00Z", "hoursOpen": 29 }
   ],
-  "routinesNotExecuted": []
+  "routinesNotExecuted": [
+    { "routineId": 12, "routineName": "Pátio", "galleryId": 3, "galleryCode": "A", "date": "2026-08-09" }
+  ],
+  "routinesNotExecutedTotal": 1
 }
 ```

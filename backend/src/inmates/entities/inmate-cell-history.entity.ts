@@ -16,6 +16,7 @@ export enum CellHistoryReason {
   CELL_SWAP = 'CELL_SWAP',
   GALLERY_CHANGE = 'GALLERY_CHANGE',
   GALLERY_SWAP = 'GALLERY_SWAP',
+  REVERSAL = 'REVERSAL',
 }
 
 /** Timeline used to reconstruct an inmate's location history (FR-016). */

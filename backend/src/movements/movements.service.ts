@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Movement } from './entities/movement.entity';
 import { MovementCategory } from './entities/movement-type.entity';
 import { MovementTypesService } from './movement-types.service';
@@ -16,6 +16,7 @@ import { ListMovementsQueryDto } from './dto/list-movements-query.dto';
 import { MovementResponseDto } from './dto/movement-response.dto';
 import { FinalReleaseDto } from './dto/final-release.dto';
 import { FinalAnkleMonitorDto } from './dto/final-ankle-monitor.dto';
+import { FinalReversalDto } from './dto/final-reversal.dto';
 import { FinalTransferDto } from './dto/final-transfer.dto';
 import { CellTransferDto } from './dto/cell-transfer.dto';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
@@ -54,6 +55,10 @@ interface FinalMovementInput {
   cellHistoryReason: CellHistoryReason;
   /** `null` means the inmate stays ACTIVE (troca de cela) — only currentCell changes. */
   newStatus: InmateStatus | null;
+  /** Checks (under a lock, inside the transaction) that `destinationCell` still has a vacancy. */
+  requireVacancy?: boolean;
+  /** Only the reversal acts on an inmate that is NOT active; every other operation requires ACTIVE. */
+  allowNonActiveInmate?: boolean;
 }
 
 const MOVEMENT_RELATIONS = {
@@ -125,6 +130,7 @@ export class MovementsService {
     }
 
     const inmate = await this.inmatesService.findEntityInScope(dto.inmateId, currentUser.units);
+    this.assertInmateActive(inmate);
     const originCell = await this.cellsService.findEntityInScope(
       dto.originCellId,
       currentUser.units,
@@ -138,28 +144,55 @@ export class MovementsService {
     }
 
     // FR-010 — no more than one open TEMPORARY movement per inmate at a time.
-    await this.assertNoOpenTemporaryMovement(inmate.id, 'Preso já possui movimentação em aberto');
+    // Check + insert run in one transaction holding a row lock on the inmate, so two
+    // simultaneous exits for the same inmate serialize instead of both succeeding.
+    const outcome = await this.dataSource.transaction(async (manager) => {
+      const lockedInmate = await manager
+        .getRepository(Inmate)
+        .createQueryBuilder('inmate')
+        .setLock('pessimistic_write')
+        .where('inmate.id = :id', { id: inmate.id })
+        .getOneOrFail();
+      this.assertInmateActive(lockedInmate);
 
-    const movement = await this.movementRepository.save(
-      this.movementRepository.create({
-        inmate,
-        movementType,
-        originCell,
-        destinationLocation: dto.destinationLocation,
-        reason: dto.reason ?? null,
-        notes: dto.notes ?? null,
-        exitDateTime: dto.exitDateTime ? new Date(dto.exitDateTime) : new Date(),
-        returnDateTime: null,
-        idempotencyKey: idempotencyKey ?? null,
-        user: { id: currentUser.sub } as User,
-      }),
-    );
-    movement.inmate = inmate;
-    movement.movementType = movementType;
-    movement.originCell = originCell;
-    movement.user = { id: currentUser.sub } as User;
+      if (idempotencyKey) {
+        // A concurrent request with the same key may have committed while we waited for the lock.
+        const replay = await manager.findOne(Movement, {
+          where: { idempotencyKey },
+          relations: MOVEMENT_RELATIONS,
+        });
+        if (replay) {
+          return { data: MovementResponseDto.fromEntity(replay), created: false };
+        }
+      }
 
-    return { data: MovementResponseDto.fromEntity(movement), created: true };
+      await this.assertNoOpenTemporaryMovement(
+        inmate.id,
+        'Preso já possui movimentação em aberto',
+        manager,
+      );
+
+      const saved = await manager.save(
+        manager.create(Movement, {
+          inmate,
+          movementType,
+          originCell,
+          destinationLocation: dto.destinationLocation,
+          reason: dto.reason ?? null,
+          notes: dto.notes ?? null,
+          exitDateTime: dto.exitDateTime ? new Date(dto.exitDateTime) : new Date(),
+          returnDateTime: null,
+          idempotencyKey: idempotencyKey ?? null,
+          user: { id: currentUser.sub } as User,
+        }),
+      );
+      saved.inmate = inmate;
+      saved.movementType = movementType;
+      saved.originCell = originCell;
+      saved.user = { id: currentUser.sub } as User;
+      return { data: MovementResponseDto.fromEntity(saved), created: true };
+    });
+    return outcome;
   }
 
   /**
@@ -175,12 +208,6 @@ export class MovementsService {
     callerUnitIds: number[],
   ): Promise<MovementResponseDto> {
     const movement = await this.findEntityInScope(id, callerUnitIds);
-
-    if (movement.returnDateTime !== null) {
-      throw new ConflictException(
-        'Não é possível editar uma movimentação que já possui retorno registrado',
-      );
-    }
 
     if (dto.movementTypeId !== undefined) {
       const movementType = await this.movementTypesService.findById(dto.movementTypeId);
@@ -201,7 +228,16 @@ export class MovementsService {
       movement.notes = dto.notes;
     }
 
-    await this.movementRepository.save(movement);
+    // Lock + check + save together: a return registered in the meantime must win (409), not be overwritten.
+    await this.dataSource.transaction(async (manager) => {
+      const current = await this.lockMovementRow(manager, id);
+      if (current.returnDateTime !== null) {
+        throw new ConflictException(
+          'Não é possível editar uma movimentação que já possui retorno registrado',
+        );
+      }
+      await manager.save(movement);
+    });
     return MovementResponseDto.fromEntity(movement);
   }
 
@@ -213,22 +249,37 @@ export class MovementsService {
   ): Promise<ReturnMovementResult> {
     const movement = await this.findEntityInScope(id, callerUnitIds);
 
-    if (movement.returnDateTime !== null) {
-      // FR-009 edge case — already-returned movement MUST 409, unless this is
-      // a legitimate offline retry of the exact same return (idempotency-key
-      // section of contracts/movements.md, applied here the same way it's
-      // applied to POST /movements).
-      if (idempotencyKey && movement.returnIdempotencyKey === idempotencyKey) {
-        return { data: MovementResponseDto.fromEntity(movement), returned: false };
+    // Check + write under a lock on the movement row (FR-009): two simultaneous returns
+    // serialize, so the second sees the first one instead of overwriting its return time.
+    return this.dataSource.transaction(async (manager) => {
+      const current = await this.lockMovementRow(manager, id);
+
+      if (current.returnDateTime !== null) {
+        // FR-009 edge case — already-returned movement MUST 409, unless this is
+        // a legitimate offline retry of the exact same return (idempotency-key
+        // section of contracts/movements.md, applied here the same way it's
+        // applied to POST /movements).
+        if (idempotencyKey && current.returnIdempotencyKey === idempotencyKey) {
+          movement.returnDateTime = current.returnDateTime;
+          movement.returnIdempotencyKey = current.returnIdempotencyKey;
+          return { data: MovementResponseDto.fromEntity(movement), returned: false };
+        }
+        throw new ConflictException('Movimentação já possui retorno registrado');
       }
-      throw new ConflictException('Movimentação já possui retorno registrado');
-    }
 
-    movement.returnDateTime = dto.returnDateTime ? new Date(dto.returnDateTime) : new Date();
-    movement.returnIdempotencyKey = idempotencyKey ?? null;
-    await this.movementRepository.save(movement);
+      movement.returnDateTime = dto.returnDateTime ? new Date(dto.returnDateTime) : new Date();
+      movement.returnIdempotencyKey = idempotencyKey ?? null;
+      await manager.update(
+        Movement,
+        { id },
+        {
+          returnDateTime: movement.returnDateTime,
+          returnIdempotencyKey: movement.returnIdempotencyKey,
+        },
+      );
 
-    return { data: MovementResponseDto.fromEntity(movement), returned: true };
+      return { data: MovementResponseDto.fromEntity(movement), returned: true };
+    });
   }
 
   /** POST /api/v1/movements/final/release — contracts/movements.md (FR-012). */
@@ -286,6 +337,49 @@ export class MovementsService {
         exitDateTime: dto.exitDateTime,
         cellHistoryReason: CellHistoryReason.TRANSFER,
         newStatus: InmateStatus.TRANSFERRED,
+      },
+      currentUser,
+    );
+  }
+
+  /**
+   * POST /api/v1/movements/final/reversal — contracts/movements.md (FR-016a).
+   * Desfaz liberdade/tornozeleira/transferência registrada por engano sem
+   * apagar nada: cria uma nova movimentação, o preso volta a ACTIVE na cela
+   * escolhida (com vaga) e o registro original segue no histórico.
+   */
+  async createFinalReversal(
+    dto: FinalReversalDto,
+    currentUser: JwtPayload,
+  ): Promise<MovementResponseDto> {
+    const inmate = await this.inmatesService.findEntityInScope(dto.inmateId, currentUser.units);
+    if (inmate.status === InmateStatus.ACTIVE) {
+      throw new ConflictException('Preso já está ativo — não há situação definitiva para reverter');
+    }
+    if (inmate.status === InmateStatus.DECEASED) {
+      throw new ConflictException('Preso falecido não pode ter a situação revertida');
+    }
+
+    const destinationCell = await this.cellsService.findEntityInScope(
+      dto.destinationCellId,
+      currentUser.units,
+    );
+    if (!destinationCell.active) {
+      throw new BadRequestException('Cela de destino está inativa');
+    }
+    return this.registerFinal(
+      {
+        inmateId: dto.inmateId,
+        movementTypeName: 'Reversão de situação definitiva',
+        destinationLocation: `Cela ${destinationCell.code}`,
+        destinationCell,
+        reason: dto.reason,
+        notes: dto.notes ?? null,
+        exitDateTime: dto.exitDateTime,
+        cellHistoryReason: CellHistoryReason.REVERSAL,
+        newStatus: InmateStatus.ACTIVE,
+        requireVacancy: true,
+        allowNonActiveInmate: true,
       },
       currentUser,
     );
@@ -371,11 +465,6 @@ export class MovementsService {
       options.movementTypeName,
     );
 
-    const occupancy = await this.cellsService.occupancyOf(destinationCell.id);
-    if (occupancy >= destinationCell.capacity) {
-      throw new BadRequestException('Cela de destino já está na capacidade máxima');
-    }
-
     return this.registerFinal(
       {
         inmateId: dto.inmateId,
@@ -387,6 +476,7 @@ export class MovementsService {
         exitDateTime: dto.exitDateTime,
         cellHistoryReason: options.cellHistoryReason,
         newStatus: null,
+        requireVacancy: true,
       },
       currentUser,
     );
@@ -412,10 +502,7 @@ export class MovementsService {
     },
   ): Promise<MovementResponseDto[]> {
     const inmateA = await this.inmatesService.findEntityInScope(dto.inmateId, currentUser.units);
-    await this.assertNoOpenTemporaryMovement(
-      inmateA.id,
-      'Preso possui movimentação temporária em aberto — registre o retorno antes de continuar',
-    );
+    this.assertInmateActive(inmateA);
     // Same reason as registerChange() — re-fetch via CellsService for a
     // gallery-hydrated Cell, since inmate.currentCell.gallery isn't loaded.
     const cellA = await this.cellsService.findEntityInScope(
@@ -444,15 +531,23 @@ export class MovementsService {
         'O preso de destino não está mais nessa cela — escolha novamente',
       );
     }
-    await this.assertNoOpenTemporaryMovement(
-      inmateB.id,
-      'O outro preso da permuta possui movimentação temporária em aberto — registre o retorno antes de continuar',
-    );
 
     const movementType = await this.movementTypesService.findByName(options.movementTypeName);
     const actingUser = { id: currentUser.sub } as User;
 
     const [movementA, movementB] = await this.dataSource.transaction(async (manager) => {
+      await this.lockAndRevalidateInmates(manager, [
+        {
+          inmate: inmateA,
+          openMovementMessage:
+            'Preso possui movimentação temporária em aberto — registre o retorno antes de continuar',
+        },
+        {
+          inmate: inmateB,
+          openMovementMessage:
+            'O outro preso da permuta possui movimentação temporária em aberto — registre o retorno antes de continuar',
+        },
+      ]);
       const savedA = await manager.save(
         manager.create(Movement, {
           inmate: inmateA,
@@ -516,6 +611,8 @@ export class MovementsService {
       savedB.destinationCell = cellA;
       savedB.user = actingUser;
       savedB.pairedMovementId = savedA.id;
+      await this.recordMovementInsert(manager, savedA, currentUser.sub);
+      await this.recordMovementInsert(manager, savedB, currentUser.sub);
       return [savedA, savedB];
     });
 
@@ -573,15 +670,29 @@ export class MovementsService {
     currentUser: JwtPayload,
   ): Promise<MovementResponseDto> {
     const inmate = await this.inmatesService.findEntityInScope(input.inmateId, currentUser.units);
-    await this.assertNoOpenTemporaryMovement(
-      inmate.id,
-      'Preso possui movimentação temporária em aberto — registre o retorno antes de continuar',
-    );
+    if (!input.allowNonActiveInmate) {
+      this.assertInmateActive(inmate);
+    }
     const movementType = await this.movementTypesService.findByName(input.movementTypeName);
     const oldStatus = inmate.status;
     const originCell = inmate.currentCell;
 
     const movement = await this.dataSource.transaction(async (manager) => {
+      await this.lockAndRevalidateInmates(manager, [
+        {
+          inmate,
+          openMovementMessage:
+            'Preso possui movimentação temporária em aberto — registre o retorno antes de continuar',
+        },
+      ]);
+      if (input.requireVacancy && input.destinationCell) {
+        await this.cellsService.lockAndAssertVacancy(
+          manager,
+          input.destinationCell,
+          'Cela de destino já está na capacidade máxima',
+        );
+      }
+
       const saved = await manager.save(
         manager.create(Movement, {
           inmate,
@@ -618,6 +729,7 @@ export class MovementsService {
       saved.originCell = originCell;
       saved.destinationCell = input.destinationCell ?? null;
       saved.user = { id: currentUser.sub } as User;
+      await this.recordMovementInsert(manager, saved, currentUser.sub);
       return saved;
     });
 
@@ -637,6 +749,93 @@ export class MovementsService {
   }
 
   /**
+   * FR-026, SC-002: as rotas de situação definitiva, troca e permuta usam
+   * `@SkipAutoAudit()` (o corpo delas já tem um registro mais rico do preso),
+   * então o INSERT da própria movimentação, com o motivo, é auditado aqui,
+   * dentro da mesma transação que a grava.
+   */
+  private async recordMovementInsert(
+    manager: EntityManager,
+    movement: Movement,
+    userId: number,
+  ): Promise<void> {
+    await this.auditService.record(
+      {
+        userId,
+        affectedTable: 'movements',
+        recordId: movement.id,
+        action: AuditAction.INSERT,
+        oldData: null,
+        newData: { ...MovementResponseDto.fromEntity(movement) },
+      },
+      manager,
+    );
+  }
+
+  /** Trava a linha da movimentação e devolve o estado de retorno gravado (FR-009). */
+  private async lockMovementRow(
+    manager: EntityManager,
+    id: number,
+  ): Promise<{ returnDateTime: Date | null; returnIdempotencyKey: string | null }> {
+    const row = await manager
+      .getRepository(Movement)
+      .createQueryBuilder('movement')
+      .setLock('pessimistic_write')
+      .select('movement.return_datetime', 'returnDateTime')
+      .addSelect('movement.return_idempotency_key', 'returnIdempotencyKey')
+      .where('movement.id = :id', { id })
+      .getRawOne<{ returnDateTime: Date | null; returnIdempotencyKey: string | null }>();
+    if (!row) {
+      throw new NotFoundException('Movimentação não encontrada');
+    }
+    return row;
+  }
+
+  /** US2/US3: só preso ativo pode sair, ser liberado, transferido ou trocar de cela. */
+  private assertInmateActive(inmate: Inmate): void {
+    if (inmate.status !== InmateStatus.ACTIVE) {
+      throw new ConflictException(
+        `Preso não está ativo (situação atual: ${inmate.status}) — a operação exige preso ativo`,
+      );
+    }
+  }
+
+  /**
+   * Primeira coisa dentro de toda transação que muda a localização de um
+   * preso (Constituição IV): trava a linha de cada preso (em ordem de id, para
+   * duas permutas cruzadas não travarem uma à outra), confere que status e
+   * cela ainda são os que foram lidos antes da transação e que não há
+   * movimentação temporária em aberto. Sem o lock, dois pedidos simultâneos
+   * passariam pela mesma checagem e ambos gravariam.
+   */
+  private async lockAndRevalidateInmates(
+    manager: EntityManager,
+    targets: { inmate: Inmate; openMovementMessage: string }[],
+  ): Promise<void> {
+    const ordered = [...targets].sort((first, second) => first.inmate.id - second.inmate.id);
+    for (const { inmate, openMovementMessage } of ordered) {
+      const row = await manager
+        .getRepository(Inmate)
+        .createQueryBuilder('inmate')
+        .setLock('pessimistic_write')
+        .select('inmate.status', 'status')
+        .addSelect('inmate.current_cell_id', 'currentCellId')
+        .where('inmate.id = :id', { id: inmate.id })
+        .getRawOne<{ status: InmateStatus; currentCellId: number | null }>();
+      if (
+        !row ||
+        row.status !== inmate.status ||
+        Number(row.currentCellId) !== inmate.currentCell.id
+      ) {
+        throw new ConflictException(
+          'A situação ou a cela do preso mudou enquanto a operação era registrada. Tente novamente',
+        );
+      }
+      await this.assertNoOpenTemporaryMovement(inmate.id, openMovementMessage, manager);
+    }
+  }
+
+  /**
    * Blocks any change (nova movimentação temporária, troca/permuta de cela/
    * galeria, situação definitiva) enquanto o preso já está fora da cela numa
    * movimentação TEMPORARY em aberto (atendimento médico, audiência etc.) —
@@ -644,8 +843,13 @@ export class MovementsService {
    * não reflete onde o preso fisicamente está. Precisa ser resolvida
    * (registrar o retorno) antes de qualquer uma dessas ações.
    */
-  private async assertNoOpenTemporaryMovement(inmateId: number, message: string): Promise<void> {
-    const openMovement = await this.movementRepository
+  private async assertNoOpenTemporaryMovement(
+    inmateId: number,
+    message: string,
+    manager?: EntityManager,
+  ): Promise<void> {
+    const repository = manager ? manager.getRepository(Movement) : this.movementRepository;
+    const openMovement = await repository
       .createQueryBuilder('movement')
       .innerJoin('movement.movementType', 'movementType')
       .where('movement.inmate_id = :inmateId', { inmateId })

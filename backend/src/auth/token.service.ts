@@ -88,7 +88,12 @@ export class TokenService {
       relations: { user: { role: true, units: true } },
     });
 
-    if (!stored || stored.revokedAt || stored.expiresAt.getTime() < Date.now()) {
+    if (
+      !stored ||
+      stored.revokedAt ||
+      stored.expiresAt.getTime() < Date.now() ||
+      !stored.user.active
+    ) {
       throw new UnauthorizedException('Refresh token inválido');
     }
 

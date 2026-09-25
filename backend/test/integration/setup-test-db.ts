@@ -146,6 +146,7 @@ async function main(): Promise<void> {
     { name: 'Permuta de cela', category: MovementCategory.PERMANENT },
     { name: 'Troca de galeria', category: MovementCategory.PERMANENT },
     { name: 'Permuta de galeria', category: MovementCategory.PERMANENT },
+    { name: 'Reversão de situação definitiva', category: MovementCategory.PERMANENT },
   ]);
   if (
     temporaryMovementType.id !== TEST_FIXTURE.temporaryMovementTypeId ||

@@ -19,17 +19,23 @@ export const routinesApi = {
     description?: string;
     locked?: boolean;
     schedules: ScheduleInput[];
+    confirmOverlap?: boolean;
   }) => apiClient.post<Routine>('/routines', input).then((r) => r.data),
 
-  updateSchedule: (routineId: number, schedules: ScheduleInput[]) =>
-    apiClient.patch<Routine>(`/routines/${routineId}/schedule`, { schedules }).then((r) => r.data),
+  updateSchedule: (routineId: number, schedules: ScheduleInput[], confirmOverlap?: boolean) =>
+    apiClient
+      .patch<Routine>(`/routines/${routineId}/schedule`, { schedules, confirmOverlap })
+      .then((r) => r.data),
 
   updateActivation: (routineId: number, date: string, active: boolean) =>
     apiClient
-      .patch<{ routineId: number; date: string; active: boolean }>(`/routines/${routineId}/activation`, {
-        date,
-        active,
-      })
+      .patch<{ routineId: number; date: string; active: boolean }>(
+        `/routines/${routineId}/activation`,
+        {
+          date,
+          active,
+        },
+      )
       .then((r) => r.data),
 
   remove: (routineId: number) => apiClient.delete(`/routines/${routineId}`).then(() => undefined),

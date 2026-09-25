@@ -1,9 +1,10 @@
 import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, IsNull, QueryFailedError, Repository } from 'typeorm';
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import { User } from './entities/user.entity';
 import { InviteToken } from './entities/invite-token.entity';
+import { RefreshToken } from './entities/refresh-token.entity';
 import { Role } from '../roles/entities/role.entity';
 import { Unit } from '../units/entities/unit.entity';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -17,6 +18,9 @@ import { AuditAction } from '../audit/entities/audit-log.entity';
 
 const USER_RELATIONS = { role: true, units: true } as const;
 const INVITE_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const UNIQUE_VIOLATION_CODE = '23505';
+const DUPLICATE_EMAIL_MESSAGE = 'Já existe um usuário com este e-mail';
+const DUPLICATE_BADGE_MESSAGE = 'Já existe um usuário com esta matrícula';
 
 @Injectable()
 export class UsersService {
@@ -28,6 +32,8 @@ export class UsersService {
     @InjectRepository(Unit) private readonly unitRepository: Repository<Unit>,
     @InjectRepository(InviteToken)
     private readonly inviteTokenRepository: Repository<InviteToken>,
+    @InjectRepository(RefreshToken)
+    private readonly refreshTokenRepository: Repository<RefreshToken>,
     private readonly passwordHasher: PasswordHasherService,
     private readonly auditService: AuditService,
   ) {}
@@ -39,6 +45,11 @@ export class UsersService {
 
   async findByIdForAuth(id: number): Promise<User | null> {
     return this.userRepository.findOne({ where: { id }, relations: USER_RELATIONS });
+  }
+
+  /** Lightweight per-request check used by the JWT strategy (FR-031). */
+  async isActive(id: number): Promise<boolean> {
+    return this.userRepository.exists({ where: { id, active: true } });
   }
 
   async list(
@@ -72,7 +83,15 @@ export class UsersService {
 
     const existing = await this.userRepository.findOne({ where: { email: dto.email } });
     if (existing) {
-      throw new ConflictException('Já existe um usuário com este e-mail');
+      throw new ConflictException(DUPLICATE_EMAIL_MESSAGE);
+    }
+    if (dto.badgeNumber) {
+      const sameBadge = await this.userRepository.findOne({
+        where: { badgeNumber: dto.badgeNumber },
+      });
+      if (sameBadge) {
+        throw new ConflictException(DUPLICATE_BADGE_MESSAGE);
+      }
     }
 
     const role = await this.roleRepository.findOne({ where: { name: dto.role } });
@@ -89,7 +108,7 @@ export class UsersService {
     const placeholderPassword = randomBytes(32).toString('hex');
     const passwordHash = await this.passwordHasher.hash(placeholderPassword);
 
-    const user = await this.userRepository.save(
+    const user = await this.saveNewUser(
       this.userRepository.create({
         name: dto.name,
         email: dto.email,
@@ -116,6 +135,11 @@ export class UsersService {
     const oldData = { ...user, role: user.role.name, units: user.units.map((u) => u.id) };
     user.active = false;
     await this.userRepository.save(user);
+    // FR-031 — no session may outlive the deactivation.
+    await this.refreshTokenRepository.update(
+      { user: { id: user.id }, revokedAt: IsNull() },
+      { revokedAt: new Date() },
+    );
 
     await this.auditService.record({
       userId: actingUserId,
@@ -127,6 +151,24 @@ export class UsersService {
     });
 
     return UserResponseDto.fromEntity(user);
+  }
+
+  /** A concurrent request can slip past the pre-checks; the unique constraints are the real guard (409, never 500). */
+  private async saveNewUser(user: User): Promise<User> {
+    try {
+      return await this.userRepository.save(user);
+    } catch (error) {
+      const driverError = (error as QueryFailedError).driverError as
+        { code?: string; detail?: string } | undefined;
+      if (error instanceof QueryFailedError && driverError?.code === UNIQUE_VIOLATION_CODE) {
+        throw new ConflictException(
+          driverError.detail?.includes('badge_number')
+            ? DUPLICATE_BADGE_MESSAGE
+            : DUPLICATE_EMAIL_MESSAGE,
+        );
+      }
+      throw error;
+    }
   }
 
   /** Creates a fresh single-use invite token (24h) — used at creation and can be reissued. */

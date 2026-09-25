@@ -11,6 +11,8 @@ import { Request, Response } from 'express';
 interface ErrorResponseBody {
   statusCode: number;
   message: string | string[];
+  /** Dados estruturados opcionais de uma exceção (ex.: rotinas sobrepostas para o cliente exibir). */
+  details?: unknown;
   path: string;
   timestamp: string;
 }
@@ -44,7 +46,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
       timestamp: new Date().toISOString(),
     };
 
+    const details = isHttpException ? this.extractDetails(exception) : undefined;
+    if (details !== undefined) {
+      body.details = details;
+    }
+
     response.status(statusCode).json(body);
+  }
+
+  private extractDetails(exception: HttpException): unknown {
+    const response = exception.getResponse();
+    return typeof response === 'string' ? undefined : (response as { details?: unknown }).details;
   }
 
   private extractMessage(exception: HttpException): string | string[] {

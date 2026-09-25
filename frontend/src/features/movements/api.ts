@@ -37,6 +37,11 @@ export const movementsApi = {
   finalTransfer: (input: { inmateId: number; reason: string; notes?: string }) =>
     apiClient.post<Movement>('/movements/final/transfer', input).then((r) => r.data),
 
+  // Reversão de liberdade/tornozeleira/transferência registrada por engano
+  // (FR-016a) — WARDEN only. O preso volta a ACTIVE na cela escolhida (com vaga).
+  finalReversal: (input: { inmateId: number; destinationCellId: number; reason: string; notes?: string }) =>
+    apiClient.post<Movement>('/movements/final/reversal', input).then((r) => r.data),
+
   // Troca/permuta de cela/galeria (research.md #35, FR-015–FR-015c). Troca/
   // permuta de cela: qualquer perfil. Troca/permuta de galeria: SUPERVISOR/
   // WARDEN só (o backend também aplica essa regra via @Roles).

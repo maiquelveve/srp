@@ -175,12 +175,10 @@ describe('Reports and audit endpoints (contracts/reports-audit.md)', () => {
       const notYetLate = await get(wardenToken, '/api/v1/reports/inconsistencies');
       const notYetLateBody = notYetLate.body as {
         movementsWithoutReturn: { inmateId: number }[];
-        routinesNotExecuted: unknown[];
       };
       expect(notYetLateBody.movementsWithoutReturn.map((item) => item.inmateId)).not.toContain(
         inmateId,
       );
-      expect(notYetLateBody.routinesNotExecuted).toEqual([]);
 
       // thresholdHours=1 is the smallest allowed; the movement is seconds old, so it stays out.
       const strict = await get(wardenToken, '/api/v1/reports/inconsistencies?thresholdHours=1');
@@ -188,6 +186,71 @@ describe('Reports and audit endpoints (contracts/reports-audit.md)', () => {
       expect(strictBody.movementsWithoutReturn.map((item) => item.inmateId)).not.toContain(
         inmateId,
       );
+    });
+  });
+
+  describe('routinesNotExecuted in GET /reports/inconsistencies (FR-025)', () => {
+    async function createGalleryAndRoutine(name: string): Promise<number> {
+      const galleryRes = await request(app.getHttpServer())
+        .post('/api/v1/galleries')
+        .set('Authorization', `Bearer ${wardenToken}`)
+        .send({
+          unitId: TEST_FIXTURE.unitAId,
+          code: `NEX-${randomUUID().slice(0, 8)}`,
+          type: 'MALE',
+        });
+      const routineRes = await request(app.getHttpServer())
+        .post('/api/v1/routines')
+        .set('Authorization', `Bearer ${wardenToken}`)
+        .send({
+          galleryId: (galleryRes.body as { id: number }).id,
+          name,
+          type: 'DAILY',
+          locked: false,
+          schedules: [{ weekday: null, time: '14:00' }],
+        });
+      return (routineRes.body as { id: number }).id;
+    }
+
+    it('lists a routine deactivated for a date in the period, and not one left active', async () => {
+      const deactivatedId = await createGalleryAndRoutine('Pátio Desativado');
+      const activeId = await createGalleryAndRoutine('Pátio Mantido');
+      const today = new Date().toISOString().slice(0, 10);
+      const deactivate = await request(app.getHttpServer())
+        .patch(`/api/v1/routines/${deactivatedId}/activation`)
+        .set('Authorization', `Bearer ${supervisorToken}`)
+        .send({ date: today, active: false });
+      expect(deactivate.status).toBe(200);
+
+      const res = await get(supervisorToken, '/api/v1/reports/inconsistencies?limit=100');
+
+      expect(res.status).toBe(200);
+      const body = res.body as {
+        routinesNotExecuted: { routineId: number; date: string }[];
+        routinesNotExecutedTotal: number;
+      };
+      const ids = body.routinesNotExecuted.map((item) => item.routineId);
+      expect(ids).toContain(deactivatedId);
+      expect(ids).not.toContain(activeId);
+      expect(body.routinesNotExecuted.find((item) => item.routineId === deactivatedId)?.date).toBe(
+        today,
+      );
+      expect(body.routinesNotExecutedTotal).toBeGreaterThanOrEqual(1);
+    });
+
+    it('ignores a deactivation dated outside the period', async () => {
+      const routineId = await createGalleryAndRoutine('Pátio Antigo');
+      await request(app.getHttpServer())
+        .patch(`/api/v1/routines/${routineId}/activation`)
+        .set('Authorization', `Bearer ${supervisorToken}`)
+        .send({ date: '2020-01-01', active: false });
+
+      const res = await get(supervisorToken, '/api/v1/reports/inconsistencies?limit=100');
+
+      const ids = (
+        res.body as { routinesNotExecuted: { routineId: number }[] }
+      ).routinesNotExecuted.map((item) => item.routineId);
+      expect(ids).not.toContain(routineId);
     });
   });
 
@@ -285,7 +348,9 @@ describe('Reports and audit endpoints (contracts/reports-audit.md)', () => {
       const nextBody = next.body as { data: { inmateId: number }[]; total: number };
       expect(pageBody.data).toHaveLength(1);
       expect(pageBody.total).toBeGreaterThanOrEqual(2);
-      expect(nextBody.total).toBe(pageBody.total);
+      // Suítes rodam em paralelo no mesmo banco: outra pode abrir uma saída entre as duas chamadas,
+      // então o total só pode crescer, nunca diminuir nem depender do tamanho da página.
+      expect(nextBody.total).toBeGreaterThanOrEqual(pageBody.total);
       expect(nextBody.data[0].inmateId).not.toBe(pageBody.data[0].inmateId);
     });
 

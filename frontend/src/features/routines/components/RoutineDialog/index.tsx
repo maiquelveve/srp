@@ -4,6 +4,8 @@ import { routinesApi } from '../../api';
 import { ROUTINE_TYPE_OPTIONS } from '../../labels';
 import { hasNoDuplicateTimes, isValidTime } from '../../time';
 import type { RoutineType } from '../../types';
+import { getRoutineOverlaps, type RoutineOverlap } from '../../overlap';
+import OverlapConfirmAlert from '../OverlapConfirmAlert';
 import ScheduleFieldsEditor, { type ScheduleFieldValue } from '../ScheduleFieldsEditor';
 import { notify } from '@/lib/notify';
 import { Button } from '@/components/ui/button';
@@ -18,7 +20,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const EMPTY_SCHEDULE: ScheduleFieldValue = { weekday: null, time: '' };
 
@@ -42,6 +50,7 @@ export default function RoutineDialog({
   const [description, setDescription] = useState('');
   const [locked, setLocked] = useState(false);
   const [schedules, setSchedules] = useState<ScheduleFieldValue[]>([EMPTY_SCHEDULE]);
+  const [overlaps, setOverlaps] = useState<RoutineOverlap[] | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -57,7 +66,7 @@ export default function RoutineDialog({
   }
 
   const mutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (confirmOverlap: boolean) =>
       routinesApi.create({
         galleryId,
         name,
@@ -65,14 +74,21 @@ export default function RoutineDialog({
         description: description || undefined,
         locked,
         schedules: schedules.map((s) => ({ weekday: s.weekday, time: s.time })),
+        confirmOverlap,
       }),
     onSuccess: () => {
       notify({ message: 'Rotina cadastrada', type: 'success' });
       void queryClient.invalidateQueries({ queryKey: ['routines', galleryId] });
       setOpen(false);
     },
-    onError: () =>
-      notify({ title: 'Não foi possível salvar', message: 'Verifique os dados', type: 'error' }),
+    onError: (error) => {
+      const found = getRoutineOverlaps(error);
+      if (found) {
+        setOverlaps(found);
+        return;
+      }
+      notify({ title: 'Não foi possível salvar', message: 'Verifique os dados', type: 'error' });
+    },
   });
 
   const canSubmit =
@@ -135,11 +151,22 @@ export default function RoutineDialog({
         </div>
 
         <DialogFooter>
-          <Button onClick={() => mutation.mutate()} disabled={!canSubmit || mutation.isPending}>
+          <Button
+            onClick={() => mutation.mutate(false)}
+            disabled={!canSubmit || mutation.isPending}
+          >
             {mutation.isPending ? 'Salvando...' : 'Salvar'}
           </Button>
         </DialogFooter>
       </DialogContent>
+      <OverlapConfirmAlert
+        overlaps={overlaps}
+        onCancel={() => setOverlaps(null)}
+        onConfirm={() => {
+          setOverlaps(null);
+          mutation.mutate(true);
+        }}
+      />
     </Dialog>
   );
 }

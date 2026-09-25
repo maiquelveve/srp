@@ -156,7 +156,7 @@ Linha do tempo de ocupação de celas por um Inmate, usada para reconstruir loca
 | `inmate`, `cell` | referências obrigatórias |
 | `entryDate` | obrigatório |
 | `exitDate` | nulo enquanto ocupação corrente |
-| `reason` | `RELEASE` \| `ANKLE_MONITOR` \| `TRANSFER` \| `CELL_CHANGE` \| `CELL_SWAP` \| `GALLERY_CHANGE` \| `GALLERY_SWAP` |
+| `reason` | `RELEASE` \| `ANKLE_MONITOR` \| `TRANSFER` \| `CELL_CHANGE` \| `CELL_SWAP` \| `GALLERY_CHANGE` \| `GALLERY_SWAP` \| `REVERSAL` |
 | `user` | responsável pelo registro |
 
 - **Regra**: toda mudança de `currentCell` de um Inmate MUST gerar exatamente um novo registro
@@ -164,12 +164,14 @@ Linha do tempo de ocupação de celas por um Inmate, usada para reconstruir loca
 - **Nota (research.md #35)**: `CELL_CHANGE`/`CELL_SWAP`/`GALLERY_CHANGE`/`GALLERY_SWAP`
   substituem o antigo valor único `CELL_CHANGE` — cada um distingue troca simples de permuta, e
   mesma galeria de galeria diferente, para relatório/auditoria correto (FR-015–FR-015c).
+- **Nota (research.md #53)**: `REVERSAL` identifica a entrada aberta por uma reversão de situação
+  definitiva (FR-016a). A coluna `reason` é `varchar`, então o valor novo não exige mudança de schema.
 
 ### MovementType (`movement_types`)
 
 | Campo | Tipo/Regra |
 |---|---|
-| `name` | único (atendimento médico interno/externo, visita, liberdade, tornozeleira eletrônica, transferência, troca de cela, permuta de cela, troca de galeria, permuta de galeria, ...) — **não inclui pátio/corre/faxina**, atividades coletivas por galeria representadas como `Routine`, nunca como `MovementType` (research.md #26) |
+| `name` | único (atendimento médico interno/externo, visita, liberdade, tornozeleira eletrônica, transferência, troca de cela, permuta de cela, troca de galeria, permuta de galeria, reversão de situação definitiva, ...) — **não inclui pátio/corre/faxina**, atividades coletivas por galeria representadas como `Routine`, nunca como `MovementType` (research.md #26) |
 | `category` | `TEMPORARY` \| `PERMANENT` |
 
 - **Nota (research.md #35)**: troca/permuta de cela/galeria são `category = PERMANENT` (nunca têm

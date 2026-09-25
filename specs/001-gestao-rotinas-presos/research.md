@@ -1696,8 +1696,9 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
   existe evento de "rotina executada". `GET /reports/routine-execution` devolve, por rotina e galeria,
   as ocorrências **programadas** e as **desativadas por data** (mesma regra de ativação de
   `GET /routines`: o override da data vence `Routine.active`), com `executionTracked: false`.
-  `routinesNotExecuted` de `/reports/inconsistencies` é sempre `[]`. Medir cumprimento/atraso exigiria
-  um registro de execução (fora do escopo desta versão).
+  `routinesNotExecuted` de `/reports/inconsistencies` era sempre `[]` (**substituído pela #53**: agora lista
+  as rotinas desativadas por data). Medir cumprimento/atraso real exigiria um registro de execução (fora
+  do escopo desta versão).
 - **Decision — escopo de unidade da auditoria**: `audit_logs` não tem unidade; `GET /audit` devolve só
   entradas cujo **autor** pertence a alguma unidade do usuário (`user_units`). Entradas sem autor
   (ex.: login recusado de e-mail desconhecido) não aparecem. Somente `GET`, sem escrita (FR-027).
@@ -1834,3 +1835,65 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
 - **Impact**: `offline-queue.ts`, `sync-service.ts`, `InmatesScreen` (botão e toast),
   `structure/model.ts`, `mobile/tests/offline-sync.spec.ts` (5 testes novos, 9 no total), spec.md
   (FR-011a) e quickstart.md (cenário 7). Sem mudança no backend nem no contrato de movimentações.
+
+## 53. Convergência de 2026-09-25: desativação imediata, corridas, sobreposição, reversão e rotinas não executadas
+
+- **Contexto**: o `/speckit-converge` achou lacunas entre spec e código; o `/speckit-clarify` da mesma
+  data decidiu os pontos de regra (spec.md, seção Clarifications). Tarefas T106 a T121.
+- **Decision — desativar usuário vale na hora (FR-031, T106)**: `UsersService.deactivate` revoga todos os
+  refresh tokens do usuário; `TokenService.rotateRefreshToken` recusa usuário inativo; `JwtStrategy.validate`
+  consulta `UsersService.isActive` a cada requisição (um `SELECT EXISTS`) e recusa com `401`. Sem isso o
+  access token (15 min) continuava válido e o refresh renovava sem limite. Custo: uma consulta por requisição
+  autenticada, a reconferir no teste de carga (T113).
+- **Decision — checagem e gravação na mesma transação, com lock (FR-010, FR-015, T107 e T112)**:
+  `MovementsService.create` trava a linha do preso (`pessimistic_write`) antes de checar movimentação aberta.
+  `registerFinal` e `registerSwap` travam as linhas dos presos (em ordem de id, para permutas cruzadas não
+  travarem uma à outra), conferem que status e cela continuam os lidos antes da transação e que não há
+  movimentação temporária aberta. Troca de cela e reversão travam também a cela de destino e contam a
+  ocupação dentro da transação. Ordem fixa dos locks: presos e depois cela. A `Idempotency-Key` é conferida de
+  novo depois do lock, para reenvios simultâneos virarem 201 e 200 em vez de 409.
+- **Decision — rotinas não executadas (FR-025, T108)**: rotina desativada pelo Supervisor para uma data dos
+  últimos 7 dias conta como não executada; sem desativação conta como executada. Sem tela de "marcar como
+  executada" (o supervisor teria de marcar cada rotina, todo dia). Substitui a decisão da #49.
+- **Decision — aviso de rotinas sobrepostas (Edge Cases, T109)**: a rotina só tem horário de início, então o
+  aviso cobre só o mesmo horário, na mesma galeria, em dia em comum. `POST /routines` e
+  `PATCH .../schedule` respondem `409` com `details.overlaps`; reenviar com `confirmOverlap: true` salva. O
+  filtro global de exceções passou a repassar `details`. Cruzamento de intervalos exigiria horário de
+  término: adiado por decisão do usuário.
+- **Decision — reversão de situação definitiva (FR-016a, T110)**: `POST /movements/final/reversal` (só
+  `WARDEN`). Não apaga nem altera o registro original: cria uma nova `Movement` do tipo "Reversão de
+  situação definitiva" (`PERMANENT`), devolve o preso a `ACTIVE` numa cela com vaga e abre um novo
+  `CellHistory`. `CellHistoryReason.REVERSAL` (a coluna é `varchar`, sem migration de schema). O tipo de
+  movimentação entra por migration de dado (`AddReversalMovementType1790300000000`, idempotente), porque
+  bancos já populados não rodam o seed de novo. No painel web, a reversão fica numa seção recolhida dentro
+  da cela expandida do Mapa da Unidade. Não existe no app mobile.
+- **Decision — só preso ativo se movimenta (US2/AC1, Constituição IV, T116)**: saída temporária,
+  liberdade, tornozeleira, transferência, troca de cela e permuta (preso A) respondem `409` se o preso não
+  estiver `ACTIVE`; a reversão é a única que exige o contrário. Antes não havia essa checagem: um preso
+  liberado podia receber saída temporária ou "trocar de cela" continuando liberado. A checagem roda de novo
+  dentro da transação, sob o lock do preso.
+- **Decision — retorno e edição de movimentação sob lock (FR-009, T117)**: `returnMovement` e `update`
+  travam a linha da movimentação e conferem `returnDateTime` dentro da transação. Sem isso dois retornos
+  simultâneos passavam e o segundo sobrescrevia o horário do primeiro. O teste de concorrência do retorno
+  detecta a falta do lock só em parte das execuções (falhou em 1 de 2 sem o lock).
+- **Decision — cadastro de preso respeita a capacidade sob lock (US1/AC2, T119)**: `POST /inmates` conta a
+  ocupação dentro da transação, com a cela travada. A trava e a contagem viraram `CellsService.lockAndAssertVacancy`,
+  usada também pela troca de cela e pela reversão (antes era uma cópia privada em `MovementsService`).
+- **Decision — a movimentação criada é auditada (FR-026, SC-002, T120)**: as rotas de situação definitiva, troca,
+  permuta e reversão usam `@SkipAutoAudit()` e só gravavam o `UPDATE` de `inmates`; o `INSERT` da movimentação, com o
+  motivo (ex.: alvará), não ia para `audit_logs`. Agora `AuditService.record` aceita um `EntityManager` opcional e a
+  entrada de `movements` é gravada dentro da transação da movimentação.
+- **Decision — cadastro de usuário nunca devolve 500 por duplicidade (FR-030, T121)**: `UsersService.create`
+  confere e-mail e matrícula antes de gravar e traduz o erro `23505` do banco em `409` (mesmo padrão de
+  `PostsService` e `StaffService`), o que cobre também dois cadastros simultâneos. Antes, matrícula repetida
+  dava `500`.
+- **Decision — turnos são só diurno e noturno**: a seção Assumptions da spec dizia três períodos (manhã, tarde,
+  noite) e contradizia o FR-022; corrigida para dois turnos, por decisão do usuário. O código já seguia o FR-022.
+- **Alternatives considered**: (1) botão "rotina executada" para o supervisor: rejeitado, trabalho diário
+  proporcional ao número de rotinas; (2) impedir a sobreposição em vez de avisar: rejeitado, pode haver motivo
+  legítimo; (3) reverter apagando o registro errado: rejeitado, quebra o histórico e a auditoria
+  (FR-026/FR-027); (4) índice único parcial no banco para "uma saída aberta por preso": inviável, a categoria
+  temporária está no tipo de movimentação, não na linha da movimentação.
+- **Impact**: `users`, `auth`, `movements`, `reports`, `routines`, filtro global de exceções, seed, uma
+  migration, painel web (rotinas, relatórios, Mapa da Unidade), contratos `movements.md`, `routines.md` e
+  `reports-audit.md`, `data-model.md`. Testes de integração: 192 (incluem os de concorrência).

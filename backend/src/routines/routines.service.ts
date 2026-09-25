@@ -22,6 +22,11 @@ import { RoleName } from '../roles/entities/role.entity';
 import { User } from '../users/entities/user.entity';
 import { JwtPayload } from '../auth/types/jwt-payload.type';
 
+/** `HH:mm` e `HH:mm:ss` (coluna `time` do Postgres) comparam como `HH:mm`. */
+function normalizeTime(time: string): string {
+  return time.slice(0, 5);
+}
+
 function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -114,6 +119,9 @@ export class RoutinesService {
   async create(dto: CreateRoutineDto, currentUser: JwtPayload): Promise<RoutineResponseDto> {
     this.assertNoDuplicateTimes(dto.schedules);
     const gallery = await this.galleriesService.findEntityInScope(dto.galleryId, currentUser.units);
+    if (!dto.confirmOverlap) {
+      await this.assertNoOverlapUnlessConfirmed(gallery.id, dto.schedules, null);
+    }
 
     const routine = await this.dataSource.transaction(async (manager) => {
       const saved = await manager.save(
@@ -153,6 +161,9 @@ export class RoutinesService {
     const routine = await this.findEntityInScope(id, currentUser.units);
     this.assertEditable(routine, currentUser);
     this.assertNoDuplicateTimes(dto.schedules);
+    if (!dto.confirmOverlap) {
+      await this.assertNoOverlapUnlessConfirmed(routine.gallery.id, dto.schedules, routine.id);
+    }
 
     const schedules = await this.dataSource.transaction(async (manager) => {
       await manager.delete(RoutineSchedule, { routine: { id } });
@@ -241,6 +252,59 @@ export class RoutinesService {
    * (feedback do usuário — a primeira versão comparava só o `time`, o que
    * impedia rotinas como "domingo, quarta e sábado às 15:00").
    */
+  /**
+   * Edge case do spec.md (rotinas sobrepostas): uma rotina só tem horário de
+   * início, então "sobrepor" = outra rotina ativa da mesma galeria com o mesmo
+   * horário num dia em comum (weekday null vale para todos os dias). Não
+   * bloqueia: responde 409 com `details.overlaps` e a Chefia/Diretor (ou o
+   * Supervisor que ajusta o horário) reenvia com `confirmOverlap: true`.
+   */
+  private async assertNoOverlapUnlessConfirmed(
+    galleryId: number,
+    schedules: RoutineScheduleItemDto[],
+    excludeRoutineId: number | null,
+  ): Promise<void> {
+    const otherRoutines = await this.routineRepository.find({
+      where: { gallery: { id: galleryId }, active: true },
+      relations: { schedules: true },
+    });
+    const overlaps: {
+      routineId: number;
+      routineName: string;
+      weekday: number | null;
+      time: string;
+    }[] = [];
+    for (const other of otherRoutines) {
+      if (other.id === excludeRoutineId) continue;
+      for (const existing of other.schedules) {
+        if (!existing.active) continue;
+        const conflicts = schedules.some((candidate) => {
+          if (candidate.active === false) return false;
+          const candidateWeekday = candidate.weekday ?? null;
+          const sameDay =
+            candidateWeekday === null ||
+            existing.weekday === null ||
+            candidateWeekday === existing.weekday;
+          return sameDay && normalizeTime(candidate.time) === normalizeTime(existing.time);
+        });
+        if (conflicts) {
+          overlaps.push({
+            routineId: other.id,
+            routineName: other.name,
+            weekday: existing.weekday,
+            time: normalizeTime(existing.time),
+          });
+        }
+      }
+    }
+    if (overlaps.length > 0) {
+      throw new ConflictException({
+        message: `Horário sobrepõe a rotina "${overlaps[0].routineName}" na mesma galeria. Confirme para salvar mesmo assim.`,
+        details: { code: 'ROUTINE_SCHEDULE_OVERLAP', overlaps },
+      });
+    }
+  }
+
   private assertNoDuplicateTimes(schedules: RoutineScheduleItemDto[]): void {
     for (let firstIndex = 0; firstIndex < schedules.length; firstIndex++) {
       for (let secondIndex = firstIndex + 1; secondIndex < schedules.length; secondIndex++) {

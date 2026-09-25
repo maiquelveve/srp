@@ -131,6 +131,127 @@ describe('Movements endpoints — temporary (contracts/movements.md)', () => {
     expect(second.status).toBe(409);
   });
 
+  describe('concurrent exits for the same inmate (FR-010 race)', () => {
+    beforeAll(async () => {
+      // Listen on a real port: parallel supertest calls against an un-listened server flake with ECONNRESET.
+      await app.listen(0);
+    });
+
+    async function fireConcurrentExits(
+      concurrentInmateId: number,
+      concurrentCellId: number,
+      idempotencyKeys: (string | undefined)[],
+    ): Promise<number[]> {
+      const url = await app.getUrl();
+      const responses = await Promise.all(
+        idempotencyKeys.map((key) => {
+          const call = request(url)
+            .post('/api/v1/movements')
+            .set('Authorization', `Bearer ${officerToken}`);
+          if (key) {
+            call.set('Idempotency-Key', key);
+          }
+          return call.send({
+            inmateId: concurrentInmateId,
+            movementTypeId: TEST_FIXTURE.temporaryMovementTypeId,
+            originCellId: concurrentCellId,
+            destinationLocation: 'YARD',
+            reason: 'Corrida',
+          });
+        }),
+      );
+      return responses.map((response) => response.status).sort();
+    }
+
+    it('lets exactly one of several simultaneous exits succeed, the rest get 409', async () => {
+      const concurrent = await createInmate('Preso Corrida');
+
+      const statuses = await fireConcurrentExits(concurrent.inmateId, concurrent.cellId, [
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+      ]);
+
+      expect(statuses).toEqual([201, 409, 409, 409]);
+      const open = await request(app.getHttpServer())
+        .get(`/api/v1/movements?inmateId=${concurrent.inmateId}&open=true`)
+        .set('Authorization', `Bearer ${officerToken}`);
+      expect((open.body as { total: number }).total).toBe(1);
+    });
+
+    it('treats simultaneous retries with the same Idempotency-Key as one movement (201 + 200)', async () => {
+      const concurrent = await createInmate('Preso Corrida Idempotente');
+      const key = randomUUID();
+
+      const statuses = await fireConcurrentExits(concurrent.inmateId, concurrent.cellId, [
+        key,
+        key,
+      ]);
+
+      expect(statuses).toEqual([200, 201]);
+    });
+  });
+
+  describe('inmate that is not ACTIVE (US2/AC1)', () => {
+    it('rejects a temporary exit for a released inmate (409)', async () => {
+      const released = await createInmate('Preso Liberado Sem Saída');
+      await request(app.getHttpServer())
+        .post('/api/v1/movements/final/release')
+        .set('Authorization', `Bearer ${wardenToken}`)
+        .send({ inmateId: released.inmateId, reason: 'Alvará' });
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/movements')
+        .set('Authorization', `Bearer ${officerToken}`)
+        .send({
+          inmateId: released.inmateId,
+          movementTypeId: TEST_FIXTURE.temporaryMovementTypeId,
+          originCellId: released.cellId,
+          destinationLocation: 'YARD',
+          reason: 'Não deveria sair',
+        });
+
+      expect(res.status).toBe(409);
+    });
+  });
+
+  describe('concurrent returns of the same movement (FR-009 race)', () => {
+    beforeAll(async () => {
+      // The FR-010 race block above may already be listening (one listen() per app).
+      if (!app.getHttpServer().listening) {
+        await app.listen(0);
+      }
+    });
+
+    it('lets exactly one of several simultaneous returns succeed, the rest get 409', async () => {
+      const concurrent = await createInmate('Preso Retorno Duplo');
+      const exit = await request(app.getHttpServer())
+        .post('/api/v1/movements')
+        .set('Authorization', `Bearer ${officerToken}`)
+        .send({
+          inmateId: concurrent.inmateId,
+          movementTypeId: TEST_FIXTURE.temporaryMovementTypeId,
+          originCellId: concurrent.cellId,
+          destinationLocation: 'YARD',
+          reason: 'Retorno duplo',
+        });
+      const movementId = (exit.body as { id: number }).id;
+      const url = await app.getUrl();
+
+      const responses = await Promise.all(
+        [1, 2, 3].map(() =>
+          request(url)
+            .patch(`/api/v1/movements/${movementId}/return`)
+            .set('Authorization', `Bearer ${officerToken}`)
+            .send({}),
+        ),
+      );
+
+      expect(responses.map((response) => response.status).sort()).toEqual([200, 409, 409]);
+    });
+  });
+
   it('rejects registering a movement with a PERMANENT movement type (400)', async () => {
     const { inmateId: newInmateId, cellId: newCellId } = await createInmate('Preso Tipo Errado');
 

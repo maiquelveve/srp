@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { reportsApi } from '../../api';
-import { formatDateTime } from '../../format';
+import { formatDateTime, formatIsoDate } from '../../format';
 import { REPORT_HELP } from '../../helpContent';
 import { REPORT_PAGE_SIZE, usePagedState } from '../../hooks/usePagedState';
 import { useNotifyOnError } from '../../hooks/useReportQuery';
@@ -16,17 +16,26 @@ const THRESHOLD_HOURS_OPTIONS = [1, 6, 12, 24, 48, 72];
 /**
  * Inconsistências (FR-025, SC-005): saídas temporárias sem retorno além do
  * prazo e presos fora da cela sem motivo, cada lista com a sua paginação.
- * "Rotinas não executadas" não é apurado: o sistema não registra a execução
- * de rotinas coletivas.
+ * "Rotinas não executadas" são as que o Supervisor desativou para uma data
+ * dos últimos 7 dias: o sistema não registra a execução de rotinas coletivas.
  */
 export default function InconsistenciesTab({ unitId }: { unitId: number | null }): JSX.Element {
   const [thresholdHours, setThresholdHours] = useState(24);
   const filterKey = `${unitId}|${thresholdHours}`;
   const [returnPage, setReturnPage] = usePagedState(filterKey);
   const [reasonPage, setReasonPage] = usePagedState(filterKey);
+  const [notExecutedPage, setNotExecutedPage] = usePagedState(filterKey);
 
   const query = useQuery({
-    queryKey: ['report', 'inconsistencies', unitId, thresholdHours, returnPage, reasonPage],
+    queryKey: [
+      'report',
+      'inconsistencies',
+      unitId,
+      thresholdHours,
+      returnPage,
+      reasonPage,
+      notExecutedPage,
+    ],
     queryFn: () =>
       reportsApi.inconsistencies({
         unitId: unitId as number,
@@ -34,6 +43,7 @@ export default function InconsistenciesTab({ unitId }: { unitId: number | null }
         limit: REPORT_PAGE_SIZE,
         withoutReturnOffset: returnPage * REPORT_PAGE_SIZE,
         withoutReasonOffset: reasonPage * REPORT_PAGE_SIZE,
+        notExecutedOffset: notExecutedPage * REPORT_PAGE_SIZE,
       }),
     enabled: unitId !== null,
     placeholderData: keepPreviousData,
@@ -55,6 +65,12 @@ export default function InconsistenciesTab({ unitId }: { unitId: number | null }
     </span>,
     item.destinationLocation,
     formatDateTime(item.exitDateTime),
+  ]);
+
+  const notExecutedRows = (query.data?.routinesNotExecuted ?? []).map((item) => [
+    item.routineName,
+    item.galleryCode,
+    formatIsoDate(item.date),
   ]);
 
   return (
@@ -99,6 +115,22 @@ export default function InconsistenciesTab({ unitId }: { unitId: number | null }
           pageSize={REPORT_PAGE_SIZE}
           total={query.data?.inmatesOutWithoutReasonTotal ?? 0}
           onPageChange={setReasonPage}
+        />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Rotinas não executadas</h2>
+        <ReportTable
+          columns={['Rotina', 'Galeria', 'Data']}
+          rows={notExecutedRows}
+          isLoading={query.isLoading}
+          emptyMessage="Nenhuma rotina desativada nos últimos 7 dias."
+        />
+        <PaginationBar
+          page={notExecutedPage}
+          pageSize={REPORT_PAGE_SIZE}
+          total={query.data?.routinesNotExecutedTotal ?? 0}
+          onPageChange={setNotExecutedPage}
         />
       </section>
     </div>

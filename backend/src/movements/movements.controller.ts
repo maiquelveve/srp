@@ -27,6 +27,7 @@ import { ListMovementsQueryDto } from './dto/list-movements-query.dto';
 import { MovementResponseDto } from './dto/movement-response.dto';
 import { FinalReleaseDto } from './dto/final-release.dto';
 import { FinalAnkleMonitorDto } from './dto/final-ankle-monitor.dto';
+import { FinalReversalDto } from './dto/final-reversal.dto';
 import { FinalTransferDto } from './dto/final-transfer.dto';
 import { CellTransferDto } from './dto/cell-transfer.dto';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
@@ -137,6 +138,20 @@ export class MovementsController {
     @CurrentUser() currentUser: JwtPayload,
   ): Promise<MovementResponseDto> {
     return this.movementsService.createFinalTransfer(dto, currentUser);
+  }
+
+  @ApiOperation({
+    summary:
+      'Reverte uma liberdade, tornozeleira ou transferência registrada por engano (somente Chefia/Diretor)',
+  })
+  @Post('final/reversal')
+  @Roles(RoleName.WARDEN)
+  @SkipAutoAudit()
+  createFinalReversal(
+    @Body() dto: FinalReversalDto,
+    @CurrentUser() currentUser: JwtPayload,
+  ): Promise<MovementResponseDto> {
+    return this.movementsService.createFinalReversal(dto, currentUser);
   }
 
   // Troca/permuta de cela/galeria (research.md #35, FR-015–FR-015c) — troca/

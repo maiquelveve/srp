@@ -23,6 +23,7 @@ Ver research.md #26 para a distinção completa.
 - `POST /routines` é o único endpoint que cria um novo *tipo* de rotina; `SUPERVISOR` nunca tem
   acesso a ele (FR-003, FR-019).
 - `DELETE` MUST responder `409` se `locked=true`.
+- `POST /routines` e `PATCH .../schedule` MUST responder `409` com `details.code = "ROUTINE_SCHEDULE_OVERLAP"` e `details.overlaps` (`routineId`, `routineName`, `weekday`, `time`) quando outra rotina ativa da mesma galeria tem o mesmo horário num dia em comum (`weekday` nulo vale para todos os dias). Não bloqueia: reenviar com `confirmOverlap: true` salva mesmo assim (spec.md, Edge Cases). Uma rotina não conflita com ela mesma.
 
 ## Exemplo — PATCH /api/v1/routines/12/activation
 

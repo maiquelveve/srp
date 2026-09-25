@@ -170,6 +170,7 @@ export class ReportsService {
     report.inmatesOutWithoutReason = [];
     report.inmatesOutWithoutReasonTotal = 0;
     report.routinesNotExecuted = [];
+    report.routinesNotExecutedTotal = 0;
 
     const unitIds = await this.unitsService.resolveScope(query.unitId, callerUnitIds);
     if (unitIds.length === 0) {
@@ -219,6 +220,30 @@ export class ReportsService {
       destinationLocation: movement.destinationLocation,
       exitDateTime: movement.exitDateTime,
     }));
+    // FR-025 — rotina desativada pelo Supervisor para a data conta como não executada.
+    const [notExecuted, notExecutedTotal] = await this.overrideRepository
+      .createQueryBuilder('override')
+      .innerJoinAndSelect('override.routine', 'routine')
+      .innerJoinAndSelect('routine.gallery', 'gallery')
+      .where('gallery.unit_id IN (:...unitIds)', { unitIds })
+      .andWhere('override.active = false')
+      .andWhere('override.date IN (:...dates)', {
+        dates: this.lastDates(DEFAULT_ROUTINE_PERIOD_DAYS),
+      })
+      .orderBy('override.date', 'DESC')
+      .addOrderBy('routine.name', 'ASC')
+      .skip(query.notExecutedOffset ?? 0)
+      .take(limit)
+      .getManyAndCount();
+    report.routinesNotExecutedTotal = notExecutedTotal;
+    report.routinesNotExecuted = notExecuted.map((override) => ({
+      routineId: override.routine.id,
+      routineName: override.routine.name,
+      galleryId: override.routine.gallery.id,
+      galleryCode: override.routine.gallery.code,
+      date: override.date,
+    }));
+
     return report;
   }
 

@@ -111,6 +111,20 @@ async function main() {
   const history = await call('GET', `/inmates/${inmate.body.id}/location-history`, warden);
   check('3', 'location history has the cell entry and the release', (history.body?.data ?? history.body ?? []).length >= 1, JSON.stringify(history.body).slice(0, 160));
 
+  const releaseAudit = await call('GET', `/audit?table=movements&recordId=${release.body.id}`, warden);
+  check('3', 'audit has a movements INSERT for the release, with the reason (FR-026)', (releaseAudit.body?.data ?? []).some((a) => a.action === 'INSERT' && a.newData?.reason === 'Alvará 001/2026'), `status ${releaseAudit.status}`);
+
+  // Scenario 3 (cont.) - reversal of a definitive situation registered by mistake (FR-016a)
+  const reversalBody = { inmateId: inmate.body.id, destinationCellId: cell.body.id, reason: 'Liberdade lançada por engano' };
+  check('3', 'SUPERVISOR cannot reverse a situation (403)', (await call('POST', '/movements/final/reversal', supervisor, reversalBody)).status === 403);
+  const reversal = await call('POST', '/movements/final/reversal', warden, reversalBody);
+  check('3', 'WARDEN reverts the release (201)', reversal.status === 201, `status ${reversal.status} ${reversal.raw.slice(0, 120)}`);
+  check('3', 'inmate is ACTIVE again after the reversal', (await call('GET', `/inmates/${inmate.body.id}`, warden)).body?.status === 'ACTIVE');
+  const afterReversal = await call('GET', `/movements?inmateId=${inmate.body.id}`, warden);
+  const movementIds = (afterReversal.body?.data ?? []).map((m) => m.id);
+  check('3', 'the original release stays in the history next to the reversal', movementIds.includes(release.body.id) && movementIds.includes(reversal.body?.id));
+  check('3', 'reversing an inmate that is already ACTIVE is rejected (409)', (await call('POST', '/movements/final/reversal', warden, reversalBody)).status === 409);
+
   // Scenario 4 - routines (US4)
   const routine = await call('POST', '/routines', warden, { galleryId: gallery.body.id, name: 'Pátio', type: 'DAILY', schedules: [{ time: '10:00' }] });
   check('4', 'WARDEN creates a routine (201)', routine.status === 201, `status ${routine.status}`);
@@ -122,6 +136,12 @@ async function main() {
   const listedOther = await call('GET', `/routines?galleryId=${gallery.body.id}&date=${otherDay}`, supervisor);
   check('4', 'routine is listed on other days', (listedOther.body?.data ?? []).some((r) => r.id === routine.body.id));
   check('4', 'SUPERVISOR cannot create routines (403)', (await call('POST', '/routines', supervisor, { galleryId: gallery.body.id, name: 'X', type: 'DAILY', schedules: [{ time: '11:00' }] })).status === 403);
+
+  const overlapBody = { galleryId: gallery.body.id, name: 'Faxina', type: 'DAILY', schedules: [{ time: '10:00' }] };
+  const overlapWarning = await call('POST', '/routines', warden, overlapBody);
+  check('4', 'a routine at the same time in the same gallery is warned (409 ROUTINE_SCHEDULE_OVERLAP)', overlapWarning.status === 409 && overlapWarning.body?.details?.code === 'ROUTINE_SCHEDULE_OVERLAP', `status ${overlapWarning.status}`);
+  const overlapConfirmed = await call('POST', '/routines', warden, { ...overlapBody, confirmOverlap: true });
+  check('4', 'confirming the overlap saves the routine anyway (201)', overlapConfirmed.status === 201, `status ${overlapConfirmed.status}`);
 
   // Scenario 5 - staff (US5)
   const post = await call('POST', '/posts', warden, { unitId: UNIT_ID, name: `Posto QS ${suffix}` });
@@ -152,6 +172,8 @@ async function main() {
   check('6', 'audit has an INSERT for the movement with the responsible user', (auditInsert.body?.data ?? []).some((a) => a.action === 'INSERT' && a.userName), `status ${auditInsert.status}`);
   const auditUser = await call('GET', `/audit?table=users&recordId=${created.body.id}`, supervisor);
   check('6', 'audit of users has entries and never shows a real hash (redacted)', auditUser.status === 200 && (auditUser.body?.data ?? []).length > 0 && !/\$argon2|"passwordHash":"(?!\[REDACTED\])/.test(auditUser.raw), auditUser.raw.slice(0, 160));
+  const inconsistencies = await call('GET', '/reports/inconsistencies?limit=100', supervisor);
+  check('6', 'routine disabled for today is listed as not executed (FR-025)', (inconsistencies.body?.routinesNotExecuted ?? []).some((r) => r.routineId === routine.body.id && r.date === today), `status ${inconsistencies.status}`);
   check('6', 'PRISON_OFFICER cannot read the audit (403)', (await call('GET', '/audit', officer)).status === 403);
   check('6', 'PRISON_OFFICER cannot read reports (403)', (await call('GET', '/reports/inconsistencies', officer)).status === 403);
 

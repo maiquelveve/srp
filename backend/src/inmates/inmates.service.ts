@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { Inmate, InmateStatus } from './entities/inmate.entity';
@@ -71,12 +71,8 @@ export class InmatesService {
   async create(dto: CreateInmateDto, callerUnitIds: number[]): Promise<InmateResponseDto> {
     const cell = await this.cellsService.findEntityInScope(dto.currentCellId, callerUnitIds);
 
-    const occupancy = await this.cellsService.occupancyOf(cell.id);
-    if (occupancy >= cell.capacity) {
-      throw new BadRequestException('Cela já está na capacidade máxima');
-    }
-
     const inmate = await this.dataSource.transaction(async (manager) => {
+      await this.cellsService.lockAndAssertVacancy(manager, cell);
       const created = await manager.save(
         manager.create(Inmate, {
           name: dto.name,

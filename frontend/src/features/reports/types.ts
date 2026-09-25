@@ -37,12 +37,21 @@ export interface InmateOutWithoutReason {
   exitDateTime: string;
 }
 
+export interface RoutineNotExecuted {
+  routineId: number;
+  routineName: string;
+  galleryId: number;
+  galleryCode: string;
+  date: string;
+}
+
 export interface InconsistenciesReport {
   movementsWithoutReturn: MovementWithoutReturn[];
   movementsWithoutReturnTotal: number;
   inmatesOutWithoutReason: InmateOutWithoutReason[];
   inmatesOutWithoutReasonTotal: number;
-  routinesNotExecuted: never[];
+  routinesNotExecuted: RoutineNotExecuted[];
+  routinesNotExecutedTotal: number;
 }
 
 export interface RoutineExecutionItem {

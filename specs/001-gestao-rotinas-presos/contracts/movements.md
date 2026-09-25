@@ -17,6 +17,7 @@ Cobre User Story 2 (FR-008…FR-011a) e User Story 3 (FR-012…FR-016c).
 | POST | `/api/v1/movements/final/release` | WARDEN | Registra liberdade (FR-012). |
 | POST | `/api/v1/movements/final/ankle-monitor` | WARDEN | Registra tornozeleira eletrônica (FR-013). |
 | POST | `/api/v1/movements/final/transfer` | WARDEN | Registra transferência (FR-014). |
+| POST | `/api/v1/movements/final/reversal` | WARDEN | Reverte liberdade, tornozeleira ou transferência registrada por engano (FR-016a). |
 | POST | `/api/v1/movements/cell-change` | PRISON_OFFICER, SUPERVISOR, WARDEN | Registra troca de cela — mesma galeria, exige vaga (FR-015). |
 | POST | `/api/v1/movements/cell-swap` | PRISON_OFFICER, SUPERVISOR, WARDEN | Registra permuta de cela — mesma galeria, dois presos, sem exigir vaga (FR-015a). |
 | POST | `/api/v1/movements/gallery-change` | SUPERVISOR, WARDEN | Registra troca de galeria — galerias diferentes, exige vaga (FR-015b). |
@@ -63,12 +64,16 @@ Cobre User Story 2 (FR-008…FR-011a) e User Story 3 (FR-012…FR-016c).
   é uma coluna própria, distinta de `idempotencyKey`, já que a chave de saída já identifica a linha).
 - `POST /movements/final/release`, `/ankle-monitor` e `/transfer` MUST, na mesma transação:
   atualizar `inmates.status`, fechar o registro de `CellHistory` corrente (FR-016).
+- **Todo endpoint que registra saída, situação definitiva, troca ou permuta** — `POST /movements`, `final/release`, `/ankle-monitor`, `/transfer`, `cell-change`, `gallery-change`, `cell-swap` e `gallery-swap` (preso A) — MUST responder `409` se o preso não estiver `ACTIVE` (liberado, em tornozeleira, transferido ou falecido). A única exceção é `final/reversal`, que exige justamente o contrário. A checagem também roda dentro da transação, sob lock, então um pedido simultâneo que mude o status do preso também é recusado (US2/AC1, Constituição IV).
+- **Toda movimentação criada** por `final/release`, `/ankle-monitor`, `/transfer`, `/reversal`, `cell-change`, `gallery-change`, `cell-swap` e `gallery-swap` MUST gerar um registro `INSERT` de `movements` em `audit_logs`, com o motivo, gravado na mesma transação que a movimentação (uma entrada por movimentação: duas numa permuta). Além do `UPDATE` de `inmates` que essas rotas já gravavam (FR-026, SC-002).
+- `PATCH /movements/:id/return` e `PATCH /movements/:id` MUST conferir `returnDateTime` dentro da transação, com lock na linha da movimentação: dois retornos simultâneos resultam em um `200` e os demais `409`, e uma edição que perde a corrida para um retorno responde `409` (FR-009).
+- `POST /movements/final/reversal` (`inmateId`, `destinationCellId`, `reason` obrigatório, `notes?`) MUST, na mesma transação: registrar uma nova `Movement` do tipo "Reversão de situação definitiva" (`PERMANENT`), devolver `inmates.status` para `ACTIVE`, definir `current_cell_id` como a cela de destino e abrir um novo `CellHistory` (FR-016a). O registro original nunca é alterado nem apagado. Responde `409` se o preso já estiver `ACTIVE` ou for `DECEASED`, `400` se a cela de destino estiver inativa ou sem vaga, e `403` para qualquer perfil que não seja `WARDEN`.
 - `POST /movements/cell-change` e `/gallery-change` MUST, na mesma transação: atualizar
   `inmates.current_cell_id`, fechar e reabrir o registro de `CellHistory` (FR-016), e MUST ser
   rejeitados com `400` se a cela de destino já estiver na capacidade máxima (data-model.md `Cell`).
   `inmates.status` **não muda** (permanece `ACTIVE`).
 - **Todo endpoint desta seção que muda `inmates.current_cell_id` e/ou `inmates.status`** —
-  `final/release`, `/ankle-monitor`, `/transfer`, `cell-change`, `gallery-change`, `cell-swap`,
+  `final/release`, `/ankle-monitor`, `/transfer`, `/reversal`, `cell-change`, `gallery-change`, `cell-swap`,
   `gallery-swap` — MUST responder `409` se o preso (nos dois casos de permuta, qualquer um dos
   dois presos envolvidos) tiver uma movimentação `TEMPORARY` em aberto no momento do POST
   (research.md #38) — ele precisa estar fisicamente na cela pra qualquer uma dessas mudanças

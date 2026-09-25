@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { Cell } from './entities/cell.entity';
 import { Inmate, InmateStatus } from '../inmates/entities/inmate.entity';
 import { countActiveInmatesInScope } from '../inmates/helpers';
@@ -118,6 +118,32 @@ export class CellsService {
       throw new ForbiddenException('Fora do escopo de unidade do usuário');
     }
     return cell;
+  }
+
+  /**
+   * Trava a cela e confere a vaga dentro da transação de quem vai alocar o preso
+   * (cadastro, troca de cela, reversão). Sem o lock, duas alocações simultâneas
+   * na última vaga passam pela mesma contagem e lotam a cela (Constituição IV).
+   * Chamadores travam sempre o(s) preso(s) antes da cela, para não haver deadlock.
+   */
+  async lockAndAssertVacancy(
+    manager: EntityManager,
+    cell: Cell,
+    fullMessage = 'Cela já está na capacidade máxima',
+  ): Promise<void> {
+    await manager
+      .getRepository(Cell)
+      .createQueryBuilder('cell')
+      .setLock('pessimistic_write')
+      .select('cell.id')
+      .where('cell.id = :id', { id: cell.id })
+      .getOneOrFail();
+    const occupancy = await manager.count(Inmate, {
+      where: { currentCell: { id: cell.id }, status: InmateStatus.ACTIVE },
+    });
+    if (occupancy >= cell.capacity) {
+      throw new BadRequestException(fullMessage);
+    }
   }
 
   async occupancyOf(cellId: number): Promise<number> {

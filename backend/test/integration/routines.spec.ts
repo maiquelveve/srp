@@ -34,6 +34,8 @@ describe('Routines endpoints (contracts/routines.md)', () => {
       type: string;
       locked: boolean;
       weekday: number | null;
+      time: string;
+      confirmOverlap: boolean;
     }> = {},
   ): Promise<number> {
     const res = await request(app.getHttpServer())
@@ -44,7 +46,8 @@ describe('Routines endpoints (contracts/routines.md)', () => {
         name: overrides.name ?? 'Pátio',
         type: overrides.type ?? 'DAILY',
         locked: overrides.locked ?? false,
-        schedules: [{ weekday: overrides.weekday ?? null, time: '09:00' }],
+        schedules: [{ weekday: overrides.weekday ?? null, time: overrides.time ?? '09:00' }],
+        confirmOverlap: overrides.confirmOverlap,
       });
     return (res.body as { id: number }).id;
   }
@@ -314,7 +317,11 @@ describe('Routines endpoints (contracts/routines.md)', () => {
   it('deletes a non-locked routine and rejects deleting a locked one (409)', async () => {
     const galleryId = await createGallery();
     const routineId = await createRoutine(galleryId, { name: 'Removível', locked: false });
-    const lockedId = await createRoutine(galleryId, { name: 'Fixa', locked: true });
+    const lockedId = await createRoutine(galleryId, {
+      name: 'Fixa',
+      locked: true,
+      time: '10:00',
+    });
 
     const deleteRes = await request(app.getHttpServer())
       .delete(`/api/v1/routines/${routineId}`)
@@ -325,6 +332,90 @@ describe('Routines endpoints (contracts/routines.md)', () => {
       .delete(`/api/v1/routines/${lockedId}`)
       .set('Authorization', `Bearer ${wardenToken}`);
     expect(deleteLockedRes.status).toBe(409);
+  });
+
+  describe('overlapping schedules (spec.md Edge Cases)', () => {
+    function postRoutine(galleryId: number, time: string, confirmOverlap?: boolean) {
+      return request(app.getHttpServer())
+        .post('/api/v1/routines')
+        .set('Authorization', `Bearer ${wardenToken}`)
+        .send({
+          galleryId,
+          name: `Rotina ${time}`,
+          type: 'DAILY',
+          schedules: [{ weekday: null, time }],
+          confirmOverlap,
+        });
+    }
+
+    it('warns with 409 and the overlapping routine, then saves once confirmed', async () => {
+      const galleryId = await createGallery();
+      const first = await postRoutine(galleryId, '14:00');
+      expect(first.status).toBe(201);
+      const firstId = (first.body as { id: number }).id;
+
+      const warned = await postRoutine(galleryId, '14:00');
+      expect(warned.status).toBe(409);
+      expect(warned.body).toMatchObject({
+        details: {
+          code: 'ROUTINE_SCHEDULE_OVERLAP',
+          overlaps: [{ routineId: firstId, time: '14:00' }],
+        },
+      });
+
+      const confirmed = await postRoutine(galleryId, '14:00', true);
+      expect(confirmed.status).toBe(201);
+    });
+
+    it('does not warn for a different time or a different gallery', async () => {
+      const galleryId = await createGallery();
+      const otherGalleryId = await createGallery();
+      expect((await postRoutine(galleryId, '14:00')).status).toBe(201);
+
+      expect((await postRoutine(galleryId, '15:00')).status).toBe(201);
+      expect((await postRoutine(otherGalleryId, '14:00')).status).toBe(201);
+    });
+
+    it('does not warn for two different weekdays at the same time', async () => {
+      const galleryId = await createGallery();
+      await createRoutine(galleryId, { name: 'Segunda', weekday: 1, time: '14:00' });
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/routines')
+        .set('Authorization', `Bearer ${wardenToken}`)
+        .send({
+          galleryId,
+          name: 'Terça',
+          type: 'WEEKDAY',
+          schedules: [{ weekday: 2, time: '14:00' }],
+        });
+      expect(res.status).toBe(201);
+    });
+
+    it('warns when a supervisor moves a schedule onto another routine, and lets them confirm', async () => {
+      const galleryId = await createGallery();
+      await createRoutine(galleryId, { name: 'Pátio', time: '14:00' });
+      const movableId = await createRoutine(galleryId, { name: 'Faxina', time: '16:00' });
+      const patch = (confirmOverlap?: boolean) =>
+        request(app.getHttpServer())
+          .patch(`/api/v1/routines/${movableId}/schedule`)
+          .set('Authorization', `Bearer ${supervisorToken}`)
+          .send({ schedules: [{ weekday: null, time: '14:00' }], confirmOverlap });
+
+      expect((await patch()).status).toBe(409);
+      expect((await patch(true)).status).toBe(200);
+    });
+
+    it('does not warn when re-saving a routine own schedule', async () => {
+      const galleryId = await createGallery();
+      const routineId = await createRoutine(galleryId, { name: 'Pátio', time: '14:00' });
+
+      const res = await request(app.getHttpServer())
+        .patch(`/api/v1/routines/${routineId}/schedule`)
+        .set('Authorization', `Bearer ${supervisorToken}`)
+        .send({ schedules: [{ weekday: null, time: '14:00' }] });
+      expect(res.status).toBe(200);
+    });
   });
 
   it('rejects creating a routine for a non-existent gallery (404) — reuses GalleriesService.findEntityInScope', async () => {

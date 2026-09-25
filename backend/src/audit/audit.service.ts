@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { AuditAction, AuditLog } from './entities/audit-log.entity';
 import { redact } from './redaction';
 import { User } from '../users/entities/user.entity';
@@ -26,8 +26,13 @@ export class AuditService {
     private readonly auditLogRepository: Repository<AuditLog>,
   ) {}
 
-  async record(entry: RecordAuditEntryInput): Promise<void> {
-    const log = this.auditLogRepository.create({
+  /**
+   * `manager` (opcional): grava dentro da transação de quem chama, para a
+   * entrada de auditoria e o dado auditado sobreviverem ou falharem juntos.
+   */
+  async record(entry: RecordAuditEntryInput, manager?: EntityManager): Promise<void> {
+    const repository = manager ? manager.getRepository(AuditLog) : this.auditLogRepository;
+    const log = repository.create({
       user: entry.userId ? ({ id: entry.userId } as User) : null,
       affectedTable: entry.affectedTable,
       recordId: entry.recordId,
@@ -35,6 +40,6 @@ export class AuditService {
       oldData: redact(entry.oldData ?? null),
       newData: redact(entry.newData ?? null),
     });
-    await this.auditLogRepository.save(log);
+    await repository.save(log);
   }
 }
