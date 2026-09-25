@@ -1,14 +1,13 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { User } from 'lucide-react';
 import { movementsApi } from '../../api';
+import InmateHeaderCard from '../InmateHeaderCard';
 import type { Inmate } from '../../../structure/types';
 import { notify } from '@/lib/notify';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -110,11 +109,9 @@ export default function FinalSituationDialog({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Alterar situação</DialogTitle>
-            <DialogDescription className="flex items-center gap-1.5 uppercase">
-              <User className="size-3.5" />
-              {inmate.name}
-            </DialogDescription>
           </DialogHeader>
+
+          <InmateHeaderCard name={inmate.name} registrationId={inmate.registrationId} />
 
           <div className="grid gap-4">
             <div className="grid gap-1.5">

@@ -128,15 +128,25 @@ Padrão fixo, visto em `InmateDialog` e `EntityDialog`:
 - Campo travado/somente-leitura (ex. cela do preso): `<div
   className="rounded-md border border-input bg-muted px-3 py-2 text-sm
   text-muted-foreground">`, não um `Input disabled`.
-- **Título de modal que age sobre um registro específico** (ex. um preso):
-  `DialogTitle` leva só a ação ("Permuta de galeria", "Registrar saída"),
-  nunca a ação e o registro concatenados com travessão
-  (`"Ação — Nome"` já foi tentado e considerado amador). O registro vai em
-  `DialogDescription` logo abaixo, com um ícone `User` (lucide) +
-  `className="flex items-center gap-1.5 uppercase"` — ver
-  `CellTransferDialog`/`FinalSituationDialog`/`MovementDialog`. Se o corpo do
-  formulário já tinha um campo somente-leitura repetindo esse mesmo nome,
-  remover — fica redundante com o cabeçalho.
+- **Título de modal que age sobre um preso** (`MovementDialog`,
+  `FinalSituationDialog`, `CellTransferDialog`, `ReversalDialog`,
+  `ReasonDialog`): `DialogTitle` leva só a ação ("Permuta de galeria",
+  "Registrar saída"), nunca a ação e o nome concatenados com travessão. Logo
+  abaixo do `DialogHeader` vai o cartão de destaque `InmateHeaderCard`
+  (`frontend/src/features/movements/components/InmateHeaderCard/`), no mesmo
+  padrão do `RoutineHeaderCard`/`DateHighlight`: borda `border-primary`, ícone
+  `User` num quadrado `bg-accent`/`text-primary`, rótulo "PRESO" em
+  uppercase/`text-primary` e o nome do preso em negrito e maiúsculo, com a
+  matrícula em texto pequeno embaixo. Não usar mais `DialogDescription` com
+  ícone e texto solto para o nome. Se o corpo do formulário já tinha um campo
+  somente-leitura repetindo esse mesmo nome, remover — fica redundante com o
+  cartão.
+- **Texto livre longo em tabela** (ex.: motivo de uma situação definitiva):
+  nunca deixar a célula crescer nem quebrar em várias linhas, senão a tabela
+  perde o alinhamento. Mostrar uma linha só, com largura fixa e `truncate`
+  ("..." no fim), e um botão só-ícone (`ghost`, `size="icon"`) ao lado que abre
+  um modal com o texto completo (`whitespace-pre-wrap`, rolagem vertical) —
+  ver `ReasonDialog` em `frontend/src/features/definitive-situations/`.
 - **Título de modal que edita uma Rotina existente** (`ScheduleDialog`,
   `ActivationDialog` em `frontend/src/features/routines/`): exceção ao padrão
   acima de `DialogDescription` em texto simples — usa um cartão de destaque

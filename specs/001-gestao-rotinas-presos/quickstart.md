@@ -66,12 +66,17 @@ Guia para validar, de ponta a ponta, que o sistema atende às User Stories de
    **Esperado**: histórico mostra a entrada original na cela e a saída por liberdade (FR-016).
    Em seguida, `GET /api/v1/audit?table=movements&recordId=<id da liberdade>`.
    **Esperado**: um registro `INSERT` da própria movimentação, com o motivo (FR-026, SC-002).
-4. Como `SUPERVISOR`, `POST /api/v1/movements/final/reversal` para o mesmo preso.
+4. Como `WARDEN`, `GET /api/v1/movements/definitive-situations?name=<parte do nome do preso>`.
+   **Esperado**: `200` com o preso listado como liberdade; como `SUPERVISOR`, `403`. No painel web, a
+   mesma consulta é a tela "Situações definitivas" (menu lateral, só Chefia/Diretor), com período
+   (padrão 6 meses, 1 ano, 5 anos, todos), nome, matrícula e paginação.
+5. Como `SUPERVISOR`, `POST /api/v1/movements/final/reversal` para o mesmo preso.
    **Esperado**: `403` (FR-016a, só a Chefia reverte).
-5. Como `WARDEN`, `POST /api/v1/movements/final/reversal` com `inmateId`, `destinationCellId` (cela
+6. Como `WARDEN`, `POST /api/v1/movements/final/reversal` com `inmateId`, `destinationCellId` (cela
    com vaga) e `reason`.
    **Esperado**: `201`; `inmates.status` volta a `ACTIVE`; `GET /api/v1/movements?inmateId=` lista a
-   liberdade original e a reversão; repetir a chamada retorna `409` (preso já ativo).
+   liberdade original e a reversão; repetir a chamada retorna `409` (preso já ativo). O preso deixa de
+   aparecer em `definitive-situations`.
 
 ## Cenário 4 — Gestão de rotinas (User Story 4)
 

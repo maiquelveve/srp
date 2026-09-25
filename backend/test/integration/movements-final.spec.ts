@@ -174,6 +174,182 @@ describe('Movements endpoints — final/situações definitivas (contracts/movem
   // Troca/permuta de cela/galeria (FR-015–FR-015c) têm sua própria suíte —
   // backend/test/integration/movements-cell-transfer.spec.ts (research.md #35).
 
+  describe('GET /movements/definitive-situations (FR-016a)', () => {
+    const runTag = Date.now().toString().slice(-8);
+
+    function list(token: string, query: string) {
+      return request(app.getHttpServer())
+        .get(`/api/v1/movements/definitive-situations?${query}`)
+        .set('Authorization', `Bearer ${token}`);
+    }
+
+    function situationRows(res: request.Response) {
+      return (
+        res.body as {
+          data: {
+            inmateId: number;
+            situation: string;
+            inmateName: string;
+            registrationId: string | null;
+          }[];
+          total: number;
+        }
+      ).data;
+    }
+
+    function post(path: string, body: Record<string, unknown>) {
+      return request(app.getHttpServer())
+        .post(path)
+        .set('Authorization', `Bearer ${wardenToken}`)
+        .send(body);
+    }
+
+    it('rejects PRISON_OFFICER and SUPERVISOR (403)', async () => {
+      const supervisorLogin = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email: TEST_FIXTURE.supervisorEmail, password: TEST_FIXTURE.password });
+      const supervisorToken = (supervisorLogin.body as { accessToken: string }).accessToken;
+
+      expect((await list(officerToken, '')).status).toBe(403);
+      expect((await list(supervisorToken, '')).status).toBe(403);
+    });
+
+    it('lists a released inmate with situation, reason and who registered it', async () => {
+      const { inmateId } = await createInmate(`Lista ${runTag} Alfa`);
+      await post('/api/v1/movements/final/release', { inmateId, reason: 'Alvará da listagem' });
+
+      const res = await list(wardenToken, `name=Lista ${runTag} Alfa`);
+
+      expect(res.status).toBe(200);
+      const rows = res.body as {
+        data: { inmateId: number; situation: string; reason: string; registeredByName: string }[];
+        total: number;
+      };
+      expect(rows.total).toBe(1);
+      expect(rows.data[0]).toMatchObject({
+        inmateId,
+        situation: 'Liberdade',
+        reason: 'Alvará da listagem',
+      });
+      expect(rows.data[0].registeredByName).toBeTruthy();
+    });
+
+    it('filters by part of the name ignoring case, and by registration code', async () => {
+      const { cellId } = await createInmate(`Base ${runTag}`);
+      const code = `MAT-${runTag}`;
+      const created = await post('/api/v1/inmates', {
+        name: `Fulano ${runTag} Silva`,
+        currentCellId: cellId,
+        registrationId: code,
+      });
+      const inmateId = (created.body as { id: number }).id;
+      await post('/api/v1/movements/final/release', { inmateId, reason: 'Filtro' });
+
+      const byName = await list(wardenToken, `name=${`fulano ${runTag}`.toUpperCase()}`);
+      const byPartialName = await list(wardenToken, `name=${runTag} sil`);
+      const byCode = await list(wardenToken, `registrationId=${code}`);
+      const wildcard = await list(wardenToken, 'name=%25');
+
+      for (const res of [byName, byPartialName, byCode]) {
+        expect(situationRows(res).map((row) => row.inmateId)).toEqual([inmateId]);
+      }
+      expect(situationRows(byCode)[0].registrationId).toBe(code);
+      // `%` digitado vale literalmente, não como curinga.
+      expect((wildcard.body as { total: number }).total).toBe(0);
+    });
+
+    it('limits by registration date: default 6 months, then 1 year, 5 years and all', async () => {
+      const recent = await createInmate(`Periodo ${runTag} Recente`);
+      const oneYearAgo = await createInmate(`Periodo ${runTag} Um Ano`);
+      const threeYearsAgo = await createInmate(`Periodo ${runTag} Tres Anos`);
+      const monthsAgo = (months: number) => {
+        const date = new Date();
+        date.setMonth(date.getMonth() - months);
+        return date.toISOString();
+      };
+      await post('/api/v1/movements/final/release', { inmateId: recent.inmateId, reason: 'a' });
+      await post('/api/v1/movements/final/release', {
+        inmateId: oneYearAgo.inmateId,
+        reason: 'b',
+        exitDateTime: monthsAgo(9),
+      });
+      await post('/api/v1/movements/final/release', {
+        inmateId: threeYearsAgo.inmateId,
+        reason: 'c',
+        exitDateTime: monthsAgo(36),
+      });
+      const idsFor = async (period: string) =>
+        situationRows(await list(wardenToken, `name=Periodo ${runTag}&period=${period}`))
+          .map((row) => row.inmateId)
+          .sort((a, b) => a - b);
+      const sorted = (...ids: number[]) => ids.sort((a, b) => a - b);
+
+      const defaultPeriod = situationRows(await list(wardenToken, `name=Periodo ${runTag}`));
+
+      expect(defaultPeriod.map((row) => row.inmateId)).toEqual([recent.inmateId]);
+      expect(await idsFor('6m')).toEqual([recent.inmateId]);
+      expect(await idsFor('1y')).toEqual(sorted(recent.inmateId, oneYearAgo.inmateId));
+      expect(await idsFor('5y')).toEqual(
+        sorted(recent.inmateId, oneYearAgo.inmateId, threeYearsAgo.inmateId),
+      );
+      expect(await idsFor('all')).toEqual(
+        sorted(recent.inmateId, oneYearAgo.inmateId, threeYearsAgo.inmateId),
+      );
+    });
+
+    it('paginates on the server and keeps the total, newest first', async () => {
+      const ids: number[] = [];
+      for (const suffix of ['A', 'B', 'C']) {
+        const { inmateId } = await createInmate(`Pagina ${runTag} ${suffix}`);
+        ids.push(inmateId);
+        await post('/api/v1/movements/final/release', { inmateId, reason: `Página ${suffix}` });
+      }
+
+      const first = await list(wardenToken, `name=Pagina ${runTag}&limit=2&offset=0`);
+      const second = await list(wardenToken, `name=Pagina ${runTag}&limit=2&offset=2`);
+
+      expect(situationRows(first)).toHaveLength(2);
+      expect(situationRows(second)).toHaveLength(1);
+      expect((first.body as { total: number }).total).toBe(3);
+      expect((second.body as { total: number }).total).toBe(3);
+      expect(
+        [...situationRows(first), ...situationRows(second)].map((row) => row.inmateId),
+      ).toEqual([...ids].reverse());
+    });
+
+    it('shows only the current situation and drops the inmate once reverted', async () => {
+      const { inmateId, cellId } = await createInmate(`Vigente ${runTag}`);
+      await post('/api/v1/movements/final/release', { inmateId, reason: 'Liberdade errada' });
+      await post('/api/v1/movements/final/reversal', {
+        inmateId,
+        destinationCellId: cellId,
+        reason: 'Revertida',
+      });
+      const afterReversal = await list(wardenToken, `name=Vigente ${runTag}`);
+      await post('/api/v1/movements/final/ankle-monitor', {
+        inmateId,
+        reason: 'Agora tornozeleira',
+      });
+      const afterAnkleMonitor = await list(wardenToken, `name=Vigente ${runTag}`);
+      await post('/api/v1/movements/final/reversal', {
+        inmateId,
+        destinationCellId: cellId,
+        reason: 'Revertida de novo',
+      });
+      const afterSecondReversal = await list(wardenToken, `name=Vigente ${runTag}`);
+
+      expect(situationRows(afterReversal)).toHaveLength(0);
+      expect(situationRows(afterAnkleMonitor)).toHaveLength(1);
+      expect(situationRows(afterAnkleMonitor)[0].situation).toBe('Tornozeleira eletrônica');
+      expect(situationRows(afterSecondReversal)).toHaveLength(0);
+    });
+
+    it('rejects a unit outside the caller scope (403) and an invalid period (400)', async () => {
+      expect((await list(wardenToken, 'unitId=999999')).status).toBe(403);
+      expect((await list(wardenToken, 'period=2y')).status).toBe(400);
+    });
+  });
+
   describe('audit of the movement record (FR-026, SC-002)', () => {
     async function movementAudit(movementId: number) {
       const res = await request(app.getHttpServer())

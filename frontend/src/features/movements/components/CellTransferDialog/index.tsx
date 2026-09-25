@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeftRight, Check, ChevronsUpDown, Repeat, User } from 'lucide-react';
+import { ArrowLeftRight, Check, ChevronsUpDown, Repeat } from 'lucide-react';
 import { movementsApi } from '../../api';
+import InmateHeaderCard from '../InmateHeaderCard';
 import type { Movement } from '../../types';
 import { structureApi } from '../../../structure/api';
 import type { Gallery, Inmate } from '../../../structure/types';
@@ -14,7 +15,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -265,11 +265,9 @@ export default function CellTransferDialog({
         <DialogContent className={type === null ? 'sm:max-w-2xl' : undefined}>
           <DialogHeader>
             <DialogTitle>{type === null ? 'Trocar de cela' : TRANSFER_LABEL[type]}</DialogTitle>
-            <DialogDescription className="flex items-center gap-1.5 uppercase">
-              <User className="size-3.5" />
-              {inmate.name}
-            </DialogDescription>
           </DialogHeader>
+
+          <InmateHeaderCard name={inmate.name} registrationId={inmate.registrationId} />
 
           {type === null ? (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

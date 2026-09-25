@@ -115,6 +115,10 @@ async function main() {
   check('3', 'audit has a movements INSERT for the release, with the reason (FR-026)', (releaseAudit.body?.data ?? []).some((a) => a.action === 'INSERT' && a.newData?.reason === 'Alvará 001/2026'), `status ${releaseAudit.status}`);
 
   // Scenario 3 (cont.) - reversal of a definitive situation registered by mistake (FR-016a)
+  const nameFilter = encodeURIComponent(`Preso Quickstart ${suffix}`);
+  const listedBefore = await call('GET', `/movements/definitive-situations?name=${nameFilter}`, warden);
+  check('3', 'WARDEN sees the release in the definitive situations list (FR-016a)', (listedBefore.body?.data ?? []).some((row) => row.inmateId === inmate.body.id && row.situation === 'Liberdade'), `status ${listedBefore.status}`);
+  check('3', 'SUPERVISOR cannot read the definitive situations list (403)', (await call('GET', '/movements/definitive-situations', supervisor)).status === 403);
   const reversalBody = { inmateId: inmate.body.id, destinationCellId: cell.body.id, reason: 'Liberdade lançada por engano' };
   check('3', 'SUPERVISOR cannot reverse a situation (403)', (await call('POST', '/movements/final/reversal', supervisor, reversalBody)).status === 403);
   const reversal = await call('POST', '/movements/final/reversal', warden, reversalBody);
@@ -123,6 +127,8 @@ async function main() {
   const afterReversal = await call('GET', `/movements?inmateId=${inmate.body.id}`, warden);
   const movementIds = (afterReversal.body?.data ?? []).map((m) => m.id);
   check('3', 'the original release stays in the history next to the reversal', movementIds.includes(release.body.id) && movementIds.includes(reversal.body?.id));
+  const listedAfter = await call('GET', `/movements/definitive-situations?name=${nameFilter}`, warden);
+  check('3', 'the reverted inmate leaves the definitive situations list', !(listedAfter.body?.data ?? []).some((row) => row.inmateId === inmate.body.id), `status ${listedAfter.status}`);
   check('3', 'reversing an inmate that is already ACTIVE is rejected (409)', (await call('POST', '/movements/final/reversal', warden, reversalBody)).status === 409);
 
   // Scenario 4 - routines (US4)

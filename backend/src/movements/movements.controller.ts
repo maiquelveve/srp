@@ -28,6 +28,8 @@ import { MovementResponseDto } from './dto/movement-response.dto';
 import { FinalReleaseDto } from './dto/final-release.dto';
 import { FinalAnkleMonitorDto } from './dto/final-ankle-monitor.dto';
 import { FinalReversalDto } from './dto/final-reversal.dto';
+import { DefinitiveSituationsQueryDto } from './dto/definitive-situations-query.dto';
+import { DefinitiveSituationResponseDto } from './dto/definitive-situation-response.dto';
 import { FinalTransferDto } from './dto/final-transfer.dto';
 import { CellTransferDto } from './dto/cell-transfer.dto';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
@@ -138,6 +140,20 @@ export class MovementsController {
     @CurrentUser() currentUser: JwtPayload,
   ): Promise<MovementResponseDto> {
     return this.movementsService.createFinalTransfer(dto, currentUser);
+  }
+
+  @ApiOperation({
+    summary:
+      'Lista as situações definitivas vigentes (liberdade, tornozeleira, transferência) para consulta e reversão (somente Chefia/Diretor)',
+  })
+  @ApiPaginatedResponse(DefinitiveSituationResponseDto)
+  @Get('definitive-situations')
+  @Roles(RoleName.WARDEN)
+  listDefinitiveSituations(
+    @Query() query: DefinitiveSituationsQueryDto,
+    @CurrentUser() currentUser: JwtPayload,
+  ): Promise<PaginatedResponseDto<DefinitiveSituationResponseDto>> {
+    return this.movementsService.listDefinitiveSituations(query, currentUser.units);
   }
 
   @ApiOperation({

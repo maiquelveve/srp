@@ -1865,8 +1865,8 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
   situação definitiva" (`PERMANENT`), devolve o preso a `ACTIVE` numa cela com vaga e abre um novo
   `CellHistory`. `CellHistoryReason.REVERSAL` (a coluna é `varchar`, sem migration de schema). O tipo de
   movimentação entra por migration de dado (`AddReversalMovementType1790300000000`, idempotente), porque
-  bancos já populados não rodam o seed de novo. No painel web, a reversão fica numa seção recolhida dentro
-  da cela expandida do Mapa da Unidade. Não existe no app mobile.
+  bancos já populados não rodam o seed de novo. No painel web, a reversão fica na tela "Situações definitivas"
+  (ver #54). Não existe no app mobile.
 - **Decision — só preso ativo se movimenta (US2/AC1, Constituição IV, T116)**: saída temporária,
   liberdade, tornozeleira, transferência, troca de cela e permuta (preso A) respondem `409` se o preso não
   estiver `ACTIVE`; a reversão é a única que exige o contrário. Antes não havia essa checagem: um preso
@@ -1897,3 +1897,29 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
 - **Impact**: `users`, `auth`, `movements`, `reports`, `routines`, filtro global de exceções, seed, uma
   migration, painel web (rotinas, relatórios, Mapa da Unidade), contratos `movements.md`, `routines.md` e
   `reports-audit.md`, `data-model.md`. Testes de integração: 192 (incluem os de concorrência).
+
+## 54. Tela "Situações definitivas": consulta paginada para localizar e reverter (FR-016a)
+
+- **Contexto** (2026-09-25): a primeira versão da reversão listava, dentro de cada cela expandida do Mapa da Unidade,
+  todo preso que já saiu dela por liberdade, tornozeleira ou transferência. Testada pela Chefia, a lista foi
+  considerada inviável: só cresce com o tempo (anos de dados) e mistura correção de erro com a consulta do dia a dia.
+- **Decision — tela própria, paginada no servidor**: `/situacoes-definitivas` (menu lateral, só `WARDEN`) sobre
+  `GET /movements/definitive-situations`. Cada linha é a situação vigente de um preso (a última liberdade,
+  tornozeleira ou transferência de quem ainda não foi revertido), com data de registro, responsável e motivo, mais o
+  botão Reverter. Filtros: período da data de registro (padrão 6 meses; 1 ano, 5 anos, todos), parte do nome
+  (sem diferenciar maiúsculas) e matrícula. A seção recolhida por cela foi removida.
+- **Decision — sem prazo máximo para reverter**: o período só limita o que a lista mostra. Uma reversão tardia fica
+  registrada e auditada; travar a correção depois de N dias impediria consertar um erro descoberto tarde.
+- **Decision — por que a última situação de cada preso**: um preso liberado, revertido e liberado de novo não deve
+  aparecer duas vezes; o status atual (`inmates.status`) decide se ainda há algo a reverter.
+- **Decision — motivo longo na tabela**: o motivo é texto livre e pode ter vários parágrafos; na tabela ele aparece
+  em uma linha com largura fixa e "...", e um ícone abre o `ReasonDialog` com o motivo completo (quebras de linha
+  preservadas, rolagem). Sem isso um motivo longo quebrava o alinhamento da coluna.
+- **Decision — nome do preso nos modais**: os modais de movimentação, situação definitiva, troca/permuta e reversão
+  passaram a usar o `InmateHeaderCard` (mesmo padrão visual de `RoutineHeaderCard` e `DateHighlight`) no lugar do
+  `DialogDescription` com ícone e texto solto. Registrado no `docs/style-guide.md`.
+- **Alternatives considered**: (1) manter por cela com limite de 30 dias e 10 itens: rejeitado, quem errou há dois
+  meses não acha o preso; (2) só uma busca no Mapa da Unidade: rejeitado, mistura consulta com correção.
+- **Impact**: `MovementsController`/`MovementsService` (`listDefinitiveSituations`), DTOs, tela em
+  `frontend/src/features/definitive-situations/`, `ReversalDialog` (agora recebe só id e nome do preso e atualiza
+  a lista), menu lateral e rota, contrato `movements.md`, quickstart. Testes de integração: 199.

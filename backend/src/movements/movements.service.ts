@@ -17,6 +17,11 @@ import { MovementResponseDto } from './dto/movement-response.dto';
 import { FinalReleaseDto } from './dto/final-release.dto';
 import { FinalAnkleMonitorDto } from './dto/final-ankle-monitor.dto';
 import { FinalReversalDto } from './dto/final-reversal.dto';
+import {
+  DefinitiveSituationPeriod,
+  DefinitiveSituationsQueryDto,
+} from './dto/definitive-situations-query.dto';
+import { DefinitiveSituationResponseDto } from './dto/definitive-situation-response.dto';
 import { FinalTransferDto } from './dto/final-transfer.dto';
 import { CellTransferDto } from './dto/cell-transfer.dto';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
@@ -28,6 +33,7 @@ import { Inmate, InmateStatus } from '../inmates/entities/inmate.entity';
 import { Cell } from '../cells/entities/cell.entity';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/entities/audit-log.entity';
+import { assertUnitScope } from '../auth/unit-scope.util';
 import { User } from '../users/entities/user.entity';
 import { JwtPayload } from '../auth/types/jwt-payload.type';
 
@@ -59,6 +65,26 @@ interface FinalMovementInput {
   requireVacancy?: boolean;
   /** Only the reversal acts on an inmate that is NOT active; every other operation requires ACTIVE. */
   allowNonActiveInmate?: boolean;
+}
+
+/** Situações definitivas que tiram o preso da cela e que a Chefia pode reverter (FR-016a). */
+const DEFINITIVE_SITUATION_TYPE_NAMES = ['Liberdade', 'Tornozeleira eletrônica', 'Transferência'];
+const DEFINITIVE_SITUATION_STATUSES = [
+  InmateStatus.RELEASED,
+  InmateStatus.ANKLE_MONITOR,
+  InmateStatus.TRANSFERRED,
+];
+const PERIOD_IN_MONTHS: Record<DefinitiveSituationPeriod, number | null> = {
+  [DefinitiveSituationPeriod.SIX_MONTHS]: 6,
+  [DefinitiveSituationPeriod.ONE_YEAR]: 12,
+  [DefinitiveSituationPeriod.FIVE_YEARS]: 60,
+  [DefinitiveSituationPeriod.ALL]: null,
+};
+const DEFAULT_PAGE_SIZE = 25;
+
+/** Escapa `%`, `_` e `\` para o texto digitado valer literalmente num `ILIKE`. */
+function escapeLike(text: string): string {
+  return text.replace(/[\\%_]/g, '\\$&');
 }
 
 const MOVEMENT_RELATIONS = {
@@ -96,7 +122,7 @@ export class MovementsService {
       .leftJoinAndSelect('movement.user', 'user')
       .innerJoin('originCell.gallery', 'gallery')
       .where('gallery.unit_id IN (:...callerUnitIds)', { callerUnitIds })
-      .orderBy('movement.exit_datetime', 'DESC');
+      .orderBy('movement.exitDateTime', 'DESC');
 
     if (query.inmateId) {
       movementsQuery.andWhere('movement.inmate_id = :inmateId', { inmateId: query.inmateId });
@@ -280,6 +306,75 @@ export class MovementsService {
 
       return { data: MovementResponseDto.fromEntity(movement), returned: true };
     });
+  }
+
+  /**
+   * `GET /movements/definitive-situations` (FR-016a): a situação definitiva vigente
+   * de cada preso (a última liberdade, tornozeleira ou transferência de quem ainda
+   * não foi revertido), da mais recente para a mais antiga, para a Chefia achar o
+   * preso e reverter. Paginada no servidor: a lista só cresce com o tempo.
+   */
+  async listDefinitiveSituations(
+    query: DefinitiveSituationsQueryDto,
+    callerUnitIds: number[],
+  ): Promise<PaginatedResponseDto<DefinitiveSituationResponseDto>> {
+    if (query.unitId !== undefined) {
+      assertUnitScope(callerUnitIds, [query.unitId]);
+    }
+    const unitIds = query.unitId !== undefined ? [query.unitId] : callerUnitIds;
+    if (unitIds.length === 0) {
+      return new PaginatedResponseDto([], 0);
+    }
+
+    const situationsQuery = this.movementRepository
+      .createQueryBuilder('movement')
+      .innerJoinAndSelect('movement.inmate', 'inmate')
+      .innerJoinAndSelect('movement.movementType', 'movementType')
+      .innerJoinAndSelect('movement.originCell', 'originCell')
+      .innerJoinAndSelect('originCell.gallery', 'gallery')
+      .innerJoinAndSelect('movement.user', 'user')
+      .where('movementType.name IN (:...typeNames)', { typeNames: DEFINITIVE_SITUATION_TYPE_NAMES })
+      .andWhere('inmate.status IN (:...statuses)', { statuses: DEFINITIVE_SITUATION_STATUSES })
+      .andWhere('gallery.unit_id IN (:...unitIds)', { unitIds })
+      // Só a mais recente de cada preso: uma liberdade já revertida e depois refeita não aparece duas vezes.
+      .andWhere(
+        `movement.id = (
+          SELECT latest.id FROM movements latest
+          INNER JOIN movement_types latestType ON latestType.id = latest.movement_type_id
+          WHERE latest.inmate_id = movement.inmate_id AND latestType.name IN (:...typeNames)
+          ORDER BY latest.exit_datetime DESC, latest.id DESC
+          LIMIT 1
+        )`,
+      );
+
+    const months = PERIOD_IN_MONTHS[query.period ?? DefinitiveSituationPeriod.SIX_MONTHS];
+    if (months !== null) {
+      const since = new Date();
+      since.setMonth(since.getMonth() - months);
+      situationsQuery.andWhere('movement.exitDateTime >= :since', { since });
+    }
+    if (query.name?.trim()) {
+      situationsQuery.andWhere('inmate.name ILIKE :name', {
+        name: `%${escapeLike(query.name.trim())}%`,
+      });
+    }
+    if (query.registrationId?.trim()) {
+      situationsQuery.andWhere('inmate.registration_id ILIKE :registrationId', {
+        registrationId: `%${escapeLike(query.registrationId.trim())}%`,
+      });
+    }
+
+    const [movements, total] = await situationsQuery
+      .orderBy('movement.exitDateTime', 'DESC')
+      .addOrderBy('movement.id', 'DESC')
+      .skip(query.offset ?? 0)
+      .take(query.limit ?? DEFAULT_PAGE_SIZE)
+      .getManyAndCount();
+
+    return new PaginatedResponseDto(
+      movements.map((movement) => DefinitiveSituationResponseDto.fromEntity(movement)),
+      total,
+    );
   }
 
   /** POST /api/v1/movements/final/release — contracts/movements.md (FR-012). */

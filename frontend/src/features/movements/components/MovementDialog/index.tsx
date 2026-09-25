@@ -1,14 +1,13 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { User } from 'lucide-react';
 import { movementsApi } from '../../api';
+import InmateHeaderCard from '../InmateHeaderCard';
 import type { Inmate } from '../../../structure/types';
 import { notify } from '@/lib/notify';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -172,11 +171,9 @@ export default function MovementDialog({
             <DialogTitle>
               {isEditing ? 'Editar movimentação' : isReturning ? 'Registrar retorno' : 'Registrar saída'}
             </DialogTitle>
-            <DialogDescription className="flex items-center gap-1.5 uppercase">
-              <User className="size-3.5" />
-              {inmate.name}
-            </DialogDescription>
           </DialogHeader>
+
+          <InmateHeaderCard name={inmate.name} registrationId={inmate.registrationId} />
 
           <div className="grid gap-4">
             {isReturning && !isEditing && inmate.currentMovement && (

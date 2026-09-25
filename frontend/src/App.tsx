@@ -4,6 +4,7 @@ import HomePage from './pages/HomePage';
 import NotFoundPage from './pages/NotFoundPage';
 import StructurePage from './features/structure';
 import RoutinesPage from './features/routines';
+import DefinitiveSituationsPage from './features/definitive-situations';
 import StaffPage from './features/staff';
 import MinimumStaffingConfigPage from './features/staff/minimum-staffing';
 import PostsPage from './features/staff/posts';
@@ -24,6 +25,7 @@ export default function App(): JSX.Element {
           <Route path="/inicio" element={<HomePage />} />
           <Route path="/mapa-da-unidade" element={<StructurePage />} />
           <Route path="/rotinas" element={<RoutinesPage />} />
+          <Route path="/situacoes-definitivas" element={<DefinitiveSituationsPage />} />
           <Route path="/efetivo" element={<StaffPage />} />
           <Route path="/efetivo/postos" element={<PostsPage />} />
           <Route path="/efetivo/configuracao-minima" element={<MinimumStaffingConfigPage />} />

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { User } from 'lucide-react';
+import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
 import { movementsApi } from '../../api';
+import InmateHeaderCard from '../InmateHeaderCard';
 import { structureApi } from '../../../structure/api';
 import type { Gallery, Inmate } from '../../../structure/types';
 import { notify } from '@/lib/notify';
@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -20,7 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export interface ReversalDialogProps {
-  inmate: Inmate;
+  inmate: Pick<Inmate, 'id' | 'name' | 'registrationId'>;
   /** Galerias da unidade: a cela de destino pode ser de qualquer uma delas. */
   galleries: Gallery[];
   children: ReactNode;
@@ -51,14 +50,27 @@ export default function ReversalDialog({ inmate, galleries, children }: Reversal
     setOpen(next);
   }
 
-  const cellsQuery = useQuery({
-    queryKey: ['cells', Number(galleryId)],
-    queryFn: () => structureApi.listCells(Number(galleryId)),
-    enabled: open && galleryId !== '',
+  // Uma consulta por galeria (mesma queryKey ['cells', id] do Mapa da Unidade, então
+  // normalmente já está em cache). Só entram no seletor as galerias que têm ao menos
+  // uma cela ativa com vaga: não há como mandar o preso para uma galeria lotada.
+  const cellsQueries = useQueries({
+    queries: galleries.map((gallery) => ({
+      queryKey: ['cells', gallery.id],
+      queryFn: () => structureApi.listCells(gallery.id),
+      enabled: open,
+    })),
   });
-  const cellsWithVacancy = (cellsQuery.data?.data ?? []).filter(
-    (cell) => cell.active && cell.occupancy < cell.capacity,
+  const cellsWithVacancyByGalleryId = new Map(
+    galleries.map((gallery, index) => [
+      gallery.id,
+      (cellsQueries[index]?.data?.data ?? []).filter((cell) => cell.active && cell.occupancy < cell.capacity),
+    ]),
   );
+  const galleriesWithVacancy = galleries.filter(
+    (gallery) => (cellsWithVacancyByGalleryId.get(gallery.id)?.length ?? 0) > 0,
+  );
+  const cellsLoading = cellsQueries.some((query) => query.isLoading);
+  const cellsWithVacancy = cellsWithVacancyByGalleryId.get(Number(galleryId)) ?? [];
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -71,6 +83,7 @@ export default function ReversalDialog({ inmate, galleries, children }: Reversal
     onSuccess: () => {
       notify({ message: `Situação de ${inmate.name.toUpperCase()} revertida. Preso ativo novamente`, type: 'success' });
       void queryClient.invalidateQueries({ queryKey: ['inmates'] });
+      void queryClient.invalidateQueries({ queryKey: ['definitive-situations'] });
       void queryClient.invalidateQueries({ queryKey: ['cells'] });
       setOpen(false);
     },
@@ -91,11 +104,9 @@ export default function ReversalDialog({ inmate, galleries, children }: Reversal
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Reverter situação</DialogTitle>
-            <DialogDescription className="flex items-center gap-1.5 uppercase">
-              <User className="size-3.5" />
-              {inmate.name}
-            </DialogDescription>
           </DialogHeader>
+
+          <InmateHeaderCard name={inmate.name} registrationId={inmate.registrationId} />
 
           <div className="grid gap-4">
             <p className="text-sm text-muted-foreground">
@@ -116,13 +127,16 @@ export default function ReversalDialog({ inmate, galleries, children }: Reversal
                   <SelectValue placeholder="Selecione a galeria" />
                 </SelectTrigger>
                 <SelectContent>
-                  {galleries.map((gallery) => (
+                  {galleriesWithVacancy.map((gallery) => (
                     <SelectItem key={gallery.id} value={String(gallery.id)}>
                       Galeria {gallery.code}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {!cellsLoading && galleriesWithVacancy.length === 0 && (
+                <p className="text-xs text-muted-foreground">Nenhuma galeria da unidade tem cela com vaga.</p>
+              )}
             </div>
 
             <div className="grid gap-1.5">
@@ -139,9 +153,6 @@ export default function ReversalDialog({ inmate, galleries, children }: Reversal
                   ))}
                 </SelectContent>
               </Select>
-              {galleryId !== '' && !cellsQuery.isLoading && cellsWithVacancy.length === 0 && (
-                <p className="text-xs text-muted-foreground">Nenhuma cela com vaga nesta galeria.</p>
-              )}
             </div>
 
             <div className="grid gap-1.5">

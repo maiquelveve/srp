@@ -3,6 +3,7 @@ import {
   BarChart3,
   BookOpen,
   CalendarClock,
+  FileClock,
   FileText,
   HelpCircle,
   HomeIcon,
@@ -40,6 +41,7 @@ const NAV_ITEMS: NavMainItem[] = [
   { to: '/inicio', label: 'Início', icon: HomeIcon },
   { to: '/mapa-da-unidade', label: 'Movimentações', icon: ArrowLeftRight },
   { to: '/rotinas', label: 'Rotinas', icon: CalendarClock },
+  { to: '/situacoes-definitivas', label: 'Situações definitivas', icon: FileClock, roles: ['WARDEN'] },
   { to: '/efetivo', label: 'Efetivo', icon: Users, roles: ['SUPERVISOR', 'WARDEN'] },
   { to: '/efetivo/postos', label: 'Postos de Serviço', icon: Signpost, roles: ['WARDEN'] },
 ];
