@@ -113,6 +113,13 @@ Guia para validar, de ponta a ponta, que o sistema atende às User Stories de
    **Esperado**: a fila sincroniza automaticamente; `GET /api/v1/movements?inmateId=` no backend
    passa a mostrar o registro, sem duplicatas mesmo se o app tentar reenviar o mesmo item (mesma
    `Idempotency-Key`, ver `contracts/movements.md`).
+4. Ainda offline, registrar uma **segunda** saída para o mesmo preso.
+   **Esperado**: só a mais recente fica na fila (uma pendência por preso; research.md #52).
+5. Com uma pendência que o servidor vai recusar (ex.: preso que já tem saída ativa) e outra de um
+   preso diferente na mesma fila, sincronizar (automático ou pelo botão "Sincronizar agora" no
+   banner da tela de Presos).
+   **Esperado**: a pendência válida sincroniza mesmo com a recusada na fila; a recusada continua
+   pendente e não trava as demais.
 
 ## Cenário 8 — Carga de troca de turno (SC-004)
 

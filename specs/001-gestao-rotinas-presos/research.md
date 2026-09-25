@@ -1790,7 +1790,8 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
 - **Validação ponta a ponta (T073)**: `backend/test/quickstart/validate-quickstart.js` executa os
   cenários 0 a 6 (37 verificações, todas passando) e confirma que nenhuma tentativa negativa
   responde 5xx. O cenário 7 (fila offline do app) e o cronômetro humano do cenário 2 (SC-001) só
-  podem ser feitos no emulador, que roda no **Windows**; ver o passo a passo em `quickstart.md`.
+  podem ser feitos no emulador, que roda no **Windows**. O cenário 7 foi validado ali em
+  2026-09-24 e achou o bug descrito em #52; o cronômetro humano não foi medido (ver `tasks.md`).
 - **Alternatives considered**: (1) manter o `resolveUnitScope` duplicado — rejeitado, é regra de
   escopo de unidade (FR-004a) e divergir dela seria um problema de segurança; (2) descrever o
   Swagger só com decorators manuais nos DTOs — rejeitado, custo alto e fácil de esquecer; o plugin
@@ -1800,3 +1801,36 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
   `config/configuration.ts`, `app.module.ts`, `auth.controller.ts`, `units.service.ts`, novos testes
   e scripts em `backend/test/`, README.md (antes vazio) e `.env.example`. Nenhuma regra de negócio
   nem migration.
+
+## 52. Fila offline do mobile: recusa do servidor não trava a fila e pendência do mesmo preso substitui a anterior
+
+- **Contexto** (2026-09-24): o QA manual do cenário 7 (FR-011a) no emulador Android achou um bug em
+  `mobile/src/offline/sync-service.ts`: qualquer erro no meio da fila, inclusive uma recusa
+  definitiva do servidor, abortava a sincronização inteira. Um item recusado (ex.: segunda saída
+  pendente do mesmo preso, que já tem movimentação temporária ativa, FR-010) bloqueava até as
+  movimentações de outros presos, sem relação com ele.
+- **Decision — só falha de rede aborta o lote**: `syncPendingMovements()` passa a devolver
+  `{ syncedMovements, syncedReturns, rejected }`. Erro sem resposta do servidor (rede ou tempo
+  esgotado) interrompe o lote e preserva a ordem para a próxima reconexão. Resposta de recusa do
+  servidor (`response` presente, 4xx ou 5xx) só pula aquele item e segue com os demais. O item
+  recusado **permanece na fila local**, sem ser apagado.
+- **Decision — regra de negócio: a pendência mais recente vence**: `enqueueMovement` descarta
+  qualquer saída pendente, ainda não sincronizada, do mesmo preso antes de enfileirar a nova;
+  `enqueueReturn` faz o mesmo para o mesmo `movementId`. A interface não bloqueia o registro: o
+  policial pode tentar várias vezes offline e só a última fica na fila. Motivo: o backend só aceita
+  uma movimentação temporária ativa por preso, então a segunda sempre seria recusada. Regra definida
+  com o usuário na mesma sessão do QA.
+- **Decision — botão "Sincronizar agora"**: o banner de pendências da tela de Presos ganhou um botão
+  manual, porque o listener de reconexão (`@react-native-community/netinfo`) nem sempre dispara
+  sozinho no emulador Android. Mostra o resultado com `countedMovementsLabel`.
+- **Consequência conhecida**: um item recusado de forma definitiva continua contado como pendente
+  e é tentado (e recusado) de novo a cada sincronização; não há ainda tela ou ação para descartá-lo
+  ou investigá-lo. Fica como ponto a rever. Também sem solução: o card do preso na lista não mostra
+  qual preso tem pendência (só o banner geral mostra a contagem).
+- **Alternatives considered**: (1) bloquear na interface um segundo registro offline para o mesmo
+  preso — rejeitado, atrapalha o policial sem rede; (2) empilhar tudo e deixar o servidor recusar —
+  era o comportamento anterior e gerava o travamento; (3) apagar da fila o item recusado —
+  rejeitado, perderia um registro sem que ninguém o veja.
+- **Impact**: `offline-queue.ts`, `sync-service.ts`, `InmatesScreen` (botão e toast),
+  `structure/model.ts`, `mobile/tests/offline-sync.spec.ts` (5 testes novos, 9 no total), spec.md
+  (FR-011a) e quickstart.md (cenário 7). Sem mudança no backend nem no contrato de movimentações.

@@ -159,7 +159,7 @@ Supervisor e chefia/diretor consultam relatórios operacionais (movimentações 
 - **FR-009**: O sistema MUST permitir registrar o retorno de uma movimentação temporária, gravando a data/hora de retorno.
 - **FR-010**: O sistema MUST impedir a criação de uma nova movimentação de saída para um preso que já possua uma movimentação temporária em aberto.
 - **FR-011**: O sistema MUST exibir em tempo real o status atual de cada preso (na cela, em rotina, em atendimento, em visita, em situação definitiva), com filtragem por unidade, galeria e cela.
-- **FR-011a**: O aplicativo móvel usado pelos Policiais Penais MUST permitir registrar movimentações mesmo sem conexão de rede disponível no momento, mantendo-as em uma fila local e sincronizando-as automaticamente com o servidor assim que a conectividade for restabelecida, sem perda de dados nem duplicação.
+- **FR-011a**: O aplicativo móvel usado pelos Policiais Penais MUST permitir registrar movimentações mesmo sem conexão de rede disponível no momento, mantendo-as em uma fila local e sincronizando-as automaticamente com o servidor assim que a conectividade for restabelecida, sem perda de dados nem duplicação. Se houver mais de uma pendência ainda não sincronizada para o mesmo preso (saída) ou para a mesma movimentação (retorno), somente a mais recente é mantida na fila. Uma pendência que o servidor recusar não impede a sincronização das demais (research.md #52).
 
 **Situações Definitivas**
 
