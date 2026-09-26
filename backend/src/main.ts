@@ -20,7 +20,7 @@ async function bootstrap(): Promise<void> {
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('SRP API')
-    .setDescription('Sistema de Rotinas Penitenciárias — API REST')
+    .setDescription('Sistema de Rotinas Penitenciárias: API REST')
     .setVersion('1.0')
     .addBearerAuth()
     .build();

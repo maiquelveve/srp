@@ -191,7 +191,7 @@ function CellRowInmates({
                     </MovementDialog>
                   )}
                 </span>
-                <span className="truncate text-center text-muted-foreground">{inmate.registrationId ?? '—'}</span>
+                <span className="truncate text-center text-muted-foreground">{inmate.registrationId ?? 'Sem matrícula'}</span>
                 <span className="flex items-center justify-center gap-1">
                   {/* Mover preso é para qualquer autenticado (PRISON_OFFICER,
                       SUPERVISOR, WARDEN — contracts/movements.md), não só

@@ -229,7 +229,7 @@ export default function SettingsPage(): JSX.Element {
                           {isSelected && <CheckCircle2Icon className="size-4 text-success" />}
                         </TableCell>
                         <TableCell className="w-64 text-left">{unit.name}</TableCell>
-                        <TableCell>{unit.code ?? '—'}</TableCell>
+                        <TableCell>{unit.code ?? 'Sem código'}</TableCell>
                         <TableCell>
                           <ActiveBadge active={unit.active} />
                         </TableCell>

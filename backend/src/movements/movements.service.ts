@@ -67,6 +67,15 @@ interface FinalMovementInput {
   allowNonActiveInmate?: boolean;
 }
 
+/** Situação do preso em português, para mensagens que chegam ao usuário. */
+const INMATE_STATUS_LABEL: Record<InmateStatus, string> = {
+  [InmateStatus.ACTIVE]: 'ativo',
+  [InmateStatus.RELEASED]: 'em liberdade',
+  [InmateStatus.ANKLE_MONITOR]: 'em tornozeleira eletrônica',
+  [InmateStatus.TRANSFERRED]: 'transferido',
+  [InmateStatus.DECEASED]: 'falecido',
+};
+
 /** Situações definitivas que tiram o preso da cela e que a Chefia pode reverter (FR-016a). */
 const DEFINITIVE_SITUATION_TYPE_NAMES = ['Liberdade', 'Tornozeleira eletrônica', 'Transferência'];
 const DEFINITIVE_SITUATION_STATUSES = [
@@ -165,7 +174,7 @@ export class MovementsService {
 
     if (movementType.category !== MovementCategory.TEMPORARY) {
       throw new BadRequestException(
-        'POST /movements aceita apenas tipos de movimentação TEMPORARY — use /movements/final/* para situações definitivas',
+        'Esta operação aceita apenas tipos de movimentação temporária. Para situações definitivas, use /movements/final/*.',
       );
     }
 
@@ -239,7 +248,7 @@ export class MovementsService {
       const movementType = await this.movementTypesService.findById(dto.movementTypeId);
       if (movementType.category !== MovementCategory.TEMPORARY) {
         throw new BadRequestException(
-          'PATCH /movements/:id aceita apenas tipos de movimentação TEMPORARY',
+          'Só é possível trocar para outro tipo de movimentação temporária.',
         );
       }
       movement.movementType = movementType;
@@ -449,7 +458,7 @@ export class MovementsService {
   ): Promise<MovementResponseDto> {
     const inmate = await this.inmatesService.findEntityInScope(dto.inmateId, currentUser.units);
     if (inmate.status === InmateStatus.ACTIVE) {
-      throw new ConflictException('Preso já está ativo — não há situação definitiva para reverter');
+      throw new ConflictException('Preso já está ativo. Não há situação definitiva para reverter.');
     }
     if (inmate.status === InmateStatus.DECEASED) {
       throw new ConflictException('Preso falecido não pode ter a situação revertida');
@@ -623,7 +632,7 @@ export class MovementsService {
     // escolhido, não "qualquer um" da cela.
     if (inmateB.status !== InmateStatus.ACTIVE || inmateB.currentCell.id !== cellB.id) {
       throw new ConflictException(
-        'O preso de destino não está mais nessa cela — escolha novamente',
+        'O preso de destino não está mais nessa cela. Escolha novamente.',
       );
     }
 
@@ -635,12 +644,12 @@ export class MovementsService {
         {
           inmate: inmateA,
           openMovementMessage:
-            'Preso possui movimentação temporária em aberto — registre o retorno antes de continuar',
+            'Preso possui movimentação temporária em aberto. Registre o retorno antes de continuar.',
         },
         {
           inmate: inmateB,
           openMovementMessage:
-            'O outro preso da permuta possui movimentação temporária em aberto — registre o retorno antes de continuar',
+            'O outro preso da permuta possui movimentação temporária em aberto. Registre o retorno antes de continuar.',
         },
       ]);
       const savedA = await manager.save(
@@ -740,12 +749,12 @@ export class MovementsService {
     const sameGallery = originCell.gallery.id === destinationCell.gallery.id;
     if (sameGalleryRequired && !sameGallery) {
       throw new BadRequestException(
-        `${movementTypeName} exige que a cela de destino esteja na mesma galeria — use a variação "de galeria" para mudar de galeria`,
+        `${movementTypeName} exige que a cela de destino esteja na mesma galeria. Use a variação "de galeria" para mudar de galeria.`,
       );
     }
     if (!sameGalleryRequired && sameGallery) {
       throw new BadRequestException(
-        `${movementTypeName} exige que a cela de destino esteja em outra galeria — use a variação de cela para permanecer na mesma galeria`,
+        `${movementTypeName} exige que a cela de destino esteja em outra galeria. Use a variação de cela para permanecer na mesma galeria.`,
       );
     }
   }
@@ -777,7 +786,7 @@ export class MovementsService {
         {
           inmate,
           openMovementMessage:
-            'Preso possui movimentação temporária em aberto — registre o retorno antes de continuar',
+            'Preso possui movimentação temporária em aberto. Registre o retorno antes de continuar.',
         },
       ]);
       if (input.requireVacancy && input.destinationCell) {
@@ -890,7 +899,7 @@ export class MovementsService {
   private assertInmateActive(inmate: Inmate): void {
     if (inmate.status !== InmateStatus.ACTIVE) {
       throw new ConflictException(
-        `Preso não está ativo (situação atual: ${inmate.status}) — a operação exige preso ativo`,
+        `Preso não está ativo (${INMATE_STATUS_LABEL[inmate.status]}). A operação exige preso ativo.`,
       );
     }
   }

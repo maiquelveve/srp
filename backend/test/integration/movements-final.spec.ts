@@ -424,6 +424,10 @@ describe('Movements endpoints — final/situações definitivas (contracts/movem
           .set('Authorization', `Bearer ${wardenToken}`)
           .send({ inmateId, reason: 'Repetido' });
         expect(res.status).toBe(409);
+        // A mensagem chega ao usuário: em português, sem enum em inglês e sem travessão longo.
+        const message = (res.body as { message: string }).message;
+        expect(message).toContain('em liberdade');
+        expect(message).not.toMatch(/RELEASED|—/);
       }
     });
 
