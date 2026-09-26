@@ -1923,3 +1923,36 @@ efetivamente usado nas entities TypeORM e no código (ex.: `inmates.status`, nã
 - **Impact**: `MovementsController`/`MovementsService` (`listDefinitiveSituations`), DTOs, tela em
   `frontend/src/features/definitive-situations/`, `ReversalDialog` (agora recebe só id e nome do preso e atualiza
   a lista), menu lateral e rota, contrato `movements.md`, quickstart. Testes de integração: 199.
+
+## 55. QA do app móvel em 2026-09-26: análise dos achados e divisão do trabalho
+
+- **Contexto**: a instância do Claude no Windows testou o app no emulador contra o backend do WSL (roteiro em torno
+  do cenário 7 do quickstart e das regras novas de T106 a T125). Fluxos básicos, fila offline, recusas sem travar a
+  fila, preso não ativo e cela cheia funcionaram. Os problemas ficaram em como o app trata as respostas de erro.
+- **Bug #1 (usuário desativado não é deslogado): a causa está no app, não no backend.** O guard de autenticação é
+  global (só login, refresh, logout, definir senha inicial e health são públicos). Com um banco descartável, depois
+  de desativar um Policial Penal, o token que ele ainda tinha devolveu 401 em `/units`, `/units/:id/galleries`,
+  `/inmates`, `/movements?open=true`, `/movement-types` e `/routines`, e o refresh também devolveu 401. O que falha
+  é `mobile/src/services/api-client.ts`: no 401 ele só apaga os tokens do armazenamento e não avisa o
+  `AuthContext`, que mantém o usuário "logado"; cada tela reage do seu jeito (vazio, número antigo). Não explicado:
+  a Home ter mostrado dados novos depois da desativação; o backend exclui um 200 nesse momento, então é provável que a
+  busca tenha ocorrido antes de a desativação valer. Refazer com sequência controlada se voltar a acontecer.
+- **Bug #2 (erros genéricos)**: `CellChange` e `CellSwap` descartam o `message` da API. Ao mostrar a mensagem, aparecem
+  as mensagens do backend, que hoje têm travessão (uma regra do projeto proíbe) e uma delas mostra o enum em inglês
+  ("situação atual: RELEASED"). Por isso o backend precisa ser ajustado junto.
+- **Bug #3 ("vazio" mascarando falha)**: `InmatesScreen` só trata `isLoading`; falha de carga vira "nenhum preso".
+- **Bug #4 (travessão)**: bem além do campo Observações: rótulo "Fora da cela — X" em todo card de preso
+  (`mobile/src/features/structure/model.ts`), textos e placeholders em `CellSwap`, `HomeHeader` e
+  `routines/labels.ts`, alguns no painel web, e ao menos 7 mensagens do backend.
+- **Não são bug**: a sincronização automática existe (listener de conectividade em `sync-service.ts`); o teste no
+  emulador só não conseguiu simular a rede via adb. Os reloads do Metro são do ambiente de desenvolvimento.
+- **Decision — fila offline no logout forçado**: as pendências permanecem no aparelho, nada é apagado (spec.md,
+  FR-011a). Alternativas rejeitadas: apagar (perde registro feito offline, arriscado em sistema prisional) e
+  avisar antes de deslogar (mais trabalho, fica para depois se pedirem).
+- **Decision — quem implementa**: o app móvel é implementado e validado pela instância do Windows (emulador); o
+  backend, o painel web, os testes de backend e a documentação ficam com a instância do WSL. A instância do WSL
+  não valida nada no emulador.
+- **Alternatives considered**: (1) tratar 401 tela a tela: rejeitado, é o que causa o comportamento disperso de
+  hoje; (2) o backend devolver um código de erro específico para "usuário desativado": adiado, o 401 já basta para
+  o app voltar ao login.
+- **Impact**: ver a Phase 17 do `tasks.md`.
