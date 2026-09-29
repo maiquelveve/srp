@@ -1,3 +1,5 @@
+> **Documento histórico.** Este era o rascunho inicial do projeto, anterior ao fluxo spec-kit. Muita coisa aqui já mudou. A fonte de verdade atual é `specs/001-gestao-rotinas-presos/spec.md` (e `plan.md`, `tasks.md` na mesma pasta).
+
 # SRP - Sistema de Rotinas Penitenciárias
 
 ## Visão Geral

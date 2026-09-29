@@ -1,3 +1,5 @@
+> **Documento histórico.** Este era o modelo de banco inicial do projeto, anterior ao fluxo spec-kit. Muita coisa aqui já mudou. A fonte de verdade atual é `specs/001-gestao-rotinas-presos/data-model.md`.
+
 # Modelo do Banco de Dados
 
 > Convenção (Constituição v1.1.0, Princípio XI): todo nome de tabela/coluna é em inglês. Este
