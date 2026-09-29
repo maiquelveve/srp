@@ -1,10 +1,9 @@
 import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, QueryFailedError, Repository } from 'typeorm';
+import { In, QueryFailedError, Repository } from 'typeorm';
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import { User } from './entities/user.entity';
 import { InviteToken } from './entities/invite-token.entity';
-import { RefreshToken } from './entities/refresh-token.entity';
 import { Role } from '../roles/entities/role.entity';
 import { Unit } from '../units/entities/unit.entity';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -12,6 +11,7 @@ import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { PasswordHasherService } from '../auth/hashing/password-hasher.service';
+import { TokenService } from '../auth/token.service';
 import { assertUnitScope } from '../auth/unit-scope.util';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/entities/audit-log.entity';
@@ -32,9 +32,8 @@ export class UsersService {
     @InjectRepository(Unit) private readonly unitRepository: Repository<Unit>,
     @InjectRepository(InviteToken)
     private readonly inviteTokenRepository: Repository<InviteToken>,
-    @InjectRepository(RefreshToken)
-    private readonly refreshTokenRepository: Repository<RefreshToken>,
     private readonly passwordHasher: PasswordHasherService,
+    private readonly tokenService: TokenService,
     private readonly auditService: AuditService,
   ) {}
 
@@ -136,10 +135,7 @@ export class UsersService {
     user.active = false;
     await this.userRepository.save(user);
     // FR-031 — no session may outlive the deactivation.
-    await this.refreshTokenRepository.update(
-      { user: { id: user.id }, revokedAt: IsNull() },
-      { revokedAt: new Date() },
-    );
+    await this.tokenService.revokeAllForUser(user.id);
 
     await this.auditService.record({
       userId: actingUserId,

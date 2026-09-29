@@ -1,7 +1,7 @@
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { createHash, randomUUID } from 'crypto';
 import { User } from '../users/entities/user.entity';
 import { RefreshToken } from '../users/entities/refresh-token.entity';
@@ -107,5 +107,23 @@ export class TokenService {
   async revokeRefreshToken(refreshToken: string): Promise<void> {
     const tokenHash = this.hashToken(refreshToken);
     await this.refreshTokenRepository.update({ tokenHash }, { revokedAt: new Date() });
+  }
+
+  /**
+   * Revokes every still-valid refresh token of a user — no session may
+   * outlive an administrative action or a password change (research.md #1).
+   * Without `exceptTokenHash`: revokes all of them (deactivation, FR-031;
+   * admin password reset, FR-007). With `exceptTokenHash`: revokes all but
+   * the caller's own current session (self password change, FR-017a).
+   */
+  async revokeAllForUser(userId: number, exceptTokenHash?: string): Promise<void> {
+    await this.refreshTokenRepository.update(
+      {
+        user: { id: userId },
+        revokedAt: IsNull(),
+        ...(exceptTokenHash ? { tokenHash: Not(exceptTokenHash) } : {}),
+      },
+      { revokedAt: new Date() },
+    );
   }
 }

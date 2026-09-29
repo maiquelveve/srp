@@ -31,9 +31,9 @@ não é tocado (FR-019):
 
 **Purpose**: Dependências e configuração compartilhadas pelas 3 user stories
 
-- [ ] T001 Adicionar `nodemailer` + `@types/nodemailer` às dependências de `backend/package.json` (research.md #6)
-- [ ] T002 [P] Adicionar as variáveis novas a `backend/.env.example`: `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` (research.md #6), `DOCUMENTS_STORAGE_PATH`, `DOCUMENTS_MAX_FILE_SIZE_MB` (research.md #4, #8), seguindo o padrão de bloco comentado já usado ali
-- [ ] T003 [P] Adicionar o diretório padrão de `DOCUMENTS_STORAGE_PATH` (ex.: `storage/documents/`) a `backend/.gitignore`
+- [X] T001 Adicionar `nodemailer` + `@types/nodemailer` às dependências de `backend/package.json` (research.md #6)
+- [X] T002 [P] Adicionar as variáveis novas a `backend/.env.example`: `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` (research.md #6), `DOCUMENTS_STORAGE_PATH`, `DOCUMENTS_MAX_FILE_SIZE_MB` (research.md #4, #8), seguindo o padrão de bloco comentado já usado ali
+- [X] T003 [P] Adicionar o diretório padrão de `DOCUMENTS_STORAGE_PATH` (ex.: `storage/documents/`) a `backend/.gitignore`
 
 ---
 
@@ -43,7 +43,7 @@ não é tocado (FR-019):
 
 **⚠️ CRITICAL**: Nenhuma das duas pode ser concluída sem esta task
 
-- [ ] T004 Implementar `TokenService.revokeAllForUser(userId: number, exceptTokenHash?: string)` em `backend/src/auth/token.service.ts` (research.md #1); refatorar `UsersService.deactivate()` (`backend/src/users/users.service.ts:138-142`) para chamar esse método em vez da query inline hoje duplicada; testes unitários cobrindo os dois modos (revogar tudo / revogar tudo exceto um hash) em `backend/test/unit/token.service.spec.ts`
+- [X] T004 Implementar `TokenService.revokeAllForUser(userId: number, exceptTokenHash?: string)` em `backend/src/auth/token.service.ts` (research.md #1); refatorar `UsersService.deactivate()` (`backend/src/users/users.service.ts:138-142`) para chamar esse método em vez da query inline hoje duplicada; testes unitários cobrindo os dois modos (revogar tudo / revogar tudo exceto um hash) em `backend/test/unit/token.service.spec.ts`
 
 **Checkpoint**: Revogação de sessão pronta — User Story 1 (reset) e User Story 3 (troca própria) podem ser implementadas
 
