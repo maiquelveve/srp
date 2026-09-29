@@ -5,6 +5,8 @@ import type { RootStackParamList } from '@/navigation/types';
 import { colors } from '@/theme/colors';
 import { Text } from '@/components/ui/text';
 import ScreenHeader from '@/components/ScreenHeader';
+import ListErrorState from '@/components/ListErrorState';
+import OfflineDataBanner from '@/components/OfflineDataBanner';
 import GalleryCard from './components/GalleryCard';
 import { useGalleriesScreenViewModel } from './viewmodel';
 
@@ -25,33 +27,38 @@ export default function GalleriesScreen({ navigation, route }: Props): JSX.Eleme
         Galerias da unidade
       </Text>
 
-      {viewModel.isLoading ? (
+      {viewModel.loadState === 'loading' ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color={colors.primary} />
         </View>
+      ) : viewModel.loadState === 'error' ? (
+        <ListErrorState message={viewModel.errorMessage} onRetry={viewModel.retry} />
       ) : (
-        <FlatList
-          className="flex-1"
-          data={viewModel.galleries}
-          keyExtractor={(item) => String(item.id)}
-          contentContainerClassName="gap-5 px-4 pb-4"
-          renderItem={({ item }) => (
-            <GalleryCard
-              code={item.code}
-              cellCount={item.cellCount}
-              capacity={item.capacity}
-              occupancy={item.occupancy}
-              onPress={() => viewModel.goToCells(item.id, item.code)}
-            />
-          )}
-          ListEmptyComponent={
-            <View className="p-4">
-              <Text variant="muted" className="text-center">
-                Nenhuma galeria cadastrada nesta unidade.
-              </Text>
-            </View>
-          }
-        />
+        <>
+          {viewModel.loadState === 'offline-with-data' && <OfflineDataBanner />}
+          <FlatList
+            className="flex-1"
+            data={viewModel.galleries}
+            keyExtractor={(item) => String(item.id)}
+            contentContainerClassName="gap-5 px-4 pb-4"
+            renderItem={({ item }) => (
+              <GalleryCard
+                code={item.code}
+                cellCount={item.cellCount}
+                capacity={item.capacity}
+                occupancy={item.occupancy}
+                onPress={() => viewModel.goToCells(item.id, item.code)}
+              />
+            )}
+            ListEmptyComponent={
+              <View className="p-4">
+                <Text variant="muted" className="text-center">
+                  Nenhuma galeria cadastrada nesta unidade.
+                </Text>
+              </View>
+            }
+          />
+        </>
       )}
     </SafeAreaView>
   );

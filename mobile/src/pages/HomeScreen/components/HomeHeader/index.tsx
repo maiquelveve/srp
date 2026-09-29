@@ -13,8 +13,14 @@ interface HomeHeaderProps {
   firstName: string;
   currentUnitCode: string | null;
   inmatesTotal: number | null;
+  inmatesLoading: boolean;
+  inmatesError: boolean;
   occupancyPercent: number | null;
+  occupancyLoading: boolean;
+  occupancyError: boolean;
   openMovementsTotal: number;
+  openMovementsLoading: boolean;
+  openMovementsError: boolean;
   onPressAvatar: () => void;
   onPressUnitLabel: () => void;
 }
@@ -24,8 +30,14 @@ export default function HomeHeader({
   firstName,
   currentUnitCode,
   inmatesTotal,
+  inmatesLoading,
+  inmatesError,
   occupancyPercent,
+  occupancyLoading,
+  occupancyError,
   openMovementsTotal,
+  openMovementsLoading,
+  openMovementsError,
   onPressAvatar,
   onPressUnitLabel,
 }: HomeHeaderProps): JSX.Element {
@@ -95,19 +107,25 @@ export default function HomeHeader({
         <View className="flex-row gap-3">
           <StatCard
             icon={UsersRound}
-            value={inmatesTotal === null ? '—' : String(inmatesTotal)}
+            value={inmatesTotal === null ? '-' : String(inmatesTotal)}
+            isLoading={inmatesLoading}
+            isError={inmatesError}
             label="Presos"
             sublabel="Total"
           />
           <StatCard
             icon={ChartColumn}
-            value={occupancyPercent === null ? '—' : `${occupancyPercent}%`}
+            value={occupancyPercent === null ? '-' : `${occupancyPercent}%`}
+            isLoading={occupancyLoading}
+            isError={occupancyError}
             label="Ocupação"
             sublabel="Taxa"
           />
           <StatCard
             icon={LogOut}
             value={String(openMovementsTotal)}
+            isLoading={openMovementsLoading}
+            isError={openMovementsError}
             label="Saídas"
             sublabel="Externas"
           />

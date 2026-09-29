@@ -8,13 +8,14 @@ import { Icon } from '@/components/ui/icon';
 import { colors } from '@/theme/colors';
 import { initials } from '@/lib/initials';
 import { cn } from '@/lib/utils';
-import { isExternalMovementType } from '@/features/structure/model';
+import { isExternalMovementType, type InmatePendingStatus } from '@/features/structure/model';
 import type { Inmate } from '@/features/structure/types';
 
 interface InmateRowProps {
   inmate: Inmate;
   statusLine: string;
   movementLabel: string;
+  pendingStatus: InmatePendingStatus;
   onPressDetail: () => void;
   onPressTransfer: () => void;
   onPressMovement: () => void;
@@ -24,6 +25,7 @@ export default function InmateRow({
   inmate,
   statusLine,
   movementLabel,
+  pendingStatus,
   onPressDetail,
   onPressTransfer,
   onPressMovement,
@@ -76,6 +78,25 @@ export default function InmateRow({
                 {statusLine}
               </Text>
             </Badge>
+          )}
+          {/* Selo de movimentação offline ainda não confirmada pelo servidor
+              (T131, research.md #55) — "Recusada" nunca pode parecer igual a
+              um item sincronizado com sucesso, por isso vermelho/destructive
+              (não âmbar/warning) e com o motivo abaixo. */}
+          {pendingStatus.kind === 'pending' && (
+            <Badge variant="warning" className="self-start">
+              <Text className="text-warning-foreground text-xs font-bold uppercase">Pendente</Text>
+            </Badge>
+          )}
+          {pendingStatus.kind === 'rejected' && (
+            <View className="gap-1">
+              <Badge variant="destructive" className="self-start">
+                <Text className="text-xs font-bold uppercase text-white">Recusada</Text>
+              </Badge>
+              <Text className="text-destructive text-xs" numberOfLines={2}>
+                {pendingStatus.reason}
+              </Text>
+            </View>
           )}
         </View>
       </View>

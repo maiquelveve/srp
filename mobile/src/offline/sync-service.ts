@@ -1,10 +1,13 @@
 import axios from 'axios';
 import NetInfo from '@react-native-community/netinfo';
 import { apiClient } from '../services/api-client';
+import { extractApiErrorMessage } from '../lib/api-error';
 import {
   getPendingMovements,
   getPendingReturns,
+  markMovementRejected,
   markMovementSynced,
+  markReturnRejected,
   markReturnSynced,
 } from './offline-queue';
 
@@ -60,6 +63,10 @@ export async function syncPendingMovements(): Promise<SyncResult> {
       result.syncedMovements += 1;
     } catch (error) {
       if (isDefiniteRejection(error)) {
+        await markMovementRejected(
+          movement.id,
+          extractApiErrorMessage(error, 'O servidor recusou esta movimentação.'),
+        );
         result.rejected += 1;
         continue;
       }
@@ -81,6 +88,10 @@ export async function syncPendingMovements(): Promise<SyncResult> {
       result.syncedReturns += 1;
     } catch (error) {
       if (isDefiniteRejection(error)) {
+        await markReturnRejected(
+          pendingReturn.id,
+          extractApiErrorMessage(error, 'O servidor recusou este retorno.'),
+        );
         result.rejected += 1;
         continue;
       }

@@ -10,12 +10,20 @@ import {
   countedMovementsLabel,
   filterInmatesBySearch,
   inmateMovementActionLabel,
+  inmatePendingStatus,
   inmateStatusLine,
+  type InmatePendingStatus,
 } from '@/features/structure/model';
 import type { Inmate } from '@/features/structure/types';
 import type { RootStackParamList } from '@/navigation/types';
-import { countPending } from '@/offline/offline-queue';
+import {
+  getPendingMovements,
+  getPendingReturns,
+  type PendingMovement,
+  type PendingReturn,
+} from '@/offline/offline-queue';
 import { syncPendingMovements } from '@/offline/sync-service';
+import { resolveListLoadState } from '@/lib/list-load-state';
 import { toast } from '@/lib/toast';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Inmates'>;
@@ -29,10 +37,19 @@ export function useInmatesScreenViewModel(navigation: Navigation, route: Route) 
     queryKey: ['inmates', cellId],
     queryFn: () => structureApi.listInmates(cellId),
   });
+  const inmates = inmatesQuery.data?.data ?? [];
 
-  const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [pendingMovements, setPendingMovements] = useState<PendingMovement[]>([]);
+  const [pendingReturns, setPendingReturns] = useState<PendingReturn[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [search, setSearch] = useState('');
+
+  async function refreshPendingQueue(): Promise<{ total: number }> {
+    const [movements, returns] = await Promise.all([getPendingMovements(), getPendingReturns()]);
+    setPendingMovements(movements);
+    setPendingReturns(returns);
+    return { total: movements.length + returns.length };
+  }
 
   // Sem isso, voltar pra cá depois de registrar uma troca/permuta/movimentação
   // (telas empilhadas em cima, nunca desmontadas pelo native-stack) mostrava
@@ -44,7 +61,7 @@ export function useInmatesScreenViewModel(navigation: Navigation, route: Route) 
   useFocusEffect(
     useCallback(() => {
       void queryClient.invalidateQueries({ queryKey: ['inmates', cellId] });
-      countPending().then(setPendingSyncCount);
+      void refreshPendingQueue();
     }, [queryClient, cellId]),
   );
 
@@ -71,13 +88,13 @@ export function useInmatesScreenViewModel(navigation: Navigation, route: Route) 
 
   // Botão manual de sincronização (pedido do usuário no QA de 2026-09-24) —
   // a fila já sincroniza sozinha ao reconectar e no boot do app
-  // (startOfflineSyncListener, App.tsx), mas isso depende do listener do
-  // NetInfo disparar; esse botão dá um jeito confiável de forçar a tentativa
-  // na hora, sem esperar o próximo evento de conectividade.
+  // (App.tsx) — este botão força a tentativa na hora, pra quando o
+  // evento de conectividade não dispara (visto no QA de 2026-09-24
+  // no emulador Android).
   async function forceSync(): Promise<void> {
     setSyncing(true);
     try {
-      const pendingBefore = await countPending();
+      const { total: pendingBefore } = await refreshPendingQueue();
       const result = await syncPendingMovements();
       const totalSynced = result.syncedMovements + result.syncedReturns;
       const synced = countedMovementsLabel(totalSynced, 'sincronizada', 'sincronizadas');
@@ -96,11 +113,26 @@ export function useInmatesScreenViewModel(navigation: Navigation, route: Route) 
       }
 
       await queryClient.invalidateQueries({ queryKey: ['inmates', cellId] });
-      setPendingSyncCount(await countPending());
+      await refreshPendingQueue();
     } finally {
       setSyncing(false);
     }
   }
+
+  function pendingStatus(inmate: Inmate): InmatePendingStatus {
+    return inmatePendingStatus(inmate, pendingMovements, pendingReturns);
+  }
+
+  // Itens que o servidor já recusou, entre os presos visíveis nesta cela —
+  // alimenta o banner do topo com o motivo de cada recusa (T129,
+  // research.md #55), além do selo "Recusada" no card de cada um (T131).
+  const rejectedInmates = inmates
+    .map((inmate) => ({ name: inmate.name, status: pendingStatus(inmate) }))
+    .filter(
+      (entry): entry is { name: string; status: Extract<InmatePendingStatus, { kind: 'rejected' }> } =>
+        entry.status.kind === 'rejected',
+    )
+    .map((entry) => ({ name: entry.name, reason: entry.status.reason }));
 
   return {
     title: `Galeria ${galleryCode}   /   Cela ${cellCode}`.toUpperCase(),
@@ -116,15 +148,26 @@ export function useInmatesScreenViewModel(navigation: Navigation, route: Route) 
     // como valor inicial antes da primeira resposta chegar.
     occupancyLabel: `${inmatesQuery.data?.total ?? occupancy}/${capacity} presos`,
     inmates: filterInmatesBySearch(inmatesQuery.data?.data ?? [], search),
-    hasAnyInmate: (inmatesQuery.data?.data.length ?? 0) > 0,
-    isLoading: inmatesQuery.isLoading,
+    hasAnyInmate: inmates.length > 0,
+    // Loading/erro/vazio de verdade (T130, research.md #55) — sem isso, uma
+    // falha de carga virava "nenhum preso nesta cela".
+    loadState: resolveListLoadState({
+      isLoading: inmatesQuery.isLoading,
+      isError: inmatesQuery.isError,
+      hasData: inmatesQuery.data !== undefined,
+      isEmpty: inmates.length === 0,
+    }),
+    errorMessage: 'Não foi possível carregar os presos desta cela. Verifique a conexão e tente de novo.',
+    retry: () => void inmatesQuery.refetch(),
     search,
     setSearch,
-    pendingSyncCount,
+    pendingSyncCount: pendingMovements.length + pendingReturns.length,
+    rejectedInmates,
     syncing,
     forceSync,
     statusLine: inmateStatusLine,
     movementActionLabel: inmateMovementActionLabel,
+    pendingStatus,
     goToDetail,
     goToMovementRegister,
     goToCellTransferSelect,

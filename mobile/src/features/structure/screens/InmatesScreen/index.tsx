@@ -9,7 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import ScreenHeader from '@/components/ScreenHeader';
-import { pendingSyncLabel } from '@/features/structure/model';
+import ListErrorState from '@/components/ListErrorState';
+import OfflineDataBanner from '@/components/OfflineDataBanner';
+import { countedMovementsLabel, pendingSyncLabel } from '@/features/structure/model';
 import InmateRow from './components/InmateRow';
 import { useInmatesScreenViewModel } from './viewmodel';
 
@@ -82,34 +84,59 @@ export default function InmatesScreen({ navigation, route }: Props): JSX.Element
         </View>
       )}
 
-      {viewModel.isLoading ? (
+      {/* Itens que o servidor já recusou, com o motivo (T129, research.md
+          #55) — separado do aviso âmbar acima (que só conta pendências), em
+          vermelho, pra nunca parecer um item sincronizado com sucesso. */}
+      {viewModel.rejectedInmates.length > 0 && (
+        <View className="border-destructive bg-destructive/10 mx-4 mb-2 gap-2 rounded-2xl border p-4">
+          <View className="flex-row items-center gap-3">
+            <Icon as={CloudOff} size={18} color={colors.destructive} />
+            <Text className="text-destructive flex-1 text-sm font-semibold">
+              {countedMovementsLabel(viewModel.rejectedInmates.length, 'recusada pelo servidor', 'recusadas pelo servidor')}
+            </Text>
+          </View>
+          {viewModel.rejectedInmates.map((item, index) => (
+            <Text key={`${item.name}-${index}`} className="text-destructive text-xs">
+              {item.name}: {item.reason}
+            </Text>
+          ))}
+        </View>
+      )}
+
+      {viewModel.loadState === 'loading' ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color={colors.primary} />
         </View>
+      ) : viewModel.loadState === 'error' ? (
+        <ListErrorState message={viewModel.errorMessage} onRetry={viewModel.retry} />
       ) : (
-        <FlatList
-          className="flex-1"
-          data={viewModel.inmates}
-          keyExtractor={(item) => String(item.id)}
-          contentContainerClassName="gap-4 px-4 pb-4"
-          renderItem={({ item }) => (
-            <InmateRow
-              inmate={item}
-              statusLine={viewModel.statusLine(item)}
-              movementLabel={viewModel.movementActionLabel(item)}
-              onPressDetail={() => viewModel.goToDetail(item.id)}
-              onPressTransfer={() => viewModel.goToCellTransferSelect(item)}
-              onPressMovement={() => viewModel.goToMovementRegister(item)}
-            />
-          )}
-          ListEmptyComponent={
-            <View className="p-4">
-              <Text variant="muted" className="text-center">
-                {viewModel.hasAnyInmate ? 'Nenhum preso encontrado para essa busca.' : 'Nenhum preso nesta cela.'}
-              </Text>
-            </View>
-          }
-        />
+        <>
+          {viewModel.loadState === 'offline-with-data' && <OfflineDataBanner />}
+          <FlatList
+            className="flex-1"
+            data={viewModel.inmates}
+            keyExtractor={(item) => String(item.id)}
+            contentContainerClassName="gap-4 px-4 pb-4"
+            renderItem={({ item }) => (
+              <InmateRow
+                inmate={item}
+                statusLine={viewModel.statusLine(item)}
+                movementLabel={viewModel.movementActionLabel(item)}
+                pendingStatus={viewModel.pendingStatus(item)}
+                onPressDetail={() => viewModel.goToDetail(item.id)}
+                onPressTransfer={() => viewModel.goToCellTransferSelect(item)}
+                onPressMovement={() => viewModel.goToMovementRegister(item)}
+              />
+            )}
+            ListEmptyComponent={
+              <View className="p-4">
+                <Text variant="muted" className="text-center">
+                  {viewModel.hasAnyInmate ? 'Nenhum preso encontrado para essa busca.' : 'Nenhum preso nesta cela.'}
+                </Text>
+              </View>
+            }
+          />
+        </>
       )}
     </SafeAreaView>
   );

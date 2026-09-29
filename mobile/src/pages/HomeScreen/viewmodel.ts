@@ -67,10 +67,19 @@ export function useHomeScreenViewModel(navigation: Navigation) {
     currentUnitName,
     currentUnitCode,
     inmatesTotal: unitId !== null ? (inmatesCountQuery.data ?? 0) : null,
+    // Loading/erro de verdade (T130, research.md #55) — sem isso, uma falha
+    // de carga e "nenhuma unidade selecionada" pareciam a mesma coisa (os
+    // dois mostravam o mesmo traço no lugar do número).
+    inmatesLoading: unitId !== null && inmatesCountQuery.isLoading,
+    inmatesError: unitId !== null && inmatesCountQuery.isError,
     occupancyPercent: occupancyQuery.data
       ? occupancyPercentage(occupancyQuery.data.capacity, occupancyQuery.data.occupancy)
       : null,
+    occupancyLoading: unitId !== null && occupancyQuery.isLoading,
+    occupancyError: unitId !== null && occupancyQuery.isError,
     openMovementsTotal: openMovementsQuery.data ?? 0,
+    openMovementsLoading: openMovementsQuery.isLoading,
+    openMovementsError: openMovementsQuery.isError,
     goToSelectUnit,
     goToMovement,
     goToShiftRoutines,

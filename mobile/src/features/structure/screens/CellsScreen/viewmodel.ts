@@ -3,6 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { structureApi } from '@/features/structure/api';
+import { resolveListLoadState } from '@/lib/list-load-state';
 import type { RootStackParamList } from '@/navigation/types';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'Cells'>;
@@ -16,6 +17,7 @@ export function useCellsScreenViewModel(navigation: Navigation, route: Route) {
     queryKey: ['cells', galleryId],
     queryFn: () => structureApi.listCells(galleryId),
   });
+  const cells = cellsQuery.data?.data ?? [];
 
   // Mesmo problema e mesma solução do InmatesScreen: as telas de troca/permuta
   // ficam empilhadas por cima desta (native-stack não a desmonta), então o
@@ -34,8 +36,17 @@ export function useCellsScreenViewModel(navigation: Navigation, route: Route) {
 
   return {
     title: `Galeria ${galleryCode}`,
-    cells: cellsQuery.data?.data ?? [],
-    isLoading: cellsQuery.isLoading,
+    cells,
+    // Loading/erro/vazio de verdade (T130, research.md #55) — sem isso, uma
+    // falha de carga virava "nenhuma cela cadastrada".
+    loadState: resolveListLoadState({
+      isLoading: cellsQuery.isLoading,
+      isError: cellsQuery.isError,
+      hasData: cellsQuery.data !== undefined,
+      isEmpty: cells.length === 0,
+    }),
+    errorMessage: 'Não foi possível carregar as celas. Verifique a conexão e tente de novo.',
+    retry: () => void cellsQuery.refetch(),
     goToInmates,
   };
 }

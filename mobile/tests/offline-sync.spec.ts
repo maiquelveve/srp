@@ -29,6 +29,7 @@ jest.mock('../src/offline/database', () => {
     payload: string;
     created_at: string;
     synced_at: string | null;
+    rejection_reason: string | null;
   }> = [];
   let returns: Array<{
     id: number;
@@ -36,6 +37,7 @@ jest.mock('../src/offline/database', () => {
     movement_id: number;
     created_at: string;
     synced_at: string | null;
+    rejection_reason: string | null;
   }> = [];
   let nextMovementId = 1;
   let nextReturnId = 1;
@@ -49,10 +51,17 @@ jest.mock('../src/offline/database', () => {
           payload: params[1] as string,
           created_at: new Date().toISOString(),
           synced_at: null,
+          rejection_reason: null,
         });
+      } else if (sql.startsWith('UPDATE pending_movements SET rejection_reason')) {
+        const row = movements.find((m) => m.id === params[1]);
+        if (row) row.rejection_reason = params[0] as string;
       } else if (sql.startsWith('UPDATE pending_movements')) {
         const row = movements.find((m) => m.id === params[0]);
-        if (row) row.synced_at = new Date().toISOString();
+        if (row) {
+          row.synced_at = new Date().toISOString();
+          row.rejection_reason = null;
+        }
       } else if (sql.startsWith('INSERT INTO pending_returns')) {
         returns.push({
           id: nextReturnId++,
@@ -60,10 +69,17 @@ jest.mock('../src/offline/database', () => {
           movement_id: params[1] as number,
           created_at: new Date().toISOString(),
           synced_at: null,
+          rejection_reason: null,
         });
+      } else if (sql.startsWith('UPDATE pending_returns SET rejection_reason')) {
+        const row = returns.find((r) => r.id === params[1]);
+        if (row) row.rejection_reason = params[0] as string;
       } else if (sql.startsWith('UPDATE pending_returns')) {
         const row = returns.find((r) => r.id === params[0]);
-        if (row) row.synced_at = new Date().toISOString();
+        if (row) {
+          row.synced_at = new Date().toISOString();
+          row.rejection_reason = null;
+        }
       } else if (sql.startsWith('DELETE FROM pending_movements')) {
         movements = movements.filter((m) => m.id !== params[0]);
       } else if (sql.startsWith('DELETE FROM pending_returns')) {
@@ -269,6 +285,81 @@ describe('Offline sync (quickstart.md Cenário 7, FR-011a)', () => {
     const stillPending = await getPendingMovements();
     expect(stillPending).toHaveLength(1);
     expect(stillPending[0].payload.inmateId).toBe(16);
+  });
+
+  // T129 (research.md #55) — o item recusado guarda o motivo devolvido pela
+  // API, pra exibir ao usuário em vez de só um contador genérico de recusas.
+
+  it('records the message the API returned for a rejected movement', async () => {
+    await enqueueMovement({
+      inmateId: 16,
+      movementTypeId: 1,
+      originCellId: 1,
+      destinationLocation: 'Hospital',
+      reason: 'Já tem saída ativa',
+    });
+    mockedApiClient.post.mockRejectedValueOnce({
+      isAxiosError: true,
+      response: { status: 409, data: { message: 'Preso já está em movimentação temporária.' } },
+    });
+
+    await syncPendingMovements();
+
+    const pending = await getPendingMovements();
+    expect(pending).toHaveLength(1);
+    expect(pending[0].rejectionReason).toBe('Preso já está em movimentação temporária.');
+  });
+
+  it('records the message the API returned for a rejected return', async () => {
+    await enqueueReturn(63);
+    mockedApiClient.patch.mockRejectedValueOnce({
+      isAxiosError: true,
+      response: { status: 409, data: { message: 'Movimentação já foi encerrada.' } },
+    });
+
+    await syncPendingMovements();
+
+    const pending = await getPendingReturns();
+    expect(pending).toHaveLength(1);
+    expect(pending[0].rejectionReason).toBe('Movimentação já foi encerrada.');
+  });
+
+  it('clears a previous rejection reason once the item finally syncs', async () => {
+    await enqueueMovement({
+      inmateId: 16,
+      movementTypeId: 1,
+      originCellId: 1,
+      destinationLocation: 'Hospital',
+      reason: 'Já tem saída ativa',
+    });
+    mockedApiClient.post.mockRejectedValueOnce({
+      isAxiosError: true,
+      response: { status: 409, data: { message: 'Preso já está em movimentação temporária.' } },
+    });
+    await syncPendingMovements();
+    expect((await getPendingMovements())[0].rejectionReason).toBe(
+      'Preso já está em movimentação temporária.',
+    );
+
+    mockedApiClient.post.mockResolvedValueOnce({ data: { id: 999 } });
+    await syncPendingMovements();
+
+    expect(await getPendingMovements()).toHaveLength(0);
+  });
+
+  it('falls back to a generic reason when the API rejects without a message', async () => {
+    await enqueueMovement({
+      inmateId: 16,
+      movementTypeId: 1,
+      originCellId: 1,
+      destinationLocation: 'Hospital',
+      reason: 'Já tem saída ativa',
+    });
+    mockedApiClient.post.mockRejectedValueOnce({ isAxiosError: true, response: { status: 500, data: {} } });
+
+    await syncPendingMovements();
+
+    expect((await getPendingMovements())[0].rejectionReason).toBe('O servidor recusou esta movimentação.');
   });
 
   it('still aborts the whole batch on a real network failure (no server response)', async () => {

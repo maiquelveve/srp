@@ -125,7 +125,9 @@ export default function CellChange({ navigation, route }: Props): JSX.Element {
               <Text variant="muted" className="text-sm font-bold uppercase">
                 Nova cela
               </Text>
-              <Text className="text-base font-bold">Cela {viewModel.selectedCell?.code ?? '—'}</Text>
+              <Text className="text-base font-bold">
+                {viewModel.selectedCell ? `Cela ${viewModel.selectedCell.code}` : 'Nenhuma cela selecionada'}
+              </Text>
             </View>
             <View className="gap-1">
               <Text variant="muted" className="text-sm font-bold uppercase">
@@ -137,7 +139,7 @@ export default function CellChange({ navigation, route }: Props): JSX.Element {
               <Text variant="muted" className="text-sm font-bold uppercase">
                 Observações
               </Text>
-              <Text className="text-base">{viewModel.notes || '—'}</Text>
+              <Text className="text-base">{viewModel.notes || 'Sem observações'}</Text>
             </View>
           </View>
         </ScrollView>

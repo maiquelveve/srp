@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { structureApi } from '@/features/structure/api';
 import { movementsApi } from '@/features/movements/api';
+import { extractApiErrorMessage } from '@/lib/api-error';
 import { toast } from '@/lib/toast';
 import type { RootStackParamList } from '@/navigation/types';
 
@@ -63,8 +64,10 @@ export function useCellChangeViewModel(navigation: Navigation, route: Route) {
         queryClient.invalidateQueries({ queryKey: ['inmate', inmate.id] }),
       ]);
       navigation.pop(2);
-    } catch {
-      toast.error('Não foi possível registrar a troca de cela. Tente novamente.');
+    } catch (error) {
+      toast.error(
+        extractApiErrorMessage(error, 'Não foi possível registrar a troca de cela. Tente novamente.'),
+      );
     } finally {
       setSubmitting(false);
     }

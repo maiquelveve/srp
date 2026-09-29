@@ -1,5 +1,7 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { tokenStorage } from './token-storage';
+import { notifySessionExpired } from './session-events';
+import { classifyUnauthorizedResponse } from '@/lib/unauthorized';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -38,11 +40,22 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined;
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
 
-    if (error.response?.status !== 401 || !originalRequest || originalRequest._retried) {
-      if (error.response?.status === 401) {
-        await tokenStorage.clear();
-      }
+    const outcome = classifyUnauthorizedResponse(error.response?.status, Boolean(originalRequest._retried));
+
+    if (outcome === 'not-unauthorized') {
+      return Promise.reject(error);
+    }
+
+    if (outcome === 'session-expired') {
+      // As pendências da fila offline (mobile/src/offline/) não são apagadas
+      // aqui — permanecem no aparelho pro mesmo usuário sincronizar ao
+      // entrar de novo (FR-011a, spec.md).
+      await tokenStorage.clear();
+      notifySessionExpired();
       return Promise.reject(error);
     }
 
@@ -57,6 +70,7 @@ apiClient.interceptors.response.use(
       return apiClient(originalRequest);
     } catch (refreshError) {
       await tokenStorage.clear();
+      notifySessionExpired();
       return Promise.reject(refreshError);
     }
   },

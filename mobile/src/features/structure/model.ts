@@ -1,3 +1,4 @@
+import type { PendingMovement, PendingReturn } from '@/offline/offline-queue';
 import type { Inmate, Unit } from './types';
 
 /**
@@ -40,7 +41,7 @@ export function filterInmatesBySearch(inmates: Inmate[], search: string): Inmate
 
 export function inmateStatusLine(inmate: Inmate): string {
   if (!inmate.inMovement) return 'Na cela';
-  return `Fora da cela — ${inmate.currentMovement?.movementTypeName ?? 'movimentação'}`;
+  return `Fora da cela: ${inmate.currentMovement?.movementTypeName ?? 'movimentação'}`;
 }
 
 /** Backend expõe status em inglês (ex.: "ACTIVE") — traduzimos os valores conhecidos pra exibição. */
@@ -80,4 +81,41 @@ export function countedMovementsLabel(count: number, singularAdjective: string, 
   const noun = count === 1 ? 'movimentação' : 'movimentações';
   const adjective = count === 1 ? singularAdjective : pluralAdjective;
   return `${count} ${noun} ${adjective}`;
+}
+
+export type InmatePendingStatus =
+  | { kind: 'none' }
+  | { kind: 'pending' }
+  | { kind: 'rejected'; reason: string };
+
+/**
+ * Situação do preso na fila offline (T131, research.md #55): "pending"
+ * enquanto aguarda sincronizar, "rejected" quando o servidor já recusou (com
+ * o motivo, T129) — o card do preso usa isso pro selo, e o banner da tela
+ * pra listar os motivos. `enqueueMovement`/`enqueueReturn` já garantem no
+ * máximo um item pendente por preso/movimentação, então o primeiro achado
+ * já é o único.
+ */
+export function inmatePendingStatus(
+  inmate: Inmate,
+  pendingMovements: PendingMovement[],
+  pendingReturns: PendingReturn[],
+): InmatePendingStatus {
+  const pendingMovement = pendingMovements.find((movement) => movement.payload.inmateId === inmate.id);
+  if (pendingMovement) {
+    return pendingMovement.rejectionReason
+      ? { kind: 'rejected', reason: pendingMovement.rejectionReason }
+      : { kind: 'pending' };
+  }
+
+  const movementId = inmate.currentMovement?.movementId;
+  const pendingReturn =
+    movementId !== undefined ? pendingReturns.find((item) => item.movementId === movementId) : undefined;
+  if (pendingReturn) {
+    return pendingReturn.rejectionReason
+      ? { kind: 'rejected', reason: pendingReturn.rejectionReason }
+      : { kind: 'pending' };
+  }
+
+  return { kind: 'none' };
 }

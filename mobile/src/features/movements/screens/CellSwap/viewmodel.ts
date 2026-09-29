@@ -4,6 +4,7 @@ import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-n
 import { structureApi } from '@/features/structure/api';
 import { movementsApi } from '@/features/movements/api';
 import { normalizeForSearch } from '@/features/movements/model';
+import { extractApiErrorMessage } from '@/lib/api-error';
 import { toast } from '@/lib/toast';
 import type { RootStackParamList } from '@/navigation/types';
 
@@ -101,8 +102,8 @@ export function useCellSwapViewModel(navigation: Navigation, route: Route) {
         queryClient.invalidateQueries({ queryKey: ['inmate', inmate.id] }),
       ]);
       navigation.pop(2);
-    } catch {
-      toast.error('Não foi possível registrar a permuta. Tente novamente.');
+    } catch (error) {
+      toast.error(extractApiErrorMessage(error, 'Não foi possível registrar a permuta. Tente novamente.'));
     } finally {
       setSubmitting(false);
     }

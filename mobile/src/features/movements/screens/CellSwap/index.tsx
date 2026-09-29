@@ -113,7 +113,7 @@ export default function CellSwap({ navigation, route }: Props): JSX.Element {
         ) : !viewModel.hasAnyCandidate ? (
           <View className="p-4">
             <Text variant="muted" className="text-center">
-              Essa cela não está mais ocupada — volte e escolha outra.
+              Essa cela não está mais ocupada. Volte e escolha outra.
             </Text>
           </View>
         ) : (
@@ -193,14 +193,16 @@ export default function CellSwap({ navigation, route }: Props): JSX.Element {
               </Text>
               <Text className="text-base font-bold uppercase">{viewModel.inmate.name}</Text>
               <Text className="text-base font-bold uppercase">
-                {viewModel.selectedCandidate?.name ?? '—'}
+                {viewModel.selectedCandidate?.name ?? 'Nenhum preso selecionado'}
               </Text>
             </View>
             <View className="gap-1">
               <Text variant="muted" className="text-sm font-bold uppercase">
                 Nova cela de {viewModel.inmate.name.split(' ')[0].toUpperCase()}
               </Text>
-              <Text className="text-base font-bold">Cela {viewModel.selectedCell?.code ?? '—'}</Text>
+              <Text className="text-base font-bold">
+                {viewModel.selectedCell ? `Cela ${viewModel.selectedCell.code}` : 'Nenhuma cela selecionada'}
+              </Text>
             </View>
             <View className="gap-1">
               <Text variant="muted" className="text-sm font-bold uppercase">
@@ -212,7 +214,7 @@ export default function CellSwap({ navigation, route }: Props): JSX.Element {
               <Text variant="muted" className="text-sm font-bold uppercase">
                 Observações
               </Text>
-              <Text className="text-base">{viewModel.notes || '—'}</Text>
+              <Text className="text-base">{viewModel.notes || 'Sem observações'}</Text>
             </View>
           </View>
         </ScrollView>

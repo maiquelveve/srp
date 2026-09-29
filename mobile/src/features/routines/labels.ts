@@ -19,5 +19,5 @@ const WEEKDAY_LABEL: Record<number, string> = {
 };
 
 export function weekdayLabel(weekday: number | null): string {
-  return weekday === null ? 'Todos os dias' : (WEEKDAY_LABEL[weekday] ?? '—');
+  return weekday === null ? 'Todos os dias' : (WEEKDAY_LABEL[weekday] ?? 'Dia inválido');
 }

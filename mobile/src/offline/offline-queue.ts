@@ -17,6 +17,8 @@ export interface PendingMovement {
   idempotencyKey: string;
   payload: MovementPayload;
   createdAt: string;
+  /** Motivo devolvido pelo servidor na última recusa definitiva (T129) — `null` enquanto ainda não foi tentado ou não foi recusado. */
+  rejectionReason: string | null;
 }
 
 interface PendingMovementRow {
@@ -24,6 +26,7 @@ interface PendingMovementRow {
   idempotency_key: string;
   payload: string;
   created_at: string;
+  rejection_reason: string | null;
 }
 
 export interface PendingReturn {
@@ -31,6 +34,8 @@ export interface PendingReturn {
   idempotencyKey: string;
   movementId: number;
   createdAt: string;
+  /** Motivo devolvido pelo servidor na última recusa definitiva (T129) — `null` enquanto ainda não foi tentado ou não foi recusado. */
+  rejectionReason: string | null;
 }
 
 interface PendingReturnRow {
@@ -38,6 +43,7 @@ interface PendingReturnRow {
   idempotency_key: string;
   movement_id: number;
   created_at: string;
+  rejection_reason: string | null;
 }
 
 /**
@@ -75,19 +81,29 @@ export async function enqueueMovement(payload: MovementPayload): Promise<string>
 export async function getPendingMovements(): Promise<PendingMovement[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<PendingMovementRow>(
-    'SELECT id, idempotency_key, payload, created_at FROM pending_movements WHERE synced_at IS NULL ORDER BY id ASC;',
+    'SELECT id, idempotency_key, payload, created_at, rejection_reason FROM pending_movements WHERE synced_at IS NULL ORDER BY id ASC;',
   );
   return rows.map((row) => ({
     id: row.id,
     idempotencyKey: row.idempotency_key,
     payload: JSON.parse(row.payload) as MovementPayload,
     createdAt: row.created_at,
+    rejectionReason: row.rejection_reason,
   }));
 }
 
 export async function markMovementSynced(id: number): Promise<void> {
   const db = await getDatabase();
-  await db.runAsync("UPDATE pending_movements SET synced_at = datetime('now') WHERE id = ?;", id);
+  await db.runAsync(
+    "UPDATE pending_movements SET synced_at = datetime('now'), rejection_reason = NULL WHERE id = ?;",
+    id,
+  );
+}
+
+/** Guarda o motivo de uma recusa definitiva do servidor (T129) — o item continua na fila pra ser tentado de novo, mas agora com o motivo visível ao usuário. */
+export async function markMovementRejected(id: number, reason: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync('UPDATE pending_movements SET rejection_reason = ? WHERE id = ?;', reason, id);
 }
 
 /**
@@ -124,19 +140,29 @@ export async function enqueueReturn(movementId: number): Promise<string> {
 export async function getPendingReturns(): Promise<PendingReturn[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<PendingReturnRow>(
-    'SELECT id, idempotency_key, movement_id, created_at FROM pending_returns WHERE synced_at IS NULL ORDER BY id ASC;',
+    'SELECT id, idempotency_key, movement_id, created_at, rejection_reason FROM pending_returns WHERE synced_at IS NULL ORDER BY id ASC;',
   );
   return rows.map((row) => ({
     id: row.id,
     idempotencyKey: row.idempotency_key,
     movementId: row.movement_id,
     createdAt: row.created_at,
+    rejectionReason: row.rejection_reason,
   }));
 }
 
 export async function markReturnSynced(id: number): Promise<void> {
   const db = await getDatabase();
-  await db.runAsync("UPDATE pending_returns SET synced_at = datetime('now') WHERE id = ?;", id);
+  await db.runAsync(
+    "UPDATE pending_returns SET synced_at = datetime('now'), rejection_reason = NULL WHERE id = ?;",
+    id,
+  );
+}
+
+/** Guarda o motivo de uma recusa definitiva do servidor (T129) — o item continua na fila pra ser tentado de novo, mas agora com o motivo visível ao usuário. */
+export async function markReturnRejected(id: number, reason: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync('UPDATE pending_returns SET rejection_reason = ? WHERE id = ?;', reason, id);
 }
 
 /** Total unsynced items — drives the "pendente de sincronização" indicator (quickstart.md Cenário 7). */

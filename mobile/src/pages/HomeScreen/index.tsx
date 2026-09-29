@@ -25,8 +25,14 @@ export default function HomeScreen({ navigation }: Props): JSX.Element {
         firstName={viewModel.firstName}
         currentUnitCode={viewModel.currentUnitCode}
         inmatesTotal={viewModel.inmatesTotal}
+        inmatesLoading={viewModel.inmatesLoading}
+        inmatesError={viewModel.inmatesError}
         occupancyPercent={viewModel.occupancyPercent}
+        occupancyLoading={viewModel.occupancyLoading}
+        occupancyError={viewModel.occupancyError}
         openMovementsTotal={viewModel.openMovementsTotal}
+        openMovementsLoading={viewModel.openMovementsLoading}
+        openMovementsError={viewModel.openMovementsError}
         onPressAvatar={viewModel.goToProfile}
         onPressUnitLabel={viewModel.goToSelectUnit}
       />
