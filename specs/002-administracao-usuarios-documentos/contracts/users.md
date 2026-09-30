@@ -7,12 +7,25 @@ exceto onde indicado.
 
 | Método | Rota | Perfis | Descrição |
 |---|---|---|---|
-| PATCH | `/api/v1/users/:id` | WARDEN | Edita dados cadastrais do usuário: `name`, `badgeNumber`, `jobTitle`, `role` (FR-003). |
+| PATCH | `/api/v1/users/:id` | WARDEN | Edita dados cadastrais do usuário: `name`, `email`, `badgeNumber`, `jobTitle`, `role` (FR-003). |
 | PATCH | `/api/v1/users/:id/reactivate` | WARDEN | Reativa um usuário desativado (FR-004). |
 | PUT | `/api/v1/users/:id/units` | WARDEN | **Trocar lotação**: substitui a(s) unidade(s) do usuário pela(s) informada(s) (FR-006). |
 | POST | `/api/v1/users/:id/units` | WARDEN | **Adicionar lotação**: soma uma ou mais unidades às já vinculadas, sem remover as existentes (FR-006a). |
 | PATCH | `/api/v1/users/:id/reset-password` | WARDEN | Gera senha temporária, envia por e-mail, invalida a anterior e revoga todas as sessões do usuário (FR-007). |
 | POST | `/api/v1/users/:id/resend-password-email` | WARDEN | Reenvia o e-mail de senha inicial ou de reset ainda pendente (FR-002a, FR-007a). |
+
+## Alterações a `GET /api/v1/users` (pedido do usuário, ajuste de UI da Phase 3)
+
+- Novos parâmetros opcionais: `active` (`'true'`/`'false'`, omitido lista os dois), `search`
+  (substring case-insensitive contra `name`/`email`/`badgeNumber`), `limit` (1–100, default 20),
+  `offset` (paginação, junto com `total` já existente na resposta).
+- A resposta NUNCA inclui o próprio requisitante (edição da própria conta é resolvida pela tela de
+  perfil, não por esta administração).
+
+## Máximo de 3 lotações simultâneas (pedido do usuário, ajuste de UI da Phase 3)
+
+- `POST /users`, `PUT /users/:id/units` e `POST /users/:id/units` MUST responder `400` se o
+  resultado final (após a operação) deixar o usuário com mais de 3 unidades vinculadas.
 
 ## Regras
 
@@ -32,6 +45,9 @@ exceto onde indicado.
     requisitante — nenhuma restrição de auto-alvo nesses três.
 - `PATCH /users/:id` permite alterar `role` para/de `WARDEN` livremente sobre outro usuário
   (FR-003, Clarifications #1); sobre a própria conta, ver regra acima.
+- `PATCH /users/:id` MUST responder `409` se `email` for alterado para um valor que já pertence a
+  outro usuário (mesma regra de unicidade de `POST /users`, FR-003) — corrige um erro de digitação
+  no cadastro sem deixar o usuário original órfão no banco.
 - `PUT /api/v1/users/:id/units` e `POST /api/v1/users/:id/units` MUST responder `400` se
   `unitIds` vier vazio.
 - `PATCH /users/:id/reset-password` e `POST /users/:id/create` (contracts/structure.md) MUST
@@ -49,7 +65,7 @@ exceto onde indicado.
 
 Request:
 ```json
-{ "name": "...", "badgeNumber": "...", "jobTitle": "...", "role": "SUPERVISOR" }
+{ "name": "...", "email": "...", "badgeNumber": "...", "jobTitle": "...", "role": "SUPERVISOR" }
 ```
 
 Response 200:

@@ -11,6 +11,8 @@ export class UserResponseDto {
   badgeNumber: string | null;
   units: number[];
   active: boolean;
+  /** Só preenchido pela resposta de POST /users (FR-002a) — omitido nas demais. */
+  emailDelivered?: boolean;
 
   static fromEntity(user: User): UserResponseDto {
     const dto = new UserResponseDto();

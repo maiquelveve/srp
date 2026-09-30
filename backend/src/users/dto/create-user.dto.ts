@@ -1,4 +1,5 @@
 import {
+  ArrayMaxSize,
   ArrayNotEmpty,
   IsArray,
   IsEmail,
@@ -35,8 +36,10 @@ export class CreateUserDto {
   @IsEnum(RoleName)
   role: RoleName;
 
+  /** Máximo 3 lotações simultâneas (checagem real em UsersService.create()). */
   @IsArray()
   @ArrayNotEmpty()
+  @ArrayMaxSize(3)
   @IsInt({ each: true })
   unitIds: number[];
 }

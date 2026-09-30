@@ -57,23 +57,23 @@ não é tocado (FR-019):
 
 ### Tests for User Story 1
 
-- [ ] T005 [P] [US1] Testes de integração para os endpoints de `contracts/users.md` (editar, reativar, trocar lotação, adicionar lotação, resetar senha, reenviar e-mail; `403` para não-WARDEN e para auto-alvo; `emailDelivered: false` sem falhar a operação) em `backend/test/integration/users-admin.spec.ts`
-- [ ] T006 [P] [US1] Testes unitários do `EmailService` (envio com sucesso, envio com falha sem lançar exceção, retorno booleano) em `backend/test/unit/email.service.spec.ts`
+- [X] T005 [P] [US1] Testes de integração para os endpoints de `contracts/users.md` (editar, reativar, trocar lotação, adicionar lotação, resetar senha, reenviar e-mail; `403` para não-WARDEN e para auto-alvo; `emailDelivered: false` sem falhar a operação) em `backend/test/integration/users-admin.spec.ts`
+- [X] T006 [P] [US1] Testes unitários do `EmailService` (envio com sucesso, envio com falha sem lançar exceção, retorno booleano) em `backend/test/unit/email.service.spec.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T007 [P] [US1] Implementar `EmailModule`/`EmailService` (Nodemailer/SMTP) com `sendPasswordEmail(to, temporaryPassword, kind: 'created' | 'reset')` em `backend/src/email/` (research.md #6; depende de T001, T002)
-- [ ] T008 [US1] Trocar `UsersService.create()` (`backend/src/users/users.service.ts:174-189`) para chamar `EmailService.sendPasswordEmail(..., 'created')` em vez de só logar o token de convite (depende de T007)
-- [ ] T009 [US1] Implementar `UsersService.update()` + `PATCH /api/v1/users/:id` (name/badgeNumber/jobTitle/role; `403` somente se `:id` for o próprio requisitante **e** o payload mudar o `role` atual — editar os demais campos da própria conta é permitido) em `backend/src/users/`, DTO `update-user.dto.ts` (`contracts/users.md`; depende de T004)
-- [ ] T009a [US1] Adicionar a `UsersService.deactivate()` já existente (`backend/src/users/users.service.ts:129-154`) a checagem `403` quando `:id` for o próprio requisitante (regra nova desta fase, FR-008a) — sem alterar o restante do comportamento já implementado na feature 001
-- [ ] T010 [US1] Implementar `UsersService.reactivate()` + `PATCH /api/v1/users/:id/reactivate` em `backend/src/users/` — sem restrição de auto-alvo (FR-008a não cobre reativar)
-- [ ] T011 [US1] Implementar `UsersService.replaceUnits()` + `PUT /api/v1/users/:id/units` ("Trocar lotação", `403` sempre que `:id` for o próprio requisitante) em `backend/src/users/`, DTO `replace-units.dto.ts`
-- [ ] T012 [US1] Implementar `UsersService.addUnits()` + `POST /api/v1/users/:id/units` ("Adicionar lotação", `403` sempre que `:id` for o próprio requisitante) em `backend/src/users/`, DTO `add-units.dto.ts`
-- [ ] T013 [US1] Implementar `UsersService.resetPassword()` + `PATCH /api/v1/users/:id/reset-password` (gera senha temporária, chama `EmailService`, chama `TokenService.revokeAllForUser(userId)`) em `backend/src/users/` — sem restrição de auto-alvo, a Chefia/Diretor pode resetar a própria senha (FR-008a não cobre reset) (depende de T004, T007)
-- [ ] T014 [US1] Implementar `UsersService.resendPasswordEmail()` + `POST /api/v1/users/:id/resend-password-email` (`409` se não houver senha pendente) em `backend/src/users/` — sem restrição de auto-alvo (depende de T007)
-- [ ] T015 [US1] Adicionar `AuditService.record(...)` (`oldData`/`newData`, nunca a senha em texto claro) às mutações novas de `UsersService` e à checagem nova de `deactivate()` (T009a), com `@SkipAutoAudit()` nas rotas do controller (research.md #2, mesmo padrão já usado em `deactivate()`)
-- [ ] T016 [P] [US1] Construir a tela web "Administração de Usuários" (cards + modais: editar, trocar lotação com confirmação, adicionar lotação com confirmação explícita distinta, resetar senha) em `frontend/src/features/users/`, incluindo o aviso "e-mail não entregue" + botão "reenviar e-mail" (ligado a T014) quando a criação/reset retornar `emailDelivered: false` — posição exata do aviso/botão a definir na implementação — seguindo `docs/style-guide.md` (FR-021) (depende de T008, T009–T014)
-- [ ] T017 [P] [US1] Adicionar rota/item de menu "Administração de Usuários" (somente WARDEN) em `frontend/src/App.tsx` e na navegação do `AppShell` (depende de T016)
+- [X] T007 [P] [US1] Implementar `EmailModule`/`EmailService` (Nodemailer/SMTP) com `sendPasswordEmail(to, temporaryPassword, kind: 'created' | 'reset')` em `backend/src/email/` (research.md #6; depende de T001, T002)
+- [X] T008 [US1] Trocar `UsersService.create()` (`backend/src/users/users.service.ts:174-189`) para chamar `EmailService.sendPasswordEmail(..., 'created')` em vez de só logar o token de convite (depende de T007)
+- [X] T009 [US1] Implementar `UsersService.update()` + `PATCH /api/v1/users/:id` (name/badgeNumber/jobTitle/role; `403` somente se `:id` for o próprio requisitante **e** o payload mudar o `role` atual — editar os demais campos da própria conta é permitido) em `backend/src/users/`, DTO `update-user.dto.ts` (`contracts/users.md`; depende de T004)
+- [X] T009a [US1] Adicionar a `UsersService.deactivate()` já existente (`backend/src/users/users.service.ts:129-154`) a checagem `403` quando `:id` for o próprio requisitante (regra nova desta fase, FR-008a) — sem alterar o restante do comportamento já implementado na feature 001
+- [X] T010 [US1] Implementar `UsersService.reactivate()` + `PATCH /api/v1/users/:id/reactivate` em `backend/src/users/` — sem restrição de auto-alvo (FR-008a não cobre reativar)
+- [X] T011 [US1] Implementar `UsersService.replaceUnits()` + `PUT /api/v1/users/:id/units` ("Trocar lotação", `403` sempre que `:id` for o próprio requisitante) em `backend/src/users/`, DTO `replace-units.dto.ts`
+- [X] T012 [US1] Implementar `UsersService.addUnits()` + `POST /api/v1/users/:id/units` ("Adicionar lotação", `403` sempre que `:id` for o próprio requisitante) em `backend/src/users/`, DTO `add-units.dto.ts`
+- [X] T013 [US1] Implementar `UsersService.resetPassword()` + `PATCH /api/v1/users/:id/reset-password` (gera senha temporária, chama `EmailService`, chama `TokenService.revokeAllForUser(userId)`) em `backend/src/users/` — sem restrição de auto-alvo, a Chefia/Diretor pode resetar a própria senha (FR-008a não cobre reset) (depende de T004, T007)
+- [X] T014 [US1] Implementar `UsersService.resendPasswordEmail()` + `POST /api/v1/users/:id/resend-password-email` (`409` se não houver senha pendente) em `backend/src/users/` — sem restrição de auto-alvo (depende de T007)
+- [X] T015 [US1] Adicionar `AuditService.record(...)` (`oldData`/`newData`, nunca a senha em texto claro) às mutações novas de `UsersService` e à checagem nova de `deactivate()` (T009a), com `@SkipAutoAudit()` nas rotas do controller (research.md #2, mesmo padrão já usado em `deactivate()`)
+- [X] T016 [P] [US1] Construir a tela web "Administração de Usuários" (cards + modais: editar, trocar lotação com confirmação, adicionar lotação com confirmação explícita distinta, resetar senha) em `frontend/src/features/users/`, incluindo o aviso "e-mail não entregue" + botão "reenviar e-mail" (ligado a T014) quando a criação/reset retornar `emailDelivered: false` — posição exata do aviso/botão a definir na implementação — seguindo `docs/style-guide.md` (FR-021) (depende de T008, T009–T014)
+- [X] T017 [P] [US1] Adicionar rota/item de menu "Administração de Usuários" (somente WARDEN) em `frontend/src/App.tsx` e na navegação do `AppShell` (depende de T016)
 
 **Checkpoint**: User Story 1 totalmente funcional e testável de forma independente
 

@@ -11,6 +11,7 @@ import {
   Settings,
   ShieldAlert,
   Signpost,
+  UserCog,
   Users,
 } from 'lucide-react';
 import { Outlet, useLocation } from 'react-router-dom';
@@ -59,6 +60,12 @@ const DOCUMENT_MORE_ITEMS: NavDocumentsItem[] = [
     to: '/efetivo/configuracao-minima',
     label: 'Efetivo Mínimo',
     icon: Settings,
+    roles: ['WARDEN'],
+  },
+  {
+    to: '/administracao-de-usuarios',
+    label: 'Administração de Usuários',
+    icon: UserCog,
     roles: ['WARDEN'],
   },
   { to: '/relatorios', label: 'Relatórios', icon: BarChart3, roles: ['SUPERVISOR', 'WARDEN'] },

@@ -147,6 +147,17 @@ rejeitado por acoplar o projeto a um fornecedor externo sem esse requisito ter s
 projeto roda num ambiente estadual que provavelmente já tem (ou vai prover) um servidor SMTP
 próprio — `nodemailer` sobre SMTP genérico é a opção mais neutra.
 
+**Nota de implementação (Phase 3, T013/T014)**: `resetPassword()` gera e aplica diretamente uma
+senha temporária real (política do #7 abaixo) — diferente do fluxo de convite de `create()` (#10),
+não há passo de confirmação separado, o que é o que de fato garante "a senha enviada já funciona no
+próximo login" (FR-007). Consequência para `resendPasswordEmail()`: como a senha temporária de um
+reset não fica salva em claro (só o hash), e não existe coluna nova para marcar "reset ainda
+pendente" (data-model.md), reenviar só é 100% preciso para o convite inicial (`InviteToken.usedAt`);
+para qualquer usuário sem convite inicial pendente, reenviar equivale a rodar `resetPassword()` de
+novo (gera e envia uma senha temporária nova). Decisão consciente: mais seguro reenviar de mais do
+que negar um reenvio legítimo logo após uma falha real de e-mail; o `409` de "nada pendente" só é
+alcançável hoje quando não existe nenhum registro de convite para o usuário.
+
 ## 7. Política de senha (nova senha em criação, reset e troca)
 
 **Decision**: Reaproveitar exatamente a regra já usada em `SetInitialPasswordDto`

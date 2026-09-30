@@ -12,10 +12,17 @@ Nenhuma coluna nova. Esta fase adiciona **comportamento** sobre as colunas já e
 | Coluna existente | Uso novo nesta fase |
 |---|---|
 | `name`, `badgeNumber`, `jobTitle` | Passam a ser editáveis via `PATCH /users/:id` (FR-003) |
+| `email` | Passa a ser editável via `PATCH /users/:id` (FR-003, pedido do usuário) — corrige erro de digitação no cadastro; `409` se já pertencer a outro usuário, mesma constraint única já existente |
 | `role` | Passa a ser editável via `PATCH /users/:id`, incluindo promover/rebaixar de `WARDEN` (FR-003, Clarifications #1) |
 | `active` | Passa a ser reativável via `PATCH /users/:id/reactivate` (FR-004), além de desativável (já existente) |
 | `units` (ManyToMany, tabela pivot `user_units`) | Passa a ser alterável por duas operações distintas: substituir (FR-006) ou somar (FR-006a) |
 | `passwordHash` | Passa a ser redefinível por terceiro via `PATCH /users/:id/reset-password` (FR-007), além de pela própria pessoa via `PATCH /auth/change-password` (FR-016) |
+
+**Regra de negócio nova (pedido do usuário, ajuste de UI da Phase 3)**: um usuário não pode ter
+mais de 3 lotações simultâneas. Checada em `create()` (`dto.unitIds`), `replaceUnits()`
+(`dto.unitIds`) e `addUnits()` (união com as unidades já existentes) — `400 Bad Request` se
+exceder. `@ArrayMaxSize(3)` nos DTOs é só a primeira barreira (não sabe o estado atual do
+usuário); a checagem real, pós-soma, mora no service.
 
 **Regra de negócio nova (FR-008a)**: restrita a exatamente 4 ações sobre a própria conta —
 `deactivate` (endpoint já existente, feature 001, que passa a ganhar essa checagem nesta fase),

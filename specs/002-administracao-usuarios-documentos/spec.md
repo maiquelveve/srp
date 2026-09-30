@@ -98,7 +98,7 @@ Qualquer usuário autenticado no painel web troca sua própria senha a partir da
 - **FR-001**: A Chefia/Diretor DEVE poder cadastrar um novo usuário informando nome, e-mail, matrícula, cargo, perfil (Policial Penal ou Supervisor) e a(s) unidade(s) de lotação.
 - **FR-002**: O sistema DEVE enviar ao e-mail cadastrado do novo usuário uma senha para o primeiro acesso, no momento da criação.
 - **FR-002a**: Se o envio desse e-mail falhar, o sistema DEVE concluir a criação do usuário mesmo assim, avisar a Chefia/Diretor do problema, e oferecer uma opção para reenviar o e-mail.
-- **FR-003**: A Chefia/Diretor DEVE poder editar os dados cadastrais de um usuário existente (nome, matrícula, cargo e perfil), incluindo promover um usuário para o perfil Chefia/Diretor ou rebaixar um Chefia/Diretor para Supervisor/Policial Penal.
+- **FR-003**: A Chefia/Diretor DEVE poder editar os dados cadastrais de um usuário existente (nome, e-mail, matrícula, cargo e perfil), incluindo promover um usuário para o perfil Chefia/Diretor ou rebaixar um Chefia/Diretor para Supervisor/Policial Penal. Editar o e-mail permite corrigir um erro de digitação cometido no cadastro, sem deixar o usuário original órfão no sistema; o novo e-mail NÃO DEVE já pertencer a outro usuário (mesma regra de unicidade do cadastro).
 - **FR-004**: A Chefia/Diretor DEVE poder desativar e reativar um usuário existente.
 - **FR-005**: Um usuário desativado NÃO DEVE conseguir se autenticar, mas seu histórico de ações anteriores DEVE ser preservado sem alteração.
 - **FR-006**: A Chefia/Diretor DEVE poder "Trocar lotação" de um usuário, substituindo a(s) unidade(s) de lotação atual(is) pela(s) nova(s) escolhida(s).
