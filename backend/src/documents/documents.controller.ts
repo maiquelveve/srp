@@ -20,6 +20,7 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
+  ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
@@ -101,7 +102,7 @@ export class DocumentsController {
       },
     },
   })
-  @ApiOkResponse({ description: 'Documento enviado' })
+  @ApiCreatedResponse({ description: 'Documento enviado' })
   @Post('documents')
   @Roles(RoleName.WARDEN, RoleName.SUPERVISOR)
   @SkipAutoAudit() // DocumentsService.create() já registra a auditoria (INSERT)

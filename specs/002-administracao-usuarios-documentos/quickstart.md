@@ -82,8 +82,10 @@ Guia para validar, de ponta a ponta, que o sistema atende às User Stories de
    troca de senha revogou a outra sessão (FR-017a, research.md #1).
 4. Tentar `POST /api/v1/auth/refresh` com o `refreshToken` da sessão 1 (o informado no passo 2).
    **Esperado**: `200` — a sessão atual continua válida.
-5. Repetir o passo 2 informando a senha atual errada. **Esperado**: `401`, senha não alterada
-   (confirmar tentando logar com a senha antiga: ainda funciona).
+5. Repetir o passo 2 informando a senha atual errada. **Esperado**: `400` (não `401` — a
+   requisição está autenticada; o problema é `currentPassword` não bater, mesmo raciocínio de
+   `contracts/auth.md`), senha não alterada (confirmar tentando logar com a senha antiga: ainda
+   funciona).
 6. Repetir o passo 2 com `newPassword` menor que 8 caracteres. **Esperado**: `400`.
 7. No frontend web, abrir a tela de login e o modal de troca de senha (pelo ícone de engrenagem em
    `/perfil`): clicar no ícone de mostrar senha em cada campo de senha. **Esperado**: o conteúdo

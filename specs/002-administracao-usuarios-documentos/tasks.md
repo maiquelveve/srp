@@ -129,8 +129,8 @@ não é tocado (FR-019):
 
 **Purpose**: Ajustes que atravessam as 3 user stories
 
-- [ ] T032 [P] Anotações Swagger para todos os endpoints novos (`contracts/users.md`, `contracts/auth.md`, `contracts/documents.md`) em seus controllers
-- [ ] T033 Rodar a validação de `quickstart.md` de ponta a ponta (os 3 cenários)
+- [X] T032 [P] Anotações Swagger para todos os endpoints novos (`contracts/users.md`, `contracts/auth.md`, `contracts/documents.md`) em seus controllers
+- [X] T033 Rodar a validação de `quickstart.md` de ponta a ponta (os 3 cenários)
 
 ---
 
