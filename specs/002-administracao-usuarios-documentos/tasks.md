@@ -87,18 +87,18 @@ não é tocado (FR-019):
 
 ### Tests for User Story 2
 
-- [ ] T018 [P] [US2] Testes de integração para os endpoints de `contracts/documents.md` (enviar/listar/baixar/remover, `403` para `PRISON_OFFICER` em escrita, `400` para arquivo com extensão falsificada, `409` para nome duplicado na mesma categoria, `401` para download sem autenticação) em `backend/test/integration/documents.spec.ts`
-- [ ] T019 [P] [US2] Testes unitários da verificação de assinatura de arquivo (os 4 formatos aceitos + casos de recusa) em `backend/test/unit/file-signature.spec.ts`
+- [X] T018 [P] [US2] Testes de integração para os endpoints de `contracts/documents.md` (enviar/listar/baixar/remover, `403` para `PRISON_OFFICER` em escrita, `400` para arquivo com extensão falsificada, `409` para nome duplicado na mesma categoria, `401` para download sem autenticação) em `backend/test/integration/documents.spec.ts`
+- [X] T019 [P] [US2] Testes unitários da verificação de assinatura de arquivo (os 4 formatos aceitos + casos de recusa) em `backend/test/unit/file-signature.spec.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T020 [US2] Criar as entities TypeORM `DocumentType`/`Document` em `backend/src/documents/entities/` e a migration `AddDocumentsTables` (constraint única `(document_type_id, name)` + seed das 3 linhas fixas de `DocumentType`) em `backend/src/database/migrations/` (`data-model.md`)
-- [ ] T021 [P] [US2] Implementar o utilitário de verificação de assinatura de arquivo em `backend/src/documents/file-signature.ts` (research.md #3)
-- [ ] T022 [US2] Implementar `DocumentsModule`/`Controller`/`Service` — `GET /document-types`, `GET /documents`, `GET /documents/:id/download`, `POST /documents`, `DELETE /documents/:id` por `contracts/documents.md` (depende de T020, T021)
-- [ ] T023 [US2] Aplicar RBAC (`WARDEN`+`SUPERVISOR` em `POST`/`DELETE`, qualquer autenticado em `GET`) e `FileInterceptor` (Multer) com limite `DOCUMENTS_MAX_FILE_SIZE_MB` aos endpoints de documentos (depende de T022, T002)
-- [ ] T024 [US2] Adicionar `AuditService.record(...)` (`INSERT` no envio, `DELETE` com snapshot completo em `oldData` na remoção) a `DocumentsService` (research.md #2, #10)
-- [ ] T025 [P] [US2] Construir a tela web "Biblioteca de Documentos" (3 categorias, cards de documento com download, modal de envio restrito a WARDEN/SUPERVISOR) em `frontend/src/features/documents/`, seguindo `docs/style-guide.md` (FR-021) (depende de T022)
-- [ ] T026 [P] [US2] Adicionar rotas/itens de menu "Formulários"/"Modelos de Documentos"/"Manuais" em `frontend/src/App.tsx` e na navegação do `AppShell` (depende de T025)
+- [X] T020 [US2] Criar as entities TypeORM `DocumentType`/`Document` em `backend/src/documents/entities/` e a migration `AddDocumentsTables` (constraint única `(document_type_id, name)` + seed das 3 linhas fixas de `DocumentType`) em `backend/src/database/migrations/` (`data-model.md`)
+- [X] T021 [P] [US2] Implementar o utilitário de verificação de assinatura de arquivo em `backend/src/documents/file-signature.ts` (research.md #3)
+- [X] T022 [US2] Implementar `DocumentsModule`/`Controller`/`Service` — `GET /document-types`, `GET /documents`, `GET /documents/:id/download`, `POST /documents`, `DELETE /documents/:id` por `contracts/documents.md` (depende de T020, T021)
+- [X] T023 [US2] Aplicar RBAC (`WARDEN`+`SUPERVISOR` em `POST`/`DELETE`, qualquer autenticado em `GET`) e `FileInterceptor` (Multer) com limite `DOCUMENTS_MAX_FILE_SIZE_MB` aos endpoints de documentos (depende de T022, T002)
+- [X] T024 [US2] Adicionar `AuditService.record(...)` (`INSERT` no envio, `DELETE` com snapshot completo em `oldData` na remoção) a `DocumentsService` (research.md #2, #10)
+- [X] T025 [P] [US2] Construir a tela web "Biblioteca de Documentos" (3 categorias, cards de documento com download, modal de envio restrito a WARDEN/SUPERVISOR) em `frontend/src/features/documents/`, seguindo `docs/style-guide.md` (FR-021) (depende de T022)
+- [X] T026 [P] [US2] Adicionar rotas/itens de menu "Formulários"/"Modelos de Documentos"/"Manuais" em `frontend/src/App.tsx` e na navegação do `AppShell` (depende de T025)
 
 **Checkpoint**: User Story 2 totalmente funcional e testável de forma independente
 

@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import 'dotenv/config';
+import { rm } from 'fs/promises';
 import { Client } from 'pg';
 import * as argon2 from 'argon2';
 import { Role, RoleName } from '../../src/roles/entities/role.entity';
@@ -20,6 +21,9 @@ import { TEST_FIXTURE } from './fixtures';
  * `TEST_FIXTURE` from `./fixtures` instead.
  */
 const TEST_DB_NAME = 'srp_db_test';
+// Mesmo isolamento de `test/integration/env-setup.ts` (só pra Jest) — este
+// script roda fora do Jest, direto via `ts-node`, então precisa setar sozinho.
+const TEST_STORAGE_PATH = './storage/documents-test';
 
 async function ensureTestDatabaseExists(): Promise<void> {
   const maintenanceClient = new Client({
@@ -46,6 +50,10 @@ async function main(): Promise<void> {
   // are built from process.env at module-load time, and dotenv never
   // overrides an already-set variable, so this sticks for the rest of the process.
   process.env.POSTGRES_DB = TEST_DB_NAME;
+  process.env.DOCUMENTS_STORAGE_PATH = TEST_STORAGE_PATH;
+  // `documents`/`document_types` não entram no TRUNCATE abaixo (ver nota ali)
+  // — limpa os arquivos físicos de uma rodada anterior pra não acumular.
+  await rm(TEST_STORAGE_PATH, { recursive: true, force: true });
   const { AppDataSource } = await import('../../src/database/data-source');
 
   await AppDataSource.initialize();
@@ -53,6 +61,10 @@ async function main(): Promise<void> {
 
   const tables = [
     'audit_logs',
+    // `document_types` fica de fora de propósito: as 3 linhas fixas vêm só
+    // do seed da migration `AddDocumentsTables` (roda uma vez só), não há
+    // endpoint que crie/edite/remova essa tabela (data-model.md, FR-009).
+    'documents',
     'minimum_staffing_config',
     'posts',
     'staff_schedules',

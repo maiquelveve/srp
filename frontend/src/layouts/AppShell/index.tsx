@@ -42,17 +42,22 @@ const NAV_ITEMS: NavMainItem[] = [
   { to: '/inicio', label: 'Início', icon: HomeIcon },
   { to: '/mapa-da-unidade', label: 'Movimentações', icon: ArrowLeftRight },
   { to: '/rotinas', label: 'Rotinas', icon: CalendarClock },
-  { to: '/situacoes-definitivas', label: 'Situações definitivas', icon: FileClock, roles: ['WARDEN'] },
+  {
+    to: '/situacoes-definitivas',
+    label: 'Situações definitivas',
+    icon: FileClock,
+    roles: ['WARDEN'],
+  },
   { to: '/efetivo', label: 'Efetivo', icon: Users, roles: ['SUPERVISOR', 'WARDEN'] },
   { to: '/efetivo/postos', label: 'Postos de Serviço', icon: Signpost, roles: ['WARDEN'] },
 ];
 
-// Illustrative — mirrors the shadcn "Documents" group; not all of these map
-// to a documented user story (some are just placeholders, per user request).
+// Biblioteca de Documentos (User Story 2, contracts/documents.md) — uma rota
+// por categoria fixa do backend (FORM/TEMPLATE/MANUAL), sem tela unificada.
 const DOCUMENT_ITEMS: NavDocumentsItem[] = [
-  { to: '/modelos-de-documento', label: 'Modelos de Documento', icon: FileText },
-  { to: '/manuais-e-pops', label: 'Manuais e POPs', icon: BookOpen },
   { to: '/formularios', label: 'Formulários', icon: ListChecks },
+  { to: '/modelos-de-documentos', label: 'Modelos de Documentos', icon: FileText },
+  { to: '/manuais', label: 'Manuais', icon: BookOpen },
 ];
 
 const DOCUMENT_MORE_ITEMS: NavDocumentsItem[] = [
@@ -115,7 +120,7 @@ export default function AppShell(): JSX.Element {
         <SidebarContent>
           <NavMain items={visibleTo(NAV_ITEMS)} />
           <NavDocuments
-            label="Extras"
+            label="Documentos"
             items={visibleTo(DOCUMENT_ITEMS)}
             moreItems={visibleTo(DOCUMENT_MORE_ITEMS)}
           />

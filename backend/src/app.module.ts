@@ -17,6 +17,7 @@ import { RoutinesModule } from './routines/routines.module';
 import { PostsModule } from './posts/posts.module';
 import { StaffModule } from './staff/staff.module';
 import { ReportsModule } from './reports/reports.module';
+import { DocumentsModule } from './documents/documents.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { createGlobalValidationPipe } from './common/pipes/validation-pipe.factory';
 import { RequestLoggingMiddleware } from './common/logging/request-logging.middleware';
@@ -46,6 +47,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     PostsModule,
     StaffModule,
     ReportsModule,
+    DocumentsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

@@ -6,7 +6,7 @@ exceto onde indicado.
 | Método | Rota | Perfis | Descrição |
 |---|---|---|---|
 | GET | `/api/v1/document-types` | qualquer autenticado | Lista as 3 categorias fixas (Formulários, Modelos de Documentos, Manuais), para montar o menu (FR-009). |
-| GET | `/api/v1/documents?documentTypeId=` | qualquer autenticado | Lista documentos de uma categoria, mais recente primeiro (FR-011). |
+| GET | `/api/v1/documents?documentTypeId=&search=&limit=&offset=` | qualquer autenticado | Lista documentos, mais recente primeiro, paginado (FR-011). Cada tela web sempre informa `documentTypeId` da sua categoria fixa (Formulários/Modelos de Documentos/Manuais — não há tela unificada); `search` filtra por substring (case-insensitive) do nome. |
 | GET | `/api/v1/documents/:id/download` | qualquer autenticado | Baixa o arquivo (streaming), nomeado com `originalFileName` (FR-011). |
 | POST | `/api/v1/documents` | WARDEN, SUPERVISOR | Envia um novo documento (`multipart/form-data`: `file`, `name`, `documentTypeId`) (FR-010). |
 | DELETE | `/api/v1/documents/:id` | WARDEN, SUPERVISOR | Remove definitivamente um documento (FR-012). |
@@ -41,19 +41,27 @@ Response 200:
 
 ## Exemplo — GET /api/v1/documents?documentTypeId=1
 
-Response 200:
+Response 200 (`{ data, total }`, mesmo envelope paginado de `GET /users`/`GET /routines`):
 ```json
-[
-  {
-    "id": 8,
-    "name": "Portaria de Transferência",
-    "originalFileName": "portaria-transferencia.pdf",
-    "sizeBytes": 245678,
-    "documentTypeId": 1,
-    "createdAt": "2026-09-29T12:00:00.000Z"
-  }
-]
+{
+  "data": [
+    {
+      "id": 8,
+      "name": "Portaria de Transferência",
+      "originalFileName": "portaria-transferencia.pdf",
+      "sizeBytes": 245678,
+      "documentTypeId": 1,
+      "createdAt": "2026-09-29T12:00:00.000Z"
+    }
+  ],
+  "total": 1
+}
 ```
+
+## Exemplo — GET /api/v1/documents?search=portaria (sem `documentTypeId` — todas as categorias)
+
+Response 200: mesmo envelope acima, com documentos de qualquer categoria cujo nome contenha
+"portaria".
 
 ## Exemplo — POST /api/v1/documents
 

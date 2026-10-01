@@ -23,6 +23,10 @@ export interface AppConfig {
     password: string;
     from: string;
   };
+  documents: {
+    storagePath: string;
+    maxFileSizeMb: number;
+  };
 }
 
 function requireEnv(name: string): string {
@@ -61,5 +65,10 @@ export default (): AppConfig => ({
     user: process.env.SMTP_USER ?? '',
     password: process.env.SMTP_PASSWORD ?? '',
     from: process.env.SMTP_FROM ?? 'no-reply@srp.rs.gov.br',
+  },
+  // Biblioteca de documentos (research.md #4, #8, feature 002).
+  documents: {
+    storagePath: process.env.DOCUMENTS_STORAGE_PATH ?? './storage/documents',
+    maxFileSizeMb: Number(process.env.DOCUMENTS_MAX_FILE_SIZE_MB ?? 10),
   },
 });
