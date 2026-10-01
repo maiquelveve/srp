@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
+import HelpPage from './pages/HelpPage';
 import NotFoundPage from './pages/NotFoundPage';
 import StructurePage from './features/structure';
 import UsersPage from './features/users';
@@ -42,6 +43,7 @@ export default function App(): JSX.Element {
           <Route path="/auditoria" element={<AuditPage />} />
           <Route path="/perfil" element={<ProfilePage />} />
           <Route path="/configuracoes" element={<SettingsPage />} />
+          <Route path="/ajuda" element={<HelpPage />} />
         </Route>
       </Route>
       <Route path="*" element={<NotFoundPage />} />
