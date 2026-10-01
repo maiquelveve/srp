@@ -110,6 +110,37 @@ export class TokenService {
   }
 
   /**
+   * Verifies a refresh token belongs to `userId` and is not revoked/expired
+   * (same validation as `rotateRefreshToken()`/`POST /auth/refresh`, but
+   * without rotating it) and returns its hash — used by self password
+   * change to identify "the current session" to exclude from
+   * `revokeAllForUser()` (FR-017a, research.md #1, contracts/auth.md).
+   */
+  async verifyOwnTokenHash(refreshToken: string, userId: number): Promise<string> {
+    let payload: JwtPayload;
+    try {
+      payload = this.jwtService.verify<JwtPayload>(refreshToken, {
+        secret: this.config.jwt.refreshSecret,
+      });
+    } catch {
+      throw new UnauthorizedException('Refresh token inválido');
+    }
+
+    if (payload.sub !== userId) {
+      throw new UnauthorizedException('Refresh token inválido');
+    }
+
+    const tokenHash = this.hashToken(refreshToken);
+    const stored = await this.refreshTokenRepository.findOne({ where: { tokenHash } });
+
+    if (!stored || stored.revokedAt || stored.expiresAt.getTime() < Date.now()) {
+      throw new UnauthorizedException('Refresh token inválido');
+    }
+
+    return tokenHash;
+  }
+
+  /**
    * Revokes every still-valid refresh token of a user — no session may
    * outlive an administrative action or a password change (research.md #1).
    * Without `exceptTokenHash`: revokes all of them (deactivation, FR-031;

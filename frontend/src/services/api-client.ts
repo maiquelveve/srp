@@ -41,7 +41,8 @@ async function refreshAccessToken(): Promise<string> {
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined;
+    const originalRequest = error.config as
+      (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined;
 
     if (error.response?.status !== 401 || !originalRequest || originalRequest._retried) {
       if (error.response?.status === 401) {

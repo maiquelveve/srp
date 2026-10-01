@@ -10,8 +10,10 @@ Estende `contracts/auth.md` da feature 001 (login, refresh, logout, set-initial-
 
 - Exige `currentPassword`, `newPassword` e `refreshToken` (o refresh token do dispositivo atual,
   usado para preservar a sessão corrente — research.md #1).
-- Responde `401` se `currentPassword` não corresponder à senha atual do usuário autenticado
-  (FR-017) — sem alterar nada.
+- Responde `400` se `currentPassword` não corresponder à senha atual do usuário autenticado
+  (FR-017) — sem alterar nada. Não é `401`: a requisição está autenticada (o access token é
+  válido), o problema é um dado do próprio payload (`currentPassword`) não bater — mesmo
+  raciocínio do `400` de `newPassword` fora da política, abaixo.
 - Responde `400` se `newPassword` não atender a política de senha (mesma regra de
   `set-initial-password`, research.md #7).
 - `newPassword` == `currentPassword` MUST ser aceito (nenhuma regra do spec proíbe reescolher a
@@ -38,7 +40,7 @@ Response 200:
 { "message": "Senha alterada com sucesso" }
 ```
 
-Response 401 (senha atual incorreta):
+Response 400 (senha atual incorreta):
 ```json
 { "message": "Senha atual incorreta" }
 ```

@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@/hooks/useAuth';
 import { notify } from '@/lib/notify';
+import PasswordInput from '@/components/PasswordInput';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,7 +33,14 @@ export default function LoginPage(): JSX.Element {
       await login(values.email, values.password);
       navigate('/inicio');
     } catch {
-      notify({ title: 'Credenciais Inválidas', message: 'E-mail ou senha inválido', type: 'error', size: 'sm', position: 'top-right', duration: 3000 });
+      notify({
+        title: 'Credenciais Inválidas',
+        message: 'E-mail ou senha inválido',
+        type: 'error',
+        size: 'sm',
+        position: 'top-right',
+        duration: 3000,
+      });
     }
   }
 
@@ -63,12 +71,7 @@ export default function LoginPage(): JSX.Element {
 
                 <div className="grid gap-2">
                   <Label htmlFor="password">Senha</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="********"
-                    {...register('password')}
-                  />
+                  <PasswordInput id="password" placeholder="********" {...register('password')} />
                   {errors.password && (
                     <p className="text-sm text-destructive">{errors.password.message}</p>
                   )}

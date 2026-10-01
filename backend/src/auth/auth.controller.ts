@@ -1,14 +1,23 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Req } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, HttpCode, HttpStatus, Patch, Post, Req } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiForbiddenResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SetInitialPasswordDto } from './dto/set-initial-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { SkipAutoAudit } from '../common/decorators/skip-auto-audit.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from './types/jwt-payload.type';
 import loadConfiguration from '../config/configuration';
 
@@ -70,5 +79,29 @@ export class AuthController {
   async setInitialPassword(@Body() dto: SetInitialPasswordDto): Promise<{ message: string }> {
     await this.authService.setInitialPassword(dto.inviteToken, dto.password);
     return { message: 'Senha definida com sucesso' };
+  }
+
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Troca a própria senha, revogando as demais sessões (mantém a sessão atual)',
+  })
+  @ApiOkResponse({
+    schema: { properties: { message: { type: 'string', example: 'Senha alterada com sucesso' } } },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Token de acesso ausente/inválido ou refreshToken inválido',
+  })
+  @ApiForbiddenResponse({
+    description:
+      'Sem uso nesta rota (qualquer perfil autenticado pode trocar a própria senha), documentado por consistência com o restante da API',
+  })
+  @Patch('change-password')
+  async changePassword(
+    @Body() dto: ChangePasswordDto,
+    @CurrentUser() currentUser: JwtPayload,
+  ): Promise<{ message: string }> {
+    await this.authService.changePassword(currentUser.sub, dto);
+    return { message: 'Senha alterada com sucesso' };
   }
 }

@@ -57,6 +57,17 @@ export class User {
   @Column({ type: 'boolean', default: true })
   active: boolean;
 
+  /**
+   * Marca de quando a senha foi trocada pela última vez (troca própria ou
+   * reset administrativo) — usada por `JwtStrategy` pra rejeitar, na
+   * próxima requisição, um access token ainda válido mas emitido ANTES
+   * dessa troca (FR-017a/FR-007, mesmo princípio de `active` pra FR-031:
+   * revogar só o refresh token não basta, porque o access token continua
+   * assinado e válido até expirar sozinho, até 15 min por padrão).
+   */
+  @Column({ type: 'timestamptz', nullable: true })
+  passwordChangedAt: Date | null;
+
   @OneToMany(() => RefreshToken, (token) => token.user)
   refreshTokens: RefreshToken[];
 

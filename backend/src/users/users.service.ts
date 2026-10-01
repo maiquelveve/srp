@@ -63,9 +63,25 @@ export class UsersService {
     return this.userRepository.findOne({ where: { id }, relations: USER_RELATIONS });
   }
 
-  /** Lightweight per-request check used by the JWT strategy (FR-031). */
-  async isActive(id: number): Promise<boolean> {
-    return this.userRepository.exists({ where: { id, active: true } });
+  /**
+   * Persists a new password hash — used by AuthService.changePassword()
+   * (contracts/auth.md). Also stamps `passwordChangedAt` so `JwtStrategy`
+   * rejects any access token already issued before this call on its next
+   * use (FR-017a) — revoking just the refresh token leaves a still-valid
+   * access token usable elsewhere for up to its own TTL otherwise.
+   */
+  async updatePassword(id: number, passwordHash: string): Promise<void> {
+    await this.userRepository.update({ id }, { passwordHash, passwordChangedAt: new Date() });
+  }
+
+  /** Lightweight per-request check used by the JWT strategy (FR-031, FR-017a). */
+  async findAuthGuardData(
+    id: number,
+  ): Promise<{ active: boolean; passwordChangedAt: Date | null } | null> {
+    return this.userRepository.findOne({
+      where: { id },
+      select: { active: true, passwordChangedAt: true },
+    });
   }
 
   async list(
@@ -413,9 +429,12 @@ export class UsersService {
 
     const temporaryPassword = this.generateTemporaryPassword();
     user.passwordHash = await this.passwordHasher.hash(temporaryPassword);
+    // FR-007 — nenhuma sessão sobrevive ao reset: revogar só o refresh token
+    // não bastaria, um access token ainda válido continuaria passando em
+    // JwtStrategy até expirar sozinho (mesmo motivo de updatePassword()).
+    user.passwordChangedAt = new Date();
     await this.userRepository.save(user);
 
-    // FR-007 — nenhuma sessão sobrevive ao reset.
     await this.tokenService.revokeAllForUser(user.id);
 
     const emailDelivered = await this.emailService.sendPasswordEmail(

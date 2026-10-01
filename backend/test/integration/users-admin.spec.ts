@@ -43,6 +43,25 @@ describe('User administration (contracts/users.md)', () => {
     return { userId: (created.body as { id: number }).id, email };
   }
 
+  /**
+   * Cadastra uma SEGUNDA Chefia/Diretor, isolada de `wardenToken`/`wardenId`
+   * — usada só pelo teste de auto-reset de senha (abaixo), que precisa
+   * invalidar a própria sessão (jwt.strategy.ts) sem derrubar o
+   * `wardenToken` compartilhado por todos os outros testes deste arquivo.
+   */
+  async function createWarden(): Promise<{ userId: number; email: string }> {
+    userCounter += 1;
+    const email = `users-admin-warden-${Date.now()}-${userCounter}@test.srp.rs.gov.br`;
+    const created = await authed('post', '/api/v1/users', wardenToken).send({
+      name: 'Chefia Admin Teste',
+      email,
+      role: 'WARDEN',
+      unitIds: [TEST_FIXTURE.unitAId],
+    });
+    expect(created.status).toBe(201);
+    return { userId: (created.body as { id: number }).id, email };
+  }
+
   /** Define uma senha conhecida direto no banco (contorna o convite) e loga. */
   async function loginAs(userId: number, email: string) {
     const passwordHash = await app.get(PasswordHasherService).hash(TEST_FIXTURE.password);
@@ -258,6 +277,9 @@ describe('User administration (contracts/users.md)', () => {
     it('completes the reset (emailDelivered: false, no SMTP in tests) and revokes existing sessions', async () => {
       const officer = await createOfficer();
       const session = await loginAs(officer.userId, officer.email);
+      // `iat` do JWT só tem resolução de segundo inteiro (jwt.strategy.ts) —
+      // espera cruzar pra um segundo cheio diferente antes do reset.
+      await new Promise((resolve) => setTimeout(resolve, 1100));
 
       const res = await authed(
         'patch',
@@ -272,6 +294,14 @@ describe('User administration (contracts/users.md)', () => {
         .post('/api/v1/auth/refresh')
         .send({ refreshToken: session.refreshToken });
       expect(refreshed.status).toBe(401);
+
+      // O access token já emitido também para de funcionar na hora, não só
+      // o refresh token — senão a sessão continuaria "logada" por até 15 min
+      // (FR-007, mesmo mecanismo de FR-017a em jwt.strategy.ts).
+      const staleAccessRequest = await request(app.getHttpServer())
+        .get('/api/v1/units')
+        .set('Authorization', `Bearer ${session.accessToken}`);
+      expect(staleAccessRequest.status).toBe(401);
     });
 
     it('rejects SUPERVISOR and PRISON_OFFICER resetting a password', async () => {
@@ -288,7 +318,18 @@ describe('User administration (contracts/users.md)', () => {
     });
 
     it('allows WARDEN to target its own account (no self-restriction on reset-password)', async () => {
-      const res = await authed('patch', `/api/v1/users/${wardenId}/reset-password`, wardenToken);
+      // Chefia dedicada: resetar a própria senha invalida a própria sessão
+      // na hora (jwt.strategy.ts) — faria o `wardenToken` compartilhado por
+      // todo o resto deste arquivo parar de funcionar se o alvo fosse
+      // `wardenId`/`wardenToken`.
+      const secondWarden = await createWarden();
+      const secondWardenSession = await loginAs(secondWarden.userId, secondWarden.email);
+
+      const res = await authed(
+        'patch',
+        `/api/v1/users/${secondWarden.userId}/reset-password`,
+        secondWardenSession.accessToken,
+      );
 
       expect(res.status).toBe(200);
     });

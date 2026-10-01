@@ -112,14 +112,14 @@ não é tocado (FR-019):
 
 ### Tests for User Story 3
 
-- [ ] T027 [P] [US3] Testes de integração para `PATCH /api/v1/auth/change-password` (senha atual errada, confirmação divergente, senha fraca, revogação de sessão exceto a atual) em `backend/test/integration/change-password.spec.ts`
+- [X] T027 [P] [US3] Testes de integração para `PATCH /api/v1/auth/change-password` (senha atual errada, confirmação divergente, senha fraca, revogação de sessão exceto a atual) em `backend/test/integration/change-password.spec.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T028 [US3] Implementar `AuthService.changePassword()` + `PATCH /api/v1/auth/change-password` (valida `currentPassword`, política de `newPassword`, chama `TokenService.revokeAllForUser(userId, exceptTokenHash)`) em `backend/src/auth/`, DTO `change-password.dto.ts` (depende de T004)
-- [ ] T029 [US3] Adicionar `AuditService.record(...)` (`UPDATE`, sem a senha em texto claro) a `AuthService.changePassword()` (research.md #2)
-- [ ] T030 [P] [US3] Construir o modal "Alterar senha" (senha atual/nova/confirmar, ícone de mostrar/ocultar em cada campo) em `frontend/src/features/profile/components/ChangePasswordDialog/`, ligado ao ícone de engrenagem hoje `disabled` em `frontend/src/features/profile/index.tsx:214-230` (depende de T028; FR-018, FR-021)
-- [ ] T031 [P] [US3] Adicionar o toggle de mostrar/ocultar senha (`lucide-react` `Eye`/`EyeOff`) ao campo de senha de `frontend/src/pages/LoginPage/index.tsx` (FR-018)
+- [X] T028 [US3] Implementar `AuthService.changePassword()` + `PATCH /api/v1/auth/change-password` (valida `currentPassword`, política de `newPassword`, chama `TokenService.revokeAllForUser(userId, exceptTokenHash)`) em `backend/src/auth/`, DTO `change-password.dto.ts` (depende de T004)
+- [X] T029 [US3] Adicionar `AuditService.record(...)` (`UPDATE`, sem a senha em texto claro) a `AuthService.changePassword()` (research.md #2)
+- [X] T030 [P] [US3] Construir o modal "Alterar senha" (senha atual/nova/confirmar, ícone de mostrar/ocultar em cada campo) em `frontend/src/features/profile/components/ChangePasswordDialog/`, ligado ao ícone de engrenagem hoje `disabled` em `frontend/src/features/profile/index.tsx:214-230` (depende de T028; FR-018, FR-021)
+- [X] T031 [P] [US3] Adicionar o toggle de mostrar/ocultar senha (`lucide-react` `Eye`/`EyeOff`) ao campo de senha de `frontend/src/pages/LoginPage/index.tsx` (FR-018)
 
 **Checkpoint**: User Story 3 totalmente funcional e testável de forma independente; as 3 user stories completas
 
