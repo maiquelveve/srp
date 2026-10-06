@@ -26,6 +26,7 @@ import { EmailService } from '../email/email.service';
 import { assertUnitScope } from '../auth/unit-scope.util';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/entities/audit-log.entity';
+import { escapeLike } from '../common/like.util';
 
 const USER_RELATIONS = { role: true, units: true } as const;
 const INVITE_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -121,7 +122,7 @@ export class UsersService {
     if (query.search) {
       idsQuery.andWhere(
         '(user.name ILIKE :search OR user.email ILIKE :search OR user.badgeNumber ILIKE :search)',
-        { search: `%${query.search}%` },
+        { search: `%${escapeLike(query.search)}%` },
       );
     }
 
@@ -337,22 +338,26 @@ export class UsersService {
     id: number,
     dto: ReplaceUnitsDto,
     actingUserId: number,
+    callerUnitIds: number[],
   ): Promise<UserResponseDto> {
     // FR-008a — sempre proibido sobre a própria conta, sem sub-caso permitido.
     if (id === actingUserId) {
       throw new ForbiddenException(SELF_TARGET_MESSAGE);
     }
-    if (dto.unitIds.length > MAX_UNITS_PER_USER) {
+    const uniqueUnitIds = [...new Set(dto.unitIds)];
+    if (uniqueUnitIds.length > MAX_UNITS_PER_USER) {
       throw new BadRequestException(TOO_MANY_UNITS_MESSAGE);
     }
+    // FR-004a — a Chefia/Diretor só pode lotar alguém numa unidade do próprio escopo.
+    assertUnitScope(callerUnitIds, uniqueUnitIds);
 
     const user = await this.userRepository.findOne({ where: { id }, relations: USER_RELATIONS });
     if (!user) {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    const units = await this.unitRepository.find({ where: { id: In(dto.unitIds) } });
-    if (units.length !== dto.unitIds.length) {
+    const units = await this.unitRepository.find({ where: { id: In(uniqueUnitIds) } });
+    if (units.length !== uniqueUnitIds.length) {
       throw new NotFoundException('Uma ou mais unidades não encontradas');
     }
 
@@ -373,19 +378,27 @@ export class UsersService {
   }
 
   /** "Adicionar lotação" (FR-006a) — soma unidades novas às já vinculadas, sem remover nenhuma. */
-  async addUnits(id: number, dto: AddUnitsDto, actingUserId: number): Promise<UserResponseDto> {
+  async addUnits(
+    id: number,
+    dto: AddUnitsDto,
+    actingUserId: number,
+    callerUnitIds: number[],
+  ): Promise<UserResponseDto> {
     // FR-008a — sempre proibido sobre a própria conta, sem sub-caso permitido.
     if (id === actingUserId) {
       throw new ForbiddenException(SELF_TARGET_MESSAGE);
     }
+    const uniqueUnitIds = [...new Set(dto.unitIds)];
+    // FR-004a — a Chefia/Diretor só pode somar uma unidade do próprio escopo.
+    assertUnitScope(callerUnitIds, uniqueUnitIds);
 
     const user = await this.userRepository.findOne({ where: { id }, relations: USER_RELATIONS });
     if (!user) {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    const newUnits = await this.unitRepository.find({ where: { id: In(dto.unitIds) } });
-    if (newUnits.length !== dto.unitIds.length) {
+    const newUnits = await this.unitRepository.find({ where: { id: In(uniqueUnitIds) } });
+    if (newUnits.length !== uniqueUnitIds.length) {
       throw new NotFoundException('Uma ou mais unidades não encontradas');
     }
 

@@ -26,8 +26,9 @@ export interface UpdateUserInput {
   name?: string;
   /** Corrige um e-mail digitado errado no cadastro — a API valida duplicidade (409). */
   email?: string;
-  badgeNumber?: string;
-  jobTitle?: string;
+  /** `null` explícito limpa o campo no backend; `undefined` deixa o valor atual intocado. */
+  badgeNumber?: string | null;
+  jobTitle?: string | null;
   role?: RoleName;
 }
 

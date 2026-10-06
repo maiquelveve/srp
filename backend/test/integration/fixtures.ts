@@ -6,7 +6,12 @@
  */
 export const TEST_FIXTURE = {
   unitAId: 1,
+  /** Única unidade FORA do escopo do warden de teste — usada em toda a suíte para testar 403 de escopo (FR-004a). */
   unitBId: 2,
+  /** DENTRO do escopo do warden de teste, junto com unitA (setup-test-db.ts) — destino válido para "trocar"/"adicionar lotação". */
+  unitCId: 3,
+  unitDId: 4,
+  unitEId: 5,
   password: 'Test@12345',
   wardenEmail: 'warden@test.srp.rs.gov.br',
   supervisorEmail: 'supervisor@test.srp.rs.gov.br',

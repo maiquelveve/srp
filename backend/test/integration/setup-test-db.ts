@@ -109,6 +109,14 @@ async function main(): Promise<void> {
 
   const unitA = await unitRepo.save({ name: 'Unidade Teste A', code: 'TEST-A', active: true });
   const unitB = await unitRepo.save({ name: 'Unidade Teste B', code: 'TEST-B', active: true });
+  // unitC/D/E: também no escopo do warden de teste (ao lado de unitA) — usadas
+  // pelos testes de "trocar"/"adicionar lotação" (FR-004a, feature 002) que
+  // precisam de uma unidade de destino diferente mas ainda dentro do escopo
+  // do requisitante; unitB continua sendo a única unidade FORA do escopo,
+  // usada por todo o resto da suíte para testar o 403 de escopo.
+  const unitC = await unitRepo.save({ name: 'Unidade Teste C', code: 'TEST-C', active: true });
+  const unitD = await unitRepo.save({ name: 'Unidade Teste D', code: 'TEST-D', active: true });
+  const unitE = await unitRepo.save({ name: 'Unidade Teste E', code: 'TEST-E', active: true });
 
   const passwordHash = await argon2.hash(TEST_FIXTURE.password);
   await userRepo.save([
@@ -133,7 +141,7 @@ async function main(): Promise<void> {
       email: TEST_FIXTURE.wardenEmail,
       passwordHash,
       role: wardenRole,
-      units: [unitA],
+      units: [unitA, unitC, unitD, unitE],
       active: true,
     },
   ]);
@@ -176,7 +184,9 @@ async function main(): Promise<void> {
   }
 
   // eslint-disable-next-line no-console
-  console.log(`Test DB "${TEST_DB_NAME}" ready — unitA=${unitA.id}, unitB=${unitB.id}`);
+  console.log(
+    `Test DB "${TEST_DB_NAME}" ready — unitA=${unitA.id}, unitB=${unitB.id}, unitC=${unitC.id}, unitD=${unitD.id}, unitE=${unitE.id}`,
+  );
   await AppDataSource.destroy();
 }
 

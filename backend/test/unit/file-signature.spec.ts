@@ -7,11 +7,23 @@ import {
 const PDF_BYTES = Buffer.from('%PDF-1.4\n%some binary-ish content\n%%EOF', 'latin1');
 const DOC_BYTES = Buffer.concat([
   Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]),
-  Buffer.from('rest of a legacy .doc file', 'latin1'),
+  Buffer.from('rest of a legacy .doc file ', 'latin1'),
+  Buffer.from('WordDocument', 'utf16le'),
+]);
+/** Mesmo contêiner CFB de um .doc, mas com o stream de uma planilha (.xls), nunca "WordDocument". */
+const XLS_DISGUISED_AS_DOC_BYTES = Buffer.concat([
+  Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]),
+  Buffer.from('rest of a legacy .xls file ', 'latin1'),
+  Buffer.from('Workbook', 'utf16le'),
 ]);
 const DOCX_BYTES = Buffer.concat([
   Buffer.from([0x50, 0x4b, 0x03, 0x04]),
-  Buffer.from('...[Content_Types].xml...rest of the zip entries...', 'ascii'),
+  Buffer.from('...[Content_Types].xml...word/document.xml...rest of the zip entries...', 'ascii'),
+]);
+/** Mesmo contêiner ZIP OOXML de um .docx, mas com as entradas de uma planilha (.xlsx), nunca "word/document.xml". */
+const XLSX_DISGUISED_AS_DOCX_BYTES = Buffer.concat([
+  Buffer.from([0x50, 0x4b, 0x03, 0x04]),
+  Buffer.from('...[Content_Types].xml...xl/workbook.xml...rest of the zip entries...', 'ascii'),
 ]);
 const PLAIN_ZIP_BYTES = Buffer.concat([
   Buffer.from([0x50, 0x4b, 0x03, 0x04]),
@@ -41,12 +53,20 @@ describe('file-signature', () => {
       expect(detectFileFormat(DOC_BYTES)).toBe('doc');
     });
 
-    it('detects a DOCX by the ZIP signature plus the [Content_Types].xml entry', () => {
+    it('detects a DOCX by the ZIP signature plus the word/document.xml entry', () => {
       expect(detectFileFormat(DOCX_BYTES)).toBe('docx');
     });
 
     it('does not classify a plain ZIP (no [Content_Types].xml) as DOCX', () => {
       expect(detectFileFormat(PLAIN_ZIP_BYTES)).toBeNull();
+    });
+
+    it('does not classify an XLSX renamed to .docx as DOCX (FR-013a)', () => {
+      expect(detectFileFormat(XLSX_DISGUISED_AS_DOCX_BYTES)).toBeNull();
+    });
+
+    it('does not classify an XLS renamed to .doc as DOC (FR-013a)', () => {
+      expect(detectFileFormat(XLS_DISGUISED_AS_DOC_BYTES)).toBeNull();
     });
 
     it('detects plain UTF-8 text as TXT', () => {
@@ -97,6 +117,11 @@ describe('file-signature', () => {
     it('rejects content of one accepted format declared under another accepted extension', () => {
       expect(matchesDeclaredExtension('modelo.docx', DOC_BYTES)).toBe(false);
       expect(matchesDeclaredExtension('modelo.pdf', TXT_BYTES)).toBe(false);
+    });
+
+    it('rejects an XLSX/XLS renamed to look like an accepted Word format (FR-013a)', () => {
+      expect(matchesDeclaredExtension('planilha.docx', XLSX_DISGUISED_AS_DOCX_BYTES)).toBe(false);
+      expect(matchesDeclaredExtension('planilha.doc', XLS_DISGUISED_AS_DOC_BYTES)).toBe(false);
     });
   });
 

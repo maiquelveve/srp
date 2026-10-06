@@ -18,8 +18,21 @@ const EXECUTABLE_SIGNATURES = [
   Buffer.from('#!', 'ascii'), // shebang de script
 ];
 
-/** DOCX é um ZIP OOXML — só o cabeçalho ZIP não basta pra diferenciar de um .zip qualquer renomeado. */
-const DOCX_CONTENT_TYPES_ENTRY = '[Content_Types].xml';
+/**
+ * DOCX é um ZIP OOXML — só o cabeçalho ZIP não basta pra diferenciar de um
+ * .zip qualquer renomeado, nem de outro pacote OOXML (XLSX/PPTX também têm
+ * `[Content_Types].xml`); `word/document.xml` é a parte principal exclusiva
+ * de um pacote do Word, ausente em planilhas (`xl/workbook.xml`) e
+ * apresentações (`ppt/presentation.xml`).
+ */
+const DOCX_MAIN_DOCUMENT_ENTRY = 'word/document.xml';
+
+/**
+ * DOC (Compound File Binary) também é o contêiner de XLS/PPT/MSI/MSG — o
+ * stream `WordDocument`, armazenado em UTF-16LE dentro do CFB, é exclusivo de
+ * um documento do Word nesse formato.
+ */
+const DOC_WORD_STREAM_NAME = Buffer.from('WordDocument', 'utf16le');
 
 export type DetectedFileFormat = 'pdf' | 'docx' | 'doc' | 'txt';
 
@@ -62,10 +75,12 @@ export function detectFileFormat(buffer: Buffer): DetectedFileFormat | null {
     return 'pdf';
   }
   if (startsWith(buffer, DOC_SIGNATURE)) {
-    return 'doc';
+    // Sem isso, qualquer CFB (XLS/PPT/MSI/MSG renomeado) passava como "doc".
+    return buffer.includes(DOC_WORD_STREAM_NAME) ? 'doc' : null;
   }
   if (startsWith(buffer, ZIP_SIGNATURE)) {
-    return buffer.includes(DOCX_CONTENT_TYPES_ENTRY, 0, 'ascii') ? 'docx' : null;
+    // Sem isso, qualquer OOXML (XLSX/PPTX renomeado) passava como "docx".
+    return buffer.includes(DOCX_MAIN_DOCUMENT_ENTRY, 0, 'ascii') ? 'docx' : null;
   }
   const isExecutable = EXECUTABLE_SIGNATURES.some((signature) => startsWith(buffer, signature));
   if (isExecutable) {

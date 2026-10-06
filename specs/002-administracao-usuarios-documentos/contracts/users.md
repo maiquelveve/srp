@@ -43,6 +43,10 @@ exceto onde indicado.
   - `PATCH /api/v1/users/:id/reactivate`, `PATCH /api/v1/users/:id/reset-password` e
     `POST /api/v1/users/:id/resend-password-email` MUST permitir `:id` igual ao próprio
     requisitante — nenhuma restrição de auto-alvo nesses três.
+- `PUT /api/v1/users/:id/units` e `POST /api/v1/users/:id/units` MUST responder `403` se alguma
+  unidade de `unitIds` estiver fora do escopo de unidade do próprio requisitante (FR-004a, mesma
+  regra já aplicada a `POST /users` via `assertUnitScope`) — a Chefia/Diretor só pode lotar alguém
+  numa unidade a que ela própria está vinculada.
 - `PATCH /users/:id` permite alterar `role` para/de `WARDEN` livremente sobre outro usuário
   (FR-003, Clarifications #1); sobre a própria conta, ver regra acima.
 - `PATCH /users/:id` MUST responder `409` se `email` for alterado para um valor que já pertence a

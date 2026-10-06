@@ -202,11 +202,11 @@ describe('User administration (contracts/users.md)', () => {
       const officer = await createOfficer();
 
       const res = await authed('put', `/api/v1/users/${officer.userId}/units`, wardenToken).send({
-        unitIds: [TEST_FIXTURE.unitBId],
+        unitIds: [TEST_FIXTURE.unitCId],
       });
 
       expect(res.status).toBe(200);
-      expect(res.body).toMatchObject({ units: [TEST_FIXTURE.unitBId] });
+      expect(res.body).toMatchObject({ units: [TEST_FIXTURE.unitCId] });
     });
 
     it('responds 400 for an empty unitIds', async () => {
@@ -219,23 +219,47 @@ describe('User administration (contracts/users.md)', () => {
       expect(res.status).toBe(400);
     });
 
+    // FR-004a — a Chefia/Diretor só pode lotar alguém numa unidade do próprio escopo;
+    // `unitBId` é a única unidade fora do escopo do warden de teste (fixtures.ts).
+    it('rejects a destination unit outside the caller own scope (403, FR-004a)', async () => {
+      const officer = await createOfficer();
+
+      const res = await authed('put', `/api/v1/users/${officer.userId}/units`, wardenToken).send({
+        unitIds: [TEST_FIXTURE.unitBId],
+      });
+
+      expect(res.status).toBe(403);
+    });
+
     it('rejects SUPERVISOR/PRISON_OFFICER and self-target for WARDEN', async () => {
       const officer = await createOfficer();
 
       expect(
         (
           await authed('put', `/api/v1/users/${officer.userId}/units`, supervisorToken).send({
-            unitIds: [TEST_FIXTURE.unitBId],
+            unitIds: [TEST_FIXTURE.unitCId],
           })
         ).status,
       ).toBe(403);
       expect(
         (
           await authed('put', `/api/v1/users/${wardenId}/units`, wardenToken).send({
-            unitIds: [TEST_FIXTURE.unitBId],
+            unitIds: [TEST_FIXTURE.unitCId],
           })
         ).status,
       ).toBe(403);
+    });
+
+    // Um `unitIds` com id repetido não pode fazer uma unidade válida parecer "não encontrada".
+    it('tolerates a duplicate unit id in the payload', async () => {
+      const officer = await createOfficer();
+
+      const res = await authed('put', `/api/v1/users/${officer.userId}/units`, wardenToken).send({
+        unitIds: [TEST_FIXTURE.unitCId, TEST_FIXTURE.unitCId],
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ units: [TEST_FIXTURE.unitCId] });
     });
   });
 
@@ -244,13 +268,24 @@ describe('User administration (contracts/users.md)', () => {
       const officer = await createOfficer();
 
       const res = await authed('post', `/api/v1/users/${officer.userId}/units`, wardenToken).send({
-        unitIds: [TEST_FIXTURE.unitBId],
+        unitIds: [TEST_FIXTURE.unitCId],
       });
 
       expect(res.status).toBe(200);
       expect((res.body as { units: number[] }).units.sort()).toEqual(
-        [TEST_FIXTURE.unitAId, TEST_FIXTURE.unitBId].sort(),
+        [TEST_FIXTURE.unitAId, TEST_FIXTURE.unitCId].sort(),
       );
+    });
+
+    // FR-004a — mesma regra de PUT /units acima.
+    it('rejects a destination unit outside the caller own scope (403, FR-004a)', async () => {
+      const officer = await createOfficer();
+
+      const res = await authed('post', `/api/v1/users/${officer.userId}/units`, wardenToken).send({
+        unitIds: [TEST_FIXTURE.unitBId],
+      });
+
+      expect(res.status).toBe(403);
     });
 
     it('rejects SUPERVISOR/PRISON_OFFICER and self-target for WARDEN', async () => {
@@ -259,14 +294,14 @@ describe('User administration (contracts/users.md)', () => {
       expect(
         (
           await authed('post', `/api/v1/users/${officer.userId}/units`, officerToken).send({
-            unitIds: [TEST_FIXTURE.unitBId],
+            unitIds: [TEST_FIXTURE.unitCId],
           })
         ).status,
       ).toBe(403);
       expect(
         (
           await authed('post', `/api/v1/users/${wardenId}/units`, wardenToken).send({
-            unitIds: [TEST_FIXTURE.unitBId],
+            unitIds: [TEST_FIXTURE.unitCId],
           })
         ).status,
       ).toBe(403);
@@ -454,20 +489,19 @@ describe('User administration (contracts/users.md)', () => {
   });
 
   describe('Máximo de 3 lotações simultâneas (regra nova, pedido do usuário)', () => {
-    async function createExtraUnit(): Promise<number> {
-      const res = await authed('post', '/api/v1/units', wardenToken).send({
-        name: `Unidade Extra ${Date.now()}-${Math.random()}`,
-      });
-      expect(res.status).toBe(201);
-      return (res.body as { id: number }).id;
-    }
-
+    // As 4 unidades usadas aqui (unitA/C/D/E) precisam estar TODAS no escopo
+    // do warden de teste (setup-test-db.ts) — unidades fora do escopo agora
+    // respondem 403 antes mesmo de chegar na checagem do limite (FR-004a).
     it('rejects PUT /units (trocar lotação) with more than 3 units', async () => {
       const officer = await createOfficer();
-      const [unitC, unitD] = await Promise.all([createExtraUnit(), createExtraUnit()]);
 
       const res = await authed('put', `/api/v1/users/${officer.userId}/units`, wardenToken).send({
-        unitIds: [TEST_FIXTURE.unitAId, TEST_FIXTURE.unitBId, unitC, unitD],
+        unitIds: [
+          TEST_FIXTURE.unitAId,
+          TEST_FIXTURE.unitCId,
+          TEST_FIXTURE.unitDId,
+          TEST_FIXTURE.unitEId,
+        ],
       });
 
       expect(res.status).toBe(400);
@@ -475,20 +509,19 @@ describe('User administration (contracts/users.md)', () => {
 
     it('rejects POST /units (adicionar lotação) once the resulting total exceeds 3', async () => {
       const officer = await createOfficer(); // já começa com 1 lotação (unitA)
-      const [unitC, unitD] = await Promise.all([createExtraUnit(), createExtraUnit()]);
 
       // Sobe pra 2 lotações — ainda dentro do limite.
       expect(
         (
           await authed('post', `/api/v1/users/${officer.userId}/units`, wardenToken).send({
-            unitIds: [TEST_FIXTURE.unitBId],
+            unitIds: [TEST_FIXTURE.unitCId],
           })
         ).status,
       ).toBe(200);
 
       // Adicionar mais 2 (total 4) estoura o máximo de 3.
       const res = await authed('post', `/api/v1/users/${officer.userId}/units`, wardenToken).send({
-        unitIds: [unitC, unitD],
+        unitIds: [TEST_FIXTURE.unitDId, TEST_FIXTURE.unitEId],
       });
 
       expect(res.status).toBe(400);

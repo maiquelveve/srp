@@ -114,7 +114,7 @@ export class UsersController {
     @Body() dto: ReplaceUnitsDto,
     @CurrentUser() currentUser: JwtPayload,
   ): Promise<UserResponseDto> {
-    return this.usersService.replaceUnits(id, dto, currentUser.sub);
+    return this.usersService.replaceUnits(id, dto, currentUser.sub, currentUser.units);
   }
 
   @ApiOperation({
@@ -130,7 +130,7 @@ export class UsersController {
     @Body() dto: AddUnitsDto,
     @CurrentUser() currentUser: JwtPayload,
   ): Promise<UserResponseDto> {
-    return this.usersService.addUnits(id, dto, currentUser.sub);
+    return this.usersService.addUnits(id, dto, currentUser.sub, currentUser.units);
   }
 
   @ApiOperation({

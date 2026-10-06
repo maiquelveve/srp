@@ -9,8 +9,8 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { QueryFailedError, Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import { Document } from './entities/document.entity';
 import { DocumentType } from './entities/document-type.entity';
 import { CreateDocumentDto } from './dto/create-document.dto';
@@ -24,6 +24,7 @@ import { AuditAction } from '../audit/entities/audit-log.entity';
 import { APP_CONFIG } from '../config/app-config.module';
 import { AppConfig } from '../config/configuration';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
+import { escapeLike } from '../common/like.util';
 
 const UNIQUE_VIOLATION_CODE = '23505';
 const DUPLICATE_NAME_MESSAGE = 'Já existe um documento com esse nome nesta categoria';
@@ -55,6 +56,7 @@ export class DocumentsService {
     @InjectRepository(DocumentType)
     private readonly documentTypeRepository: Repository<DocumentType>,
     private readonly auditService: AuditService,
+    @InjectDataSource() private readonly dataSource: DataSource,
     @Inject(APP_CONFIG) config: AppConfig,
   ) {
     this.storagePath = config.documents.storagePath;
@@ -81,7 +83,7 @@ export class DocumentsService {
       qb.andWhere('documentType.id = :documentTypeId', { documentTypeId: query.documentTypeId });
     }
     if (query.search) {
-      qb.andWhere('document.name ILIKE :search', { search: `%${query.search}%` });
+      qb.andWhere('document.name ILIKE :search', { search: `%${escapeLike(query.search)}%` });
     }
 
     const total = await qb.getCount();
@@ -132,30 +134,41 @@ export class DocumentsService {
     await fs.writeFile(absolutePath, file.buffer);
 
     try {
-      const created = await this.documentRepository.save(
-        this.documentRepository.create({
-          name: dto.name,
-          path: generatedFileName,
-          originalFileName: file.originalname,
-          mimeType,
-          sizeBytes: file.size,
-          documentType,
-          uploadedBy: { id: actingUserId } as User,
-        }),
-      );
+      // Linha do documento + entrada de auditoria vivem ou morrem juntas —
+      // sem isso, uma falha no INSERT de auditoria (depois do documento já
+      // commitado) deixava uma linha órfã em `documents` apontando pra um
+      // arquivo que o catch abaixo já tinha apagado do disco.
+      const created = await this.dataSource.transaction(async (manager) => {
+        const saved = await manager.save(
+          manager.getRepository(Document).create({
+            name: dto.name,
+            path: generatedFileName,
+            originalFileName: file.originalname,
+            mimeType,
+            sizeBytes: file.size,
+            documentType,
+            uploadedBy: { id: actingUserId } as User,
+          }),
+        );
 
-      await this.auditService.record({
-        userId: actingUserId,
-        affectedTable: 'documents',
-        recordId: created.id,
-        action: AuditAction.INSERT,
-        oldData: null,
-        newData: {
-          name: created.name,
-          documentTypeId: documentType.id,
-          originalFileName: created.originalFileName,
-          sizeBytes: created.sizeBytes,
-        },
+        await this.auditService.record(
+          {
+            userId: actingUserId,
+            affectedTable: 'documents',
+            recordId: saved.id,
+            action: AuditAction.INSERT,
+            oldData: null,
+            newData: {
+              name: saved.name,
+              documentTypeId: documentType.id,
+              originalFileName: saved.originalFileName,
+              sizeBytes: saved.sizeBytes,
+            },
+          },
+          manager,
+        );
+
+        return saved;
       });
 
       // `save()` devolve a mesma instância, com `documentType` já anexado

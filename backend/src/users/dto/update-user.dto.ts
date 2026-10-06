@@ -14,15 +14,17 @@ export class UpdateUserDto {
   @MaxLength(150)
   email?: string;
 
+  /** `null` explícito limpa o campo; `undefined` (ausente) deixa o valor atual intocado. */
   @IsOptional()
   @IsString()
   @MaxLength(50)
-  badgeNumber?: string;
+  badgeNumber?: string | null;
 
+  /** `null` explícito limpa o campo; `undefined` (ausente) deixa o valor atual intocado. */
   @IsOptional()
   @IsString()
   @MaxLength(100)
-  jobTitle?: string;
+  jobTitle?: string | null;
 
   @IsOptional()
   @IsEnum(RoleName)

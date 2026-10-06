@@ -106,11 +106,15 @@ export default function UserDialog({ units, user, onCreated, children }: UserDia
 
   const updateUser = useMutation({
     mutationFn: () =>
+      // Edição sempre envia o campo inteiro (nunca "não mudou") — `null`
+      // explícito é o que de fato limpa `badgeNumber`/`jobTitle` no backend;
+      // `undefined` seria tratado como "deixa como está" (PATCH parcial) e a
+      // limpeza do campo pareceria funcionar na tela sem persistir.
       usersApi.update((user as AdminUser).id, {
         name,
         email,
-        badgeNumber: badgeNumber || undefined,
-        jobTitle: jobTitle || undefined,
+        badgeNumber: badgeNumber.trim() === '' ? null : badgeNumber,
+        jobTitle: jobTitle.trim() === '' ? null : jobTitle,
         role: role as RoleName,
       }),
     onSuccess: () => {

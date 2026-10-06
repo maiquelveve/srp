@@ -26,6 +26,7 @@ import { FinalTransferDto } from './dto/final-transfer.dto';
 import { CellTransferDto } from './dto/cell-transfer.dto';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { InmatesService } from '../inmates/inmates.service';
+import { escapeLike } from '../common/like.util';
 import { CellHistoryService } from '../inmates/cell-history.service';
 import { CellsService } from '../cells/cells.service';
 import { CellHistoryReason } from '../inmates/entities/inmate-cell-history.entity';
@@ -90,11 +91,6 @@ const PERIOD_IN_MONTHS: Record<DefinitiveSituationPeriod, number | null> = {
   [DefinitiveSituationPeriod.ALL]: null,
 };
 const DEFAULT_PAGE_SIZE = 25;
-
-/** Escapa `%`, `_` e `\` para o texto digitado valer literalmente num `ILIKE`. */
-function escapeLike(text: string): string {
-  return text.replace(/[\\%_]/g, '\\$&');
-}
 
 const MOVEMENT_RELATIONS = {
   inmate: true,

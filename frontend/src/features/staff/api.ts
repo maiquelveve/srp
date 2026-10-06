@@ -10,10 +10,18 @@ import type {
   Shift,
 } from './types';
 
+/** Teto de `limit` aceito por `GET /users` (backend/src/users/dto/list-users-query.dto.ts). */
+const MAX_OFFICERS_PER_UNIT = 100;
+
 export const staffApi = {
+  // `limit` explícito — sem ele, `GET /users` aplica o padrão de 20 (tela de
+  // Administração de Usuários, feature 002) e o seletor de escala perdia
+  // silenciosamente policiais além do 20º numa unidade maior.
   listOfficers: (unitId: number) =>
     apiClient
-      .get<Paginated<Officer>>('/users', { params: { role: 'PRISON_OFFICER', unitId } })
+      .get<Paginated<Officer>>('/users', {
+        params: { role: 'PRISON_OFFICER', unitId, limit: MAX_OFFICERS_PER_UNIT },
+      })
       .then((r) => r.data),
 
   listPosts: (params: { unitId: number; includeInactive?: boolean }) =>
