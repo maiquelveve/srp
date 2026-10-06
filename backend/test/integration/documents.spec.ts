@@ -7,11 +7,14 @@ import { TEST_FIXTURE } from './fixtures';
 const PDF_BUFFER = Buffer.from('%PDF-1.4\n%conteudo falso de teste\n%%EOF', 'latin1');
 const DOCX_BUFFER = Buffer.concat([
   Buffer.from([0x50, 0x4b, 0x03, 0x04]),
-  Buffer.from('...[Content_Types].xml...resto das entradas do zip...', 'ascii'),
+  // `word/document.xml` é exigido por file-signature.ts para distinguir de outro OOXML (XLSX/PPTX).
+  Buffer.from('...[Content_Types].xml...word/document.xml...resto das entradas do zip...', 'ascii'),
 ]);
 const DOC_BUFFER = Buffer.concat([
   Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]),
-  Buffer.from('resto de um .doc legado', 'latin1'),
+  Buffer.from('resto de um .doc legado ', 'latin1'),
+  // Stream "WordDocument" (UTF-16LE) é exigido por file-signature.ts para distinguir de outro CFB (XLS/PPT/MSI/MSG).
+  Buffer.from('WordDocument', 'utf16le'),
 ]);
 const TXT_BUFFER = Buffer.from('Instruções de preenchimento do formulário de teste.', 'utf8');
 /** MZ (Windows PE) — mesmo conteúdo binário de um executável, extensão trocada pra .pdf (FR-013a). */

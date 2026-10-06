@@ -2,7 +2,9 @@
 
 Sistema digital que substitui as folhas impressas de controle de uma unidade prisional: cadastro de
 presos e da estrutura (unidades, galerias, celas), movimentações em tempo real, situações
-definitivas, rotinas operacionais, escalas de efetivo, relatórios e auditoria.
+definitivas, rotinas operacionais, escalas de efetivo, relatórios e auditoria. Inclui também a
+administração de usuários pela Chefia/Diretor, uma biblioteca de formulários/modelos/manuais e a
+troca de senha pelo próprio usuário — essas três últimas exclusivas do painel web.
 
 Monorepo com três aplicações:
 
@@ -17,6 +19,8 @@ Perfis: **Policial Penal** (`PRISON_OFFICER`), **Supervisor** (`SUPERVISOR`) e *
 
 ## Estado das User Stories
 
+### Feature 001 — Gestão de Rotinas Penitenciárias
+
 | US | Tema | Web | Mobile |
 |---|---|---|---|
 | US1 | Cadastro e mapa da unidade | sim | sim |
@@ -26,7 +30,17 @@ Perfis: **Policial Penal** (`PRISON_OFFICER`), **Supervisor** (`SUPERVISOR`) e *
 | US5 | Controle de efetivo e escalas | sim | não |
 | US6 | Relatórios e auditoria | sim | não |
 
-O detalhamento (tarefas e o que falta) está em [`specs/001-gestao-rotinas-presos/tasks.md`](specs/001-gestao-rotinas-presos/tasks.md).
+Detalhamento: [`specs/001-gestao-rotinas-presos/tasks.md`](specs/001-gestao-rotinas-presos/tasks.md).
+
+### Feature 002 — Administração de Usuários e Documentos
+
+| US | Tema | Web | Mobile |
+|---|---|---|---|
+| US1 | Administração de usuários pela Chefia/Diretor (editar, reativar, trocar/adicionar lotação, resetar senha) | sim | não (FR-019) |
+| US2 | Biblioteca de Formulários, Modelos de Documentos e Manuais | sim | não (FR-019) |
+| US3 | Troca de senha pelo próprio usuário | sim | não (FR-019) |
+
+Detalhamento: [`specs/002-administracao-usuarios-documentos/tasks.md`](specs/002-administracao-usuarios-documentos/tasks.md).
 
 ## Pré-requisitos
 
@@ -99,7 +113,11 @@ desenvolvimento.
 ### Validação ponta a ponta (quickstart) e carga
 
 - `backend/test/quickstart/validate-quickstart.js` percorre os cenários 0 a 6 do
-  [`quickstart.md`](specs/001-gestao-rotinas-presos/quickstart.md) contra um backend rodando.
+  [`quickstart.md`](specs/001-gestao-rotinas-presos/quickstart.md) (feature 001) contra um backend
+  rodando.
+- Os 3 cenários do [`quickstart.md`](specs/002-administracao-usuarios-documentos/quickstart.md) da
+  feature 002 (administração de usuários, biblioteca de documentos, troca de senha) são validados
+  manualmente — sem script dedicado ainda.
 - `backend/test/load/shift-change.js` é o teste de carga da troca de turno (k6, 200 usuários).
   Instruções e resultados em [`backend/test/load/README.md`](backend/test/load/README.md).
 
@@ -128,6 +146,13 @@ Os dois escrevem dados: rode apenas contra um banco descartável, nunca contra p
 | [`specs/001-gestao-rotinas-presos/contracts/`](specs/001-gestao-rotinas-presos/contracts/) | Contratos de cada grupo de endpoints |
 | [`specs/001-gestao-rotinas-presos/research.md`](specs/001-gestao-rotinas-presos/research.md) | Decisões técnicas numeradas e o porquê de cada uma |
 | [`specs/001-gestao-rotinas-presos/quickstart.md`](specs/001-gestao-rotinas-presos/quickstart.md) | Cenários de validação ponta a ponta |
+| [`specs/002-administracao-usuarios-documentos/spec.md`](specs/002-administracao-usuarios-documentos/spec.md) | Requisitos funcionais e critérios de sucesso (administração de usuários, documentos, senha) |
+| [`specs/002-administracao-usuarios-documentos/plan.md`](specs/002-administracao-usuarios-documentos/plan.md) | Plano técnico |
+| [`specs/002-administracao-usuarios-documentos/tasks.md`](specs/002-administracao-usuarios-documentos/tasks.md) | Tarefas e andamento |
+| [`specs/002-administracao-usuarios-documentos/data-model.md`](specs/002-administracao-usuarios-documentos/data-model.md) | Modelo de dados |
+| [`specs/002-administracao-usuarios-documentos/contracts/`](specs/002-administracao-usuarios-documentos/contracts/) | Contratos de cada grupo de endpoints |
+| [`specs/002-administracao-usuarios-documentos/research.md`](specs/002-administracao-usuarios-documentos/research.md) | Decisões técnicas numeradas e o porquê de cada uma |
+| [`specs/002-administracao-usuarios-documentos/quickstart.md`](specs/002-administracao-usuarios-documentos/quickstart.md) | Cenários de validação ponta a ponta |
 | [`docs/style-guide.md`](docs/style-guide.md) | Guia de estilo das telas (web e mobile) |
 | [`docs/srp_spec_database_model.md`](docs/srp_spec_database_model.md) | Esquema do banco |
 | [`.specify/memory/constitution.md`](.specify/memory/constitution.md) | Constituição do projeto |
