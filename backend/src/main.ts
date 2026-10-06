@@ -16,6 +16,11 @@ async function bootstrap(): Promise<void> {
   app.enableCors({
     origin: corsAllowedOrigins.length > 0 ? corsAllowedOrigins : false,
     credentials: true,
+    // Sem isso o navegador esconde esse header da resposta do JS que fez a
+    // chamada (só os "safelisted" por padrão em CORS: Content-Type etc.) —
+    // GET /documents/:id/download fica sem o nome de arquivo original
+    // (contracts/documents.md), mesmo o backend mandando o header certo.
+    exposedHeaders: ['Content-Disposition'],
   });
 
   const swaggerConfig = new DocumentBuilder()

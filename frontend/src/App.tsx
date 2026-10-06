@@ -1,8 +1,11 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
+import HelpPage from './pages/HelpPage';
 import NotFoundPage from './pages/NotFoundPage';
 import StructurePage from './features/structure';
+import UsersPage from './features/users';
+import DocumentsPage from './features/documents';
 import RoutinesPage from './features/routines';
 import DefinitiveSituationsPage from './features/definitive-situations';
 import StaffPage from './features/staff';
@@ -24,6 +27,13 @@ export default function App(): JSX.Element {
         <Route element={<AppShell />}>
           <Route path="/inicio" element={<HomePage />} />
           <Route path="/mapa-da-unidade" element={<StructurePage />} />
+          <Route path="/administracao-de-usuarios" element={<UsersPage />} />
+          <Route path="/formularios" element={<DocumentsPage documentTypeCode="FORM" />} />
+          <Route
+            path="/modelos-de-documentos"
+            element={<DocumentsPage documentTypeCode="TEMPLATE" />}
+          />
+          <Route path="/manuais" element={<DocumentsPage documentTypeCode="MANUAL" />} />
           <Route path="/rotinas" element={<RoutinesPage />} />
           <Route path="/situacoes-definitivas" element={<DefinitiveSituationsPage />} />
           <Route path="/efetivo" element={<StaffPage />} />
@@ -33,6 +43,7 @@ export default function App(): JSX.Element {
           <Route path="/auditoria" element={<AuditPage />} />
           <Route path="/perfil" element={<ProfilePage />} />
           <Route path="/configuracoes" element={<SettingsPage />} />
+          <Route path="/ajuda" element={<HelpPage />} />
         </Route>
       </Route>
       <Route path="*" element={<NotFoundPage />} />

@@ -15,6 +15,18 @@ export interface AppConfig {
     limit: number;
     loginLimit: number;
   };
+  smtp: {
+    host: string;
+    port: number;
+    secure: boolean;
+    user: string;
+    password: string;
+    from: string;
+  };
+  documents: {
+    storagePath: string;
+    maxFileSizeMb: number;
+  };
 }
 
 function requireEnv(name: string): string {
@@ -44,5 +56,19 @@ export default (): AppConfig => ({
     limit: Number(process.env.THROTTLE_LIMIT ?? 100),
     // Brute-force guard on POST /auth/login, per client IP per window.
     loginLimit: Number(process.env.THROTTLE_LOGIN_LIMIT ?? 5),
+  },
+  // Senha inicial/reset por e-mail (research.md #6, feature 002).
+  smtp: {
+    host: process.env.SMTP_HOST ?? 'localhost',
+    port: Number(process.env.SMTP_PORT ?? 587),
+    secure: process.env.SMTP_SECURE === 'true',
+    user: process.env.SMTP_USER ?? '',
+    password: process.env.SMTP_PASSWORD ?? '',
+    from: process.env.SMTP_FROM ?? 'no-reply@srp.rs.gov.br',
+  },
+  // Biblioteca de documentos (research.md #4, #8, feature 002).
+  documents: {
+    storagePath: process.env.DOCUMENTS_STORAGE_PATH ?? './storage/documents',
+    maxFileSizeMb: Number(process.env.DOCUMENTS_MAX_FILE_SIZE_MB ?? 10),
   },
 });

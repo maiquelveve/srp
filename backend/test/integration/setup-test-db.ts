@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import 'dotenv/config';
+import { rm } from 'fs/promises';
 import { Client } from 'pg';
 import * as argon2 from 'argon2';
 import { Role, RoleName } from '../../src/roles/entities/role.entity';
@@ -20,6 +21,9 @@ import { TEST_FIXTURE } from './fixtures';
  * `TEST_FIXTURE` from `./fixtures` instead.
  */
 const TEST_DB_NAME = 'srp_db_test';
+// Mesmo isolamento de `test/integration/env-setup.ts` (só pra Jest) — este
+// script roda fora do Jest, direto via `ts-node`, então precisa setar sozinho.
+const TEST_STORAGE_PATH = './storage/documents-test';
 
 async function ensureTestDatabaseExists(): Promise<void> {
   const maintenanceClient = new Client({
@@ -46,6 +50,10 @@ async function main(): Promise<void> {
   // are built from process.env at module-load time, and dotenv never
   // overrides an already-set variable, so this sticks for the rest of the process.
   process.env.POSTGRES_DB = TEST_DB_NAME;
+  process.env.DOCUMENTS_STORAGE_PATH = TEST_STORAGE_PATH;
+  // `documents`/`document_types` não entram no TRUNCATE abaixo (ver nota ali)
+  // — limpa os arquivos físicos de uma rodada anterior pra não acumular.
+  await rm(TEST_STORAGE_PATH, { recursive: true, force: true });
   const { AppDataSource } = await import('../../src/database/data-source');
 
   await AppDataSource.initialize();
@@ -53,6 +61,10 @@ async function main(): Promise<void> {
 
   const tables = [
     'audit_logs',
+    // `document_types` fica de fora de propósito: as 3 linhas fixas vêm só
+    // do seed da migration `AddDocumentsTables` (roda uma vez só), não há
+    // endpoint que crie/edite/remova essa tabela (data-model.md, FR-009).
+    'documents',
     'minimum_staffing_config',
     'posts',
     'staff_schedules',
@@ -97,6 +109,14 @@ async function main(): Promise<void> {
 
   const unitA = await unitRepo.save({ name: 'Unidade Teste A', code: 'TEST-A', active: true });
   const unitB = await unitRepo.save({ name: 'Unidade Teste B', code: 'TEST-B', active: true });
+  // unitC/D/E: também no escopo do warden de teste (ao lado de unitA) — usadas
+  // pelos testes de "trocar"/"adicionar lotação" (FR-004a, feature 002) que
+  // precisam de uma unidade de destino diferente mas ainda dentro do escopo
+  // do requisitante; unitB continua sendo a única unidade FORA do escopo,
+  // usada por todo o resto da suíte para testar o 403 de escopo.
+  const unitC = await unitRepo.save({ name: 'Unidade Teste C', code: 'TEST-C', active: true });
+  const unitD = await unitRepo.save({ name: 'Unidade Teste D', code: 'TEST-D', active: true });
+  const unitE = await unitRepo.save({ name: 'Unidade Teste E', code: 'TEST-E', active: true });
 
   const passwordHash = await argon2.hash(TEST_FIXTURE.password);
   await userRepo.save([
@@ -121,7 +141,7 @@ async function main(): Promise<void> {
       email: TEST_FIXTURE.wardenEmail,
       passwordHash,
       role: wardenRole,
-      units: [unitA],
+      units: [unitA, unitC, unitD, unitE],
       active: true,
     },
   ]);
@@ -164,7 +184,9 @@ async function main(): Promise<void> {
   }
 
   // eslint-disable-next-line no-console
-  console.log(`Test DB "${TEST_DB_NAME}" ready — unitA=${unitA.id}, unitB=${unitB.id}`);
+  console.log(
+    `Test DB "${TEST_DB_NAME}" ready — unitA=${unitA.id}, unitB=${unitB.id}, unitC=${unitC.id}, unitD=${unitD.id}, unitE=${unitE.id}`,
+  );
   await AppDataSource.destroy();
 }
 

@@ -19,13 +19,12 @@ import {
 import { structureApi } from '@/features/structure/api';
 import type { RoleName } from '@/features/structure/types';
 import { useAuth } from '@/hooks/useAuth';
+import ChangePasswordDialog from './components/ChangePasswordDialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 const ROLE_LABEL: Record<RoleName, string> = {
@@ -137,7 +136,8 @@ function UnitsList({ names, loading }: { names: string[]; loading: boolean }): J
 /**
  * Perfil do usuário logado, somente leitura (mesmos dados da `ProfileScreen` do mobile).
  * Coluna lateral com identidade e seções (Visão geral, Lotação, Acessos) e conteúdo ao lado.
- * A engrenagem é o ponto de entrada futuro para editar os dados; por ora fica desabilitada.
+ * A engrenagem abre `ChangePasswordDialog` (FR-016/FR-017) — único ponto de edição
+ * disponível aqui por ora; os demais dados continuam somente leitura.
  */
 export default function ProfilePage(): JSX.Element {
   const { user } = useAuth();
@@ -211,23 +211,7 @@ export default function ProfilePage(): JSX.Element {
               {section === 'access' && 'O que o seu perfil acessa'}
             </h2>
           </div>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled
-                  className="rounded-full text-muted-foreground"
-                >
-                  <SettingsIcon className="size-5" />
-                  <span className="sr-only">Editar dados</span>
-                </Button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>Edição de dados em breve</TooltipContent>
-          </Tooltip>
+          <ChangePasswordDialog />
         </div>
 
         {section === 'overview' && (

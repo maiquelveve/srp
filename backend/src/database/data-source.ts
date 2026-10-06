@@ -20,6 +20,8 @@ import { ServicePost } from '../posts/entities/service-post.entity';
 import { StaffSchedule } from '../staff/entities/staff-schedule.entity';
 import { MinimumStaffingConfig } from '../staff/entities/minimum-staffing-config.entity';
 import { AuditLog } from '../audit/entities/audit-log.entity';
+import { Document } from '../documents/entities/document.entity';
+import { DocumentType } from '../documents/entities/document-type.entity';
 
 /**
  * Single source of truth for TypeORM entities and migrations (Constitution IV/VIII).
@@ -60,6 +62,8 @@ export const dataSourceOptions: DataSourceOptions = {
     StaffSchedule,
     MinimumStaffingConfig,
     AuditLog,
+    Document,
+    DocumentType,
   ],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   namingStrategy: new SnakeNamingStrategy(),

@@ -35,6 +35,9 @@ web-build/
 # TypeORM
 backend/dist/
 
+# Documentos enviados pela biblioteca de documentos (DOCUMENTS_STORAGE_PATH, feature 002)
+backend/storage/
+
 # tsc -b project-reference build output (vite.config.ts -> vite.config.js)
 frontend/vite.config.js
 frontend/vite.config.d.ts
