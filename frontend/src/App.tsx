@@ -6,6 +6,7 @@ import NotFoundPage from './pages/NotFoundPage';
 import StructurePage from './features/structure';
 import UsersPage from './features/users';
 import DocumentsPage from './features/documents';
+import KnowledgeBasePage from './features/knowledge-base';
 import RoutinesPage from './features/routines';
 import DefinitiveSituationsPage from './features/definitive-situations';
 import StaffPage from './features/staff';
@@ -34,6 +35,7 @@ export default function App(): JSX.Element {
             element={<DocumentsPage documentTypeCode="TEMPLATE" />}
           />
           <Route path="/manuais" element={<DocumentsPage documentTypeCode="MANUAL" />} />
+          <Route path="/base-de-conhecimento" element={<KnowledgeBasePage />} />
           <Route path="/rotinas" element={<RoutinesPage />} />
           <Route path="/situacoes-definitivas" element={<DefinitiveSituationsPage />} />
           <Route path="/efetivo" element={<StaffPage />} />

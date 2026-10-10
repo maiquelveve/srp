@@ -7,6 +7,7 @@ import {
   FileText,
   HelpCircle,
   HomeIcon,
+  LibraryBig,
   ListChecks,
   Settings,
   ShieldAlert,
@@ -50,6 +51,13 @@ const NAV_ITEMS: NavMainItem[] = [
   },
   { to: '/efetivo', label: 'Efetivo', icon: Users, roles: ['SUPERVISOR', 'WARDEN'] },
   { to: '/efetivo/postos', label: 'Postos de Serviço', icon: Signpost, roles: ['WARDEN'] },
+  // Base de Conhecimento (feature 003): só Supervisor e Chefia/Diretor.
+  {
+    to: '/base-de-conhecimento',
+    label: 'Base de Conhecimento',
+    icon: LibraryBig,
+    roles: ['SUPERVISOR', 'WARDEN'],
+  },
 ];
 
 // Biblioteca de Documentos (User Story 2, contracts/documents.md) — uma rota

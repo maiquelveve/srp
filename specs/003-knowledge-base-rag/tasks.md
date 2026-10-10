@@ -86,8 +86,8 @@ Extensão dos projetos existentes (`plan.md` Project Structure); `mobile/` não 
 
 ### Frontend base
 
-- [ ] T024 [P] Criar `frontend/src/features/knowledge-base/types.ts` (estados do documento, `outcome`, objetos de resposta conforme contracts/knowledge-api.md) e `frontend/src/features/knowledge-base/api.ts` (cliente para os 7 endpoints usando `services/api-client.ts`)
-- [ ] T025 Criar a página `frontend/src/features/knowledge-base/index.tsx` com as abas "Perguntar", "Histórico" e "Documentos" (componente `tabs` shadcn, padrão de tela de `docs/style-guide.md`), registrar a rota `/base-de-conhecimento` em `frontend/src/App.tsx` e o item de menu em `frontend/src/layouts/AppShell/index.tsx` visível apenas para `WARDEN` e `SUPERVISOR`
+- [X] T024 [P] Criar `frontend/src/features/knowledge-base/types.ts` (estados do documento, `outcome`, objetos de resposta conforme contracts/knowledge-api.md) e `frontend/src/features/knowledge-base/api.ts` (cliente para os 7 endpoints usando `services/api-client.ts`)
+- [X] T025 Criar a página `frontend/src/features/knowledge-base/index.tsx` com as abas "Perguntar", "Histórico" e "Documentos" (componente `tabs` shadcn, padrão de tela de `docs/style-guide.md`), registrar a rota `/base-de-conhecimento` em `frontend/src/App.tsx` e o item de menu em `frontend/src/layouts/AppShell/index.tsx` visível apenas para `WARDEN` e `SUPERVISOR`
 
 **Checkpoint**: Provedores, schema e esqueletos prontos; user stories podem começar
 
