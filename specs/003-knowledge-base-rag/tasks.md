@@ -40,10 +40,10 @@ Extensão dos projetos existentes (`plan.md` Project Structure); `mobile/` não 
 
 **Purpose**: Infraestrutura local e dependências compartilhadas pelas 4 user stories
 
-- [ ] T001 Trocar a imagem do serviço em `docker/postgres/docker-compose.yml` para `pgvector/pgvector:pg16` (mesmo major, volume existente permanece compatível) e anotar a mudança em `docker/README.md`
-- [ ] T002 [P] Criar o stack `docker/ollama/docker-compose.yml` (serviço `ollama` com volume nomeado, porta `11434`, healthcheck, e um serviço de uma execução que faz `ollama pull` de `bge-m3` e `qwen2.5:7b-instruct`) e `docker/ollama/.env.example`, seguindo a convenção de `docker/README.md`
-- [ ] T003 [P] Adicionar `pdf-parse` e `mammoth` (e tipos, se necessários) às dependências de `backend/package.json` (research.md #2) e, em seguida, validar com um script descartável em CommonJS que ambos carregam e extraem texto de um arquivo de exemplo; se `pdf-parse` falhar em CommonJS, trocar por `pdfjs-dist` (build legacy) e registrar a mudança em research.md #2
-- [ ] T004 [P] Adicionar a `backend/.gitignore` o diretório padrão de `KNOWLEDGE_STORAGE_PATH` (ex.: `storage/knowledge/`) e `storage/knowledge-test/`
+- [X] T001 Trocar a imagem do serviço em `docker/postgres/docker-compose.yml` para `pgvector/pgvector:pg16` e anotar a mudança em `docker/README.md`. Atenção: a imagem é Debian (glibc) e a anterior era Alpine (musl); um volume existente NÃO deve ser reaproveitado direto (ordenação de texto diferente pode corromper índices). Ver nota no `docker/README.md`: recriar o banco ou fazer dump/restore
+- [X] T002 [P] Criar o stack `docker/ollama/docker-compose.yml` (serviço `ollama` com volume nomeado, porta `11434`, healthcheck, e um serviço de uma execução que faz `ollama pull` de `bge-m3` e `qwen2.5:7b-instruct`) e `docker/ollama/.env.example`, seguindo a convenção de `docker/README.md`
+- [X] T003 [P] Adicionar `pdf-parse` e `mammoth` (e tipos, se necessários) às dependências de `backend/package.json` (research.md #2) e, em seguida, validar com um script descartável em CommonJS que ambos carregam e extraem texto de um arquivo de exemplo; se `pdf-parse` falhar em CommonJS, trocar por `pdfjs-dist` (build legacy) e registrar a mudança em research.md #2
+- [X] T004 [P] Garantir que `KNOWLEDGE_STORAGE_PATH` (padrão `backend/storage/knowledge/`) e `storage/knowledge-test/` não sejam versionados. Não existe `backend/.gitignore`: o `.gitignore` da raiz já ignora `backend/storage/` inteiro, então só o comentário foi atualizado
 
 ---
 

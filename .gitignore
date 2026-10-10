@@ -35,7 +35,9 @@ web-build/
 # TypeORM
 backend/dist/
 
-# Documentos enviados pela biblioteca de documentos (DOCUMENTS_STORAGE_PATH, feature 002)
+# Arquivos enviados: biblioteca de documentos (DOCUMENTS_STORAGE_PATH, feature 002) e
+# base de conhecimento (KNOWLEDGE_STORAGE_PATH, feature 003). Cobre storage/documents,
+# storage/documents-test, storage/knowledge e storage/knowledge-test.
 backend/storage/
 
 # tsc -b project-reference build output (vite.config.ts -> vite.config.js)

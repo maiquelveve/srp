@@ -6,7 +6,7 @@ Nenhum `NEEDS CLARIFICATION` ficou aberto no Technical Context. Esta pesquisa re
 
 **Decision**: Extensão `vector` no PostgreSQL 16 (`CREATE EXTENSION vector` na migration); coluna `embedding vector(1024)`; consulta por **distância de cosseno** (`<=>`) com índice HNSW `vector_cosine_ops`. O compose do Postgres troca a imagem para `pgvector/pgvector:pg16`.
 
-**Rationale**: A descrição pede `ORDER BY embedding <-> $1 LIMIT 5` (distância L2). Para vetores normalizados, L2 e cosseno produzem a mesma ordenação; os modelos escolhidos (bge-m3, text-embedding-3) devolvem vetores normalizados, mas Ollama nem sempre normaliza. Cosseno é invariante a isso e dá uma similaridade (`1 - distância`) com escala estável, necessária para o limiar de relevância (FR-007). O formato do SQL (`ORDER BY ... LIMIT 5`) é o pedido. Imagem `pg16` mantém o mesmo major do volume existente.
+**Rationale**: A descrição pede `ORDER BY embedding <-> $1 LIMIT 5` (distância L2). Para vetores normalizados, L2 e cosseno produzem a mesma ordenação; os modelos escolhidos (bge-m3, text-embedding-3) devolvem vetores normalizados, mas Ollama nem sempre normaliza. Cosseno é invariante a isso e dá uma similaridade (`1 - distância`) com escala estável, necessária para o limiar de relevância (FR-007). O formato do SQL (`ORDER BY ... LIMIT 5`) é o pedido. Mesmo major (16) que a imagem anterior. A imagem do pgvector é baseada em Debian (glibc), enquanto a anterior era Alpine (musl); por isso um volume já existente não deve ser reaproveitado sem dump/restore ou recriação do banco.
 
 **Alternatives considered**:
 - `<->` literal → ordenação equivalente só se normalizarmos; limiar menos interpretável. Rejeitado (a decisão do usuário é o padrão ORDER BY/LIMIT, não o operador).
@@ -19,7 +19,7 @@ Nenhum `NEEDS CLARIFICATION` ficou aberto no Technical Context. Esta pesquisa re
 
 **Rationale**: As duas são puro JS, sem binário nativo, sem serviço externo. Os formatos aceitos são os mesmos da feature 002, então o detector já existe.
 
-**Risco a validar no primeiro task**: confirmar que as versões escolhidas funcionam em CommonJS no Nest (lição da 002 sobre `file-type` ESM-only). Fallback: `pdfjs-dist` legacy build para PDF.
+**Validado (T003)**: `pdf-parse@2.4.5` (expõe build CJS via `exports.require`) e `mammoth@1.13.0` carregam e extraem texto em CommonJS; `pdfjs-dist` não foi necessário. Detalhe: o `pdf-parse` 2.x anexa por padrão um marcador `-- N of M --` ao fim de cada página; o extrator DEVE chamar `getText({ pageJoiner: '' })` para esse marcador não virar texto de trecho.
 
 **Alternatives considered**: `unpdf` (ESM-only), Apache Tika (serviço Java extra), `textract` (binários externos). Rejeitados por custo operacional.
 
