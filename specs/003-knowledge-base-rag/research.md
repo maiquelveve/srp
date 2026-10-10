@@ -47,7 +47,7 @@ Nenhum `NEEDS CLARIFICATION` ficou aberto no Technical Context. Esta pesquisa re
 
 ## 6. Chamada HTTP aos provedores (sem SDK)
 
-**Decision**: `fetch` nativo com `AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS)` (default 60 s para chat, 30 s para embeddings). Endpoints: Ollama `POST {base}/api/embed` e `POST {base}/api/chat` (`stream:false`); OpenAI `POST /v1/embeddings` e `/v1/chat/completions`; Claude `POST /v1/messages` com `x-api-key` e `anthropic-version`. Respostas HTTP mapeadas para `AiProviderError.kind`: 429 → `RATE_LIMIT`; 401/402/403 e erros de cota → `QUOTA_OR_AUTH`; 5xx/rede → `UNAVAILABLE`; abort → `TIMEOUT`; corpo inesperado → `INVALID_RESPONSE`.
+**Decision**: `fetch` nativo com `AbortSignal.timeout(...)` usando `AI_CHAT_TIMEOUT_MS` (default 60 s) para chat e `AI_EMBEDDING_TIMEOUT_MS` (default 30 s) para embeddings. Endpoints: Ollama `POST {base}/api/embed` e `POST {base}/api/chat` (`stream:false`); OpenAI `POST /v1/embeddings` e `/v1/chat/completions`; Claude `POST /v1/messages` com `x-api-key` e `anthropic-version`. Respostas HTTP mapeadas para `AiProviderError.kind`: 429 → `RATE_LIMIT`; 401/402/403 e erros de cota → `QUOTA_OR_AUTH`; 5xx/rede → `UNAVAILABLE`; abort → `TIMEOUT`; corpo inesperado → `INVALID_RESPONSE`.
 
 **Rationale**: Mantém "sem lib externa de IA" e o controle total do fluxo. Embeddings em lote respeitam um `batchSize` (default 16) para não estourar payload.
 
@@ -77,11 +77,13 @@ Nenhum `NEEDS CLARIFICATION` ficou aberto no Technical Context. Esta pesquisa re
 
 **Rationale**: FR-005/FR-007/FR-033. O marcador torna a decisão do modelo detectável sem depender de texto livre.
 
-## 11. Limite de taxa e tamanho de pergunta
+## 11. Limite de consultas e tamanho de pergunta
 
-**Decision**: `@Throttle` no `POST /knowledge/queries` com `KNOWLEDGE_QUERY_RATE_LIMIT` (default 10) por minuto, usando o `ThrottlerModule` já existente, **com `getTracker` sobrescrito para usar o `id` do usuário autenticado** (não o IP). Decidido pelo usuário em 2026-10-10. Pergunta: 3 a 1000 caracteres (DTO).
+**Decision**: limite **por usuário** de `KNOWLEDGE_QUERY_RATE_LIMIT` (default 10) consultas por minuto, aplicado no `KnowledgeQueriesService` antes de chamar a IA: conta os registros de `knowledge_queries` do usuário com `created_at` nos últimos 60 s; se atingiu o limite, responde `429`. Decidido pelo usuário em 2026-10-10 (por usuário, não por IP).
 
-**Rationale**: FR-009/FR-010 sem infraestrutura nova. Por usuário evita que várias pessoas atrás da mesma rede institucional dividam o mesmo limite. O rastreador é um `ThrottlerGuard` filho ou `@Throttle` com `getTracker` próprio, sem afetar o limite global por IP dos demais endpoints.
+**Tamanho da pergunta**: 3 a `KNOWLEDGE_QUESTION_MAX_LENGTH` caracteres (default 1000), validado no DTO; fora disso `400` sem chamar a IA.
+
+**Rationale**: FR-009/FR-010 sem infraestrutura nova. Por usuário evita que várias pessoas atrás da mesma rede institucional dividam o mesmo limite. A contagem é feita no banco, e não no `ThrottlerModule`, porque no `AppModule` o `ThrottlerGuard` roda antes do `JwtAuthGuard` (`req.user` ainda não existe quando o rastreador é calculado). Contar em `knowledge_queries` não depende da ordem dos guards, não exige estado em memória (funciona com mais de uma instância) e usa o índice em `created_at`. Limitação aceita: consultas que falham antes de persistir (`503`, `400`) não entram na contagem; o limite global por IP do `ThrottlerModule` continua valendo como proteção geral. Requisições paralelas do mesmo usuário podem passar juntas pela contagem (janela de concorrência pequena, aceita nesta fase).
 
 ## 12. Imutabilidade do histórico
 
@@ -91,6 +93,6 @@ Nenhum `NEEDS CLARIFICATION` ficou aberto no Technical Context. Esta pesquisa re
 
 ## 13. Troca de modelo de embeddings
 
-**Decision**: Cada trecho guarda `embedding_model` (id do modelo usado). No boot, documentos `READY` cujos trechos têm `embedding_model` diferente do configurado passam a `NEEDS_REPROCESS`; a recuperação filtra `WHERE embedding_model = :current`. `POST /knowledge/documents/:id/reprocess` (e um "reprocessar todos" no mesmo endpoint de lista) reindexa a partir do arquivo guardado.
+**Decision**: Cada trecho guarda `embedding_model` (id do modelo usado). No boot, documentos `READY` cujos trechos têm `embedding_model` diferente do configurado passam a `NEEDS_REPROCESS`; a recuperação filtra `WHERE embedding_model = :current`. `POST /knowledge/documents/:id/reprocess` reindexa, a partir do arquivo guardado, um documento por vez. Reprocessamento em lote fica fora desta fase (a base é pequena).
 
 **Rationale**: Impede resultado enganoso (vetores de espaços diferentes não são comparáveis) e atende o edge case da spec sem migração silenciosa.

@@ -81,6 +81,7 @@ Valor desconhecido de provider ou credencial ausente para `openai`/`claude` → 
 | `AI_EMBEDDING_BATCH_SIZE` | `16` | |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | |
 | `OLLAMA_EMBEDDING_MODEL` / `OLLAMA_CHAT_MODEL` | `bge-m3` / `qwen2.5:7b-instruct` | |
+| `OLLAMA_CHAT_NUM_CTX` | `8192` | Janela de contexto enviada em `options.num_ctx`. Sem isso o Ollama usa um padrão pequeno (2048 a 4096 tokens) e trunca em silêncio os 5 trechos (cerca de 4 a 5 mil tokens) |
 | `OPENAI_API_KEY` | — | obrigatório se algum provider for `openai` |
 | `OPENAI_EMBEDDING_MODEL` / `OPENAI_CHAT_MODEL` | `text-embedding-3-small` / `gpt-4o-mini` | |
 | `ANTHROPIC_API_KEY` | — | obrigatório se `CHAT_PROVIDER=claude` |

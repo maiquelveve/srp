@@ -42,7 +42,7 @@ Garantia FR-016: chunks só são inseridos na transação final do passo 9, junt
 ## Fluxo de consulta (POST /knowledge/queries)
 
 ```text
- 1. valida perfil, rate limit (429), pergunta 3–1000 chars (400)
+ 1. valida perfil, pergunta 3–1000 chars (400) e limite por usuário: conta consultas do usuário nos últimos 60 s em knowledge_queries (429)
  2. vector = EmbeddingProvider.embed([pergunta])[0]
        erro → 503 (nada persistido)
  3. trechos = SELECT ... ORDER BY embedding <=> vector LIMIT 5   (somente READY/UPDATING, modelo atual)

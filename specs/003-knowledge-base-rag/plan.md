@@ -99,8 +99,8 @@ backend/
 │   │   │   ├── knowledge-documents.controller.ts
 │   │   │   ├── knowledge-documents.service.ts
 │   │   │   ├── ingestion.service.ts   # pipeline extrair → chunk → embed → persistir
-│   │   │   ├── ingestion-queue.ts     # fila em processo, concorrência 1, recuperação no boot
-│   │   │   ├── text-extractor.ts      # PDF/DOCX/DOC/TXT
+│   │   │   ├── ingestion-queue.ts     # fila em processo, concorrência 1, recuperação no boot, waitForIdle()
+│   │   │   ├── text-extractor.ts      # PDF/DOCX/TXT
 │   │   │   ├── chunker.ts             # função pura
 │   │   │   └── dto/
 │   │   ├── queries/                   # consulta e histórico
@@ -108,6 +108,7 @@ backend/
 │   │   │   ├── knowledge-queries.service.ts
 │   │   │   ├── prompt-builder.ts      # função pura
 │   │   │   └── dto/
+│   │   ├── knowledge-bootstrap.service.ts  # no boot: valida dimensão (fundacional); marca NEEDS_REPROCESS (US3)
 │   │   └── entities/
 │   │       ├── knowledge-document.entity.ts
 │   │       ├── knowledge-document-chunk.entity.ts
@@ -120,7 +121,9 @@ backend/
 │   └── app.module.ts                  # + AiModule, KnowledgeModule
 └── test/
     ├── unit/                          # chunker, extractor, adapters, factory, prompt-builder
-    └── integration/knowledge.spec.ts
+    └── integration/
+        ├── fakes/                     # providers falsos (embedding e chat)
+        └── knowledge-*.spec.ts
 
 frontend/src/
 ├── features/knowledge-base/           # NOVO

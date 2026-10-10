@@ -21,6 +21,7 @@ Guia de validação ponta a ponta. Endpoints em [contracts/knowledge-api.md](./c
    **Esperado**: "Não foi possível encontrar a resposta", `outcome = NO_ANSWER`, sem texto inventado.
 4. Enviar `fake.pdf`. **Esperado**: `400`, nada registrado.
 5. Enviar de novo com o mesmo nome. **Esperado**: `409`.
+6. Com `KNOWLEDGE_QUERY_RATE_LIMIT=3` no `.env`, enviar 4 perguntas em menos de 1 minuto. **Esperado**: a 4ª responde `429` com mensagem em português; outro usuário continua conseguindo perguntar.
 
 ## Cenário 2 — Falha da IA devolve trechos (US1 #3)
 

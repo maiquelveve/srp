@@ -66,7 +66,7 @@ Participa da recuperação apenas `READY` e `UPDATING`.
 | `failure_kind` | varchar(30) NULL | Quando `EXCERPTS_ONLY`: `RATE_LIMIT`, `QUOTA_OR_AUTH`, `UNAVAILABLE`, `TIMEOUT`. Diagnóstico, não exibido como erro. |
 | `created_at` | timestamptz NOT NULL DEFAULT now() | |
 
-Índice: `created_at DESC`. **Trigger** `knowledge_queries_immutable` (`BEFORE UPDATE OR DELETE OR TRUNCATE`) bloqueia qualquer alteração, igual a `audit_logs`.
+Índices: `created_at DESC` (histórico) e `(user_id, created_at DESC)` (contagem do limite por usuário). **Trigger** `knowledge_queries_immutable` (`BEFORE UPDATE OR DELETE OR TRUNCATE`) bloqueia qualquer alteração, igual a `audit_logs`.
 
 ## Relacionamentos
 

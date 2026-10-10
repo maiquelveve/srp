@@ -48,7 +48,7 @@ O Supervisor ou a Chefia/Diretor envia um arquivo (PDF, DOCX ou TXT) de uma norm
 2. **Given** um arquivo cujo conteúdo real não corresponde à extensão (ex.: executável renomeado para .pdf), **When** o usuário tenta enviá-lo, **Then** o envio é recusado com mensagem clara e nada é registrado.
 3. **Given** um PDF escaneado sem texto extraível, **When** o processamento termina, **Then** o documento fica no estado "Falhou" com o motivo (sem texto extraível) e não participa das consultas.
 4. **Given** que o serviço de IA usado no processamento está indisponível, **When** o documento é processado, **Then** ele fica "Falhou" com a possibilidade de reprocessar depois, sem perder o arquivo enviado.
-5. **Given** um documento ativo com o mesmo nome de exibição, **When** o usuário tenta enviar outro com esse nome, **Then** o envio é bloqueado pedindo um nome diferente.
+5. **Given** um documento com o mesmo nome de exibição, **When** o usuário tenta enviar outro com esse nome, **Then** o envio é bloqueado pedindo um nome diferente.
 
 ---
 
@@ -94,7 +94,7 @@ O usuário vê, na própria tela de consulta, o histórico de perguntas já feit
 - Base sem nenhum documento "Disponível para consulta": a tela informa que ainda não há documentos e a consulta responde "Não foi possível encontrar a resposta" (ou fica desabilitada com orientação, sem erro).
 - Arquivo acima do tamanho máximo permitido para documentos: recusado com mensagem clara, mesmo limite já usado na biblioteca de documentos.
 - Documento muito grande (centenas de páginas): é processado por inteiro, em segundo plano, sem travar a tela; o usuário vê o estado "Processando".
-- Dois usuários enviam o mesmo documento ao mesmo tempo: só um é aceito (regra de nome único entre documentos ativos).
+- Dois usuários enviam o mesmo documento ao mesmo tempo: só um é aceito (regra de nome único entre os documentos da base).
 - O usuário fecha a tela ou perde a conexão durante o processamento: o processamento continua e o estado final fica visível depois.
 - O serviço de IA é trocado (outro modelo/provedor) e os conteúdos já indexados deixam de ser compatíveis com o novo: o sistema não devolve resultados enganosos; os documentos são sinalizados como "Precisa reprocessar" até serem reindexados.
 - O texto de um documento contém instruções dirigidas à IA (ex.: "ignore as regras anteriores"): o conteúdo do documento é tratado apenas como material de consulta, nunca como instrução ao sistema.
@@ -115,7 +115,7 @@ O usuário vê, na própria tela de consulta, o histórico de perguntas já feit
 **Consulta (chat)**
 
 - **FR-004**: A tela de consulta MUST oferecer um campo de texto para a pergunta e um botão de enviar, e exibir a resposta recebida na própria tela.
-- **FR-005**: O sistema MUST responder a pergunta com base exclusivamente nos trechos dos documentos "Disponíveis para consulta" mais relevantes para ela; a resposta MUST NOT incluir informação que não esteja nesses trechos.
+- **FR-005**: O sistema MUST responder a pergunta com base exclusivamente nos trechos dos documentos "Disponíveis para consulta" ou "Atualizando" (nesse caso, da versão anterior, que segue disponível) mais relevantes para ela; a resposta MUST NOT incluir informação que não esteja nesses trechos.
 - **FR-006**: Cada resposta MUST indicar os documentos de origem utilizados (nome do documento).
 - **FR-007**: Quando não houver trechos suficientemente relevantes ou a IA não souber responder, o sistema MUST responder exatamente com a mensagem "Não foi possível encontrar a resposta".
 - **FR-008**: Quando o serviço de IA falhar (limite de uso, falta de créditos, indisponibilidade, tempo esgotado), o sistema MUST retornar os trechos brutos mais relevantes com aviso explícito, em vez de erro; a pergunta MUST ser registrada normalmente no histórico, com indicação de que a resposta foi só de trechos.
@@ -127,10 +127,10 @@ O usuário vê, na própria tela de consulta, o histórico de perguntas já feit
 - **FR-011**: O usuário MUST poder enviar documentos nos formatos PDF, DOCX e TXT, informando um nome de exibição.
 - **FR-012**: O sistema MUST validar a extensão e o conteúdo real do arquivo e recusar o envio quando não corresponderem, aplicando o mesmo limite de tamanho e as mesmas regras de validação já usadas pela biblioteca de documentos (reutilização, sem duplicar a lógica).
 - **FR-013**: O sistema MUST primeiro armazenar o arquivo no armazenamento de arquivos do sistema e, em seguida, processá-lo: extrair o texto, dividi-lo em trechos de aproximadamente 300 a 500 palavras com sobreposição de aproximadamente 50 palavras, gerar a representação pesquisável de cada trecho e persistir os trechos associados ao documento.
-- **FR-014**: Cada documento MUST ter um estado visível ao usuário: "Processando", "Disponível para consulta", "Falhou" ou "Precisa reprocessar"; somente documentos "Disponíveis para consulta" participam das respostas.
+- **FR-014**: Cada documento MUST ter um estado visível ao usuário: "Processando", "Disponível para consulta", "Atualizando" (nova versão em processamento; a anterior segue disponível), "Falhou" ou "Precisa reprocessar"; somente documentos "Disponíveis para consulta" ou "Atualizando" participam das respostas.
 - **FR-015**: Quando o processamento falhar (sem texto extraível, arquivo corrompido, serviço de IA indisponível), o sistema MUST registrar o motivo, mostrá-lo ao usuário e permitir reprocessar sem novo envio do arquivo.
 - **FR-016**: O sistema MUST garantir que um documento nunca fique parcialmente indexado: ou todos os seus trechos estão persistidos e o documento fica disponível, ou nenhum trecho dele participa das respostas.
-- **FR-017**: O sistema MUST bloquear o envio quando já existir um documento ativo com o mesmo nome de exibição na base e pedir outro nome.
+- **FR-017**: O sistema MUST bloquear o envio quando já existir um documento com o mesmo nome de exibição na base e pedir outro nome.
 - **FR-018**: O sistema MUST registrar para cada documento: nome de exibição, tipo (formato do arquivo), data de envio, autor (usuário que enviou), estado e, quando falhou, o motivo.
 
 **Gestão de documentos**
@@ -162,7 +162,7 @@ O usuário vê, na própria tela de consulta, o histórico de perguntas já feit
 
 ### Key Entities *(include if feature involves data)*
 
-- **Documento da Base de Conhecimento**: arquivo normativo/procedimento carregado para consulta. Atributos: nome de exibição, tipo (formato), data de envio, autor, estado (Processando / Disponível para consulta / Falhou / Precisa reprocessar), motivo da falha, referência ao arquivo armazenado. Distinto dos documentos da biblioteca de Formulários/Modelos/Manuais (feature 002), embora reutilize seu mecanismo de armazenamento e validação de arquivo.
+- **Documento da Base de Conhecimento**: arquivo normativo/procedimento carregado para consulta. Atributos: nome de exibição, tipo (formato), data de envio, autor, estado (Processando / Disponível para consulta / Atualizando / Falhou / Precisa reprocessar), motivo da falha, referência ao arquivo armazenado. Distinto dos documentos da biblioteca de Formulários/Modelos/Manuais (feature 002), embora reutilize seu mecanismo de armazenamento e validação de arquivo.
 - **Trecho do Documento**: fragmento de texto de um documento (~300–500 palavras), com ordem de posição no documento e sua representação pesquisável. Pertence a exatamente um documento; é removido junto com ele.
 - **Consulta (Histórico)**: registro imutável de uma pergunta e da resposta entregue. Atributos: pergunta, resposta, data/hora, usuário, nomes dos documentos de origem (cópia, não vínculo), indicador de resposta só com trechos / sem resposta. Nunca é alterado nem excluído.
 - **Provedor de IA**: capacidade configurável de gerar embeddings ou respostas de chat; não é dado persistido, mas parte do contrato da feature (FR-027 a FR-031).
