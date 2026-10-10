@@ -70,11 +70,9 @@ async function seed(): Promise<void> {
     movementTypeRepo.create({ name: 'Permuta de cela', category: MovementCategory.PERMANENT }),
     movementTypeRepo.create({ name: 'Troca de galeria', category: MovementCategory.PERMANENT }),
     movementTypeRepo.create({ name: 'Permuta de galeria', category: MovementCategory.PERMANENT }),
-    // FR-016a — reversão de liberdade/tornozeleira/transferência registrada por engano.
-    movementTypeRepo.create({
-      name: 'Reversão de situação definitiva',
-      category: MovementCategory.PERMANENT,
-    }),
+    // O tipo "Reversão de situação definitiva" (FR-016a) NÃO é criado aqui: a migration
+    // AddReversalMovementType já o insere, e criá-lo nos dois lugares quebrava o seed
+    // em banco novo (violação de unicidade em movement_types.name).
   ]);
 
   const seedPassword = process.env.SEED_USER_PASSWORD ?? 'ChangeMe123!';
