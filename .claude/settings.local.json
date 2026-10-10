@@ -1,12 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git -C /home/maiquel/projetos/spr log --oneline -5)",
+      "Bash(git -C /home/maiquel/projetos/srp log --oneline -5)",
       "Bash(.specify/scripts/bash/setup-plan.sh *)",
       "Bash(.specify/scripts/bash/setup-tasks.sh --json)",
       "Bash(.specify/scripts/bash/check-prerequisites.sh *)",
       "Bash(grep -noE '`[a-z_]*\\(preso|cela|galeria|unidade|rotina|movimenta|escala|auditoria|usuario|perfil\\)[a-z_]*`' specs/001-gestao-rotinas-presos/data-model.md)",
-      "Bash(/home/maiquel/projetos/spr/.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks)",
+      "Bash(/home/maiquel/projetos/srp/.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks)",
       "Bash(npm --version)",
       "Bash(npx --version)",
       "Bash(docker --version)",
@@ -126,7 +126,7 @@
       "Bash(python3 -m ensurepip --version)",
       "Bash(pip3 --version)",
       "Bash(pip --version)",
-      "Bash(mkdir -p /tmp/claude-1000/-home-maiquel-projetos-spr/fbb55127-18b6-47d3-bd68-18ce1f69b877/scratchpad/imgproc)",
+      "Bash(mkdir -p /tmp/claude-1000/-home-maiquel-projetos-srp/fbb55127-18b6-47d3-bd68-18ce1f69b877/scratchpad/imgproc)",
       "Bash(npm init *)",
       "Bash(node convert.js)",
       "Bash(npx shadcn@latest add collapsible --yes)",
@@ -136,7 +136,7 @@
       "Bash(npx shadcn@latest add select table dialog --yes)",
       "mcp__playwright__browser_network_requests",
       "Bash(timeout 40 npx shadcn@latest add tabs alert-dialog --yes)",
-      "Bash(git -C /home/maiquel/projetos/spr status --porcelain -- frontend/src/components/ui/ frontend/package.json)",
+      "Bash(git -C /home/maiquel/projetos/srp status --porcelain -- frontend/src/components/ui/ frontend/package.json)",
       "Bash(python3 -m json.tool)",
       "Bash(python3 -)",
       "Bash(kill 81265 81266)",

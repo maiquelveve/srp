@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "~\projetos\spr\docs\srp_spec.md" — sistema digital para gestão das rotinas operacionais do sistema prisional do Rio Grande do Sul, substituindo o controle atual baseado em folhas impressas por um registro eletrônico estruturado e auditável, cobrindo cadastro de presos/unidades/celas, movimentações, situações definitivas, rotinas, controle de efetivo e relatórios/auditoria.
+**Input**: User description: "~\projetos\srp\docs\srp_spec.md" — sistema digital para gestão das rotinas operacionais do sistema prisional do Rio Grande do Sul, substituindo o controle atual baseado em folhas impressas por um registro eletrônico estruturado e auditável, cobrindo cadastro de presos/unidades/celas, movimentações, situações definitivas, rotinas, controle de efetivo e relatórios/auditoria.
 
 ## Clarifications
 
