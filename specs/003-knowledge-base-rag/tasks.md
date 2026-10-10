@@ -55,16 +55,16 @@ Extensão dos projetos existentes (`plan.md` Project Structure); `mobile/` não 
 
 ### Configuração
 
-- [ ] T005 Estender `backend/src/config/configuration.ts` com os blocos `ai` (provedores, modelos, `OLLAMA_CHAT_NUM_CTX`, URLs, chaves, timeouts, `EMBEDDING_DIMENSIONS`, batch size; contracts/ai-providers.md) e `knowledge` (`KNOWLEDGE_STORAGE_PATH`, `KNOWLEDGE_MIN_SIMILARITY`, `KNOWLEDGE_QUERY_RATE_LIMIT`, `KNOWLEDGE_QUESTION_MAX_LENGTH`), com defaults do plano
-- [ ] T006 [P] Documentar todas as variáveis novas em `backend/.env.example` (blocos comentados, no padrão já usado), incluindo o aviso de que provedores externos enviam conteúdo a terceiros (research.md #9)
+- [X] T005 Estender `backend/src/config/configuration.ts` com os blocos `ai` (provedores, modelos, `OLLAMA_CHAT_NUM_CTX`, URLs, chaves, timeouts, `EMBEDDING_DIMENSIONS`, batch size; contracts/ai-providers.md) e `knowledge` (`KNOWLEDGE_STORAGE_PATH`, `KNOWLEDGE_MIN_SIMILARITY`, `KNOWLEDGE_QUERY_RATE_LIMIT`, `KNOWLEDGE_QUESTION_MAX_LENGTH`), com defaults do plano
+- [X] T006 [P] Documentar todas as variáveis novas em `backend/.env.example` (blocos comentados, no padrão já usado), incluindo o aviso de que provedores externos enviam conteúdo a terceiros (research.md #9)
 
 ### Banco de dados
 
-- [ ] T007 [P] Criar a entity `KnowledgeDocument` (enum de status, `failureReason`, `pendingFilePath`, índice único em `name`) em `backend/src/knowledge/entities/knowledge-document.entity.ts` conforme data-model.md
-- [ ] T008 [P] Criar a entity `KnowledgeDocumentChunk` (coluna `embedding` do tipo `vector` com transformer para `number[]`, `embeddingModel`, cascade em `documentId`) em `backend/src/knowledge/entities/knowledge-document-chunk.entity.ts`
-- [ ] T009 [P] Criar a entity `KnowledgeQuery` (enum `outcome`, `sources` jsonb, `failureKind`, FK `userId` com `RESTRICT`) em `backend/src/knowledge/entities/knowledge-query.entity.ts`
-- [ ] T010 Registrar as 3 entities em `backend/src/database/data-source.ts` e escrever a migration `backend/src/database/migrations/<timestamp>-AddKnowledgeBase.ts`: `CREATE EXTENSION vector`, as 3 tabelas, índice HNSW `vector_cosine_ops`, índices em `knowledge_queries(created_at DESC)` e `knowledge_queries(user_id, created_at DESC)` e trigger `knowledge_queries_immutable` (`BEFORE UPDATE OR DELETE OR TRUNCATE`, no molde de `1790200000000-MakeAuditLogsImmutable.ts`), com `down()` completo
-- [ ] T011 Garantir que `backend/test/integration/setup-test-db.ts` roda a migration nova no banco de teste, que aponta para o Postgres com `pgvector`, e que as 3 tabelas entram no `TRUNCATE` entre execuções. Como `knowledge_queries` é imutável (e o `TRUNCATE ... CASCADE` a alcança a partir de `users`), desabilitar a trigger `knowledge_queries_immutable` antes e reabilitá-la depois, exatamente como já é feito para `audit_logs` nesse arquivo
+- [X] T007 [P] Criar a entity `KnowledgeDocument` (enum de status, `failureReason`, `pendingFilePath`, índice único em `name`) em `backend/src/knowledge/entities/knowledge-document.entity.ts` conforme data-model.md
+- [X] T008 [P] Criar a entity `KnowledgeDocumentChunk` (coluna `embedding` do tipo `vector` com transformer para `number[]`, `embeddingModel`, cascade em `documentId`) em `backend/src/knowledge/entities/knowledge-document-chunk.entity.ts`
+- [X] T009 [P] Criar a entity `KnowledgeQuery` (enum `outcome`, `sources` jsonb, `failureKind`, FK `userId` com `RESTRICT`) em `backend/src/knowledge/entities/knowledge-query.entity.ts`
+- [X] T010 Registrar as 3 entities em `backend/src/database/data-source.ts` e escrever a migration `backend/src/database/migrations/<timestamp>-AddKnowledgeBase.ts`: `CREATE EXTENSION vector`, as 3 tabelas, índice HNSW `vector_cosine_ops`, índices em `knowledge_queries(created_at)` e `knowledge_queries(user_id, created_at)` e trigger `knowledge_queries_immutable` (`BEFORE UPDATE OR DELETE OR TRUNCATE`, no molde de `1790200000000-MakeAuditLogsImmutable.ts`), com `down()` completo
+- [X] T011 Garantir que `backend/test/integration/setup-test-db.ts` roda a migration nova no banco de teste, que aponta para o Postgres com `pgvector`, e que as 3 tabelas entram no `TRUNCATE` entre execuções. Como `knowledge_queries` é imutável (e o `TRUNCATE ... CASCADE` a alcança a partir de `users`), desabilitar a trigger `knowledge_queries_immutable` antes e reabilitá-la depois, exatamente como já é feito para `audit_logs` nesse arquivo
 
 ### Camada de provedores de IA (backend/src/ai/)
 

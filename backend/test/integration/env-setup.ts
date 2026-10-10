@@ -12,3 +12,5 @@ process.env.DOCUMENTS_STORAGE_PATH = './storage/documents-test';
 // sem precisar gerar um arquivo de dezenas de MB; os arquivos de teste reais
 // usados nos outros casos têm poucos bytes, bem abaixo de 1 MB.
 process.env.DOCUMENTS_MAX_FILE_SIZE_MB = '1';
+// Idem para os arquivos da base de conhecimento (feature 003).
+process.env.KNOWLEDGE_STORAGE_PATH = './storage/knowledge-test';

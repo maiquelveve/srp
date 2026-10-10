@@ -22,6 +22,9 @@ import { MinimumStaffingConfig } from '../staff/entities/minimum-staffing-config
 import { AuditLog } from '../audit/entities/audit-log.entity';
 import { Document } from '../documents/entities/document.entity';
 import { DocumentType } from '../documents/entities/document-type.entity';
+import { KnowledgeDocument } from '../knowledge/entities/knowledge-document.entity';
+import { KnowledgeDocumentChunk } from '../knowledge/entities/knowledge-document-chunk.entity';
+import { KnowledgeQuery } from '../knowledge/entities/knowledge-query.entity';
 
 /**
  * Single source of truth for TypeORM entities and migrations (Constitution IV/VIII).
@@ -64,6 +67,9 @@ export const dataSourceOptions: DataSourceOptions = {
     AuditLog,
     Document,
     DocumentType,
+    KnowledgeDocument,
+    KnowledgeDocumentChunk,
+    KnowledgeQuery,
   ],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   namingStrategy: new SnakeNamingStrategy(),
