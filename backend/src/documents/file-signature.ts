@@ -95,10 +95,19 @@ export function detectFileFormat(buffer: Buffer): DetectedFileFormat | null {
  * inclusive quando a extensão foi trocada pra simular um formato aceito
  * (FR-013a).
  */
-export function matchesDeclaredExtension(originalFileName: string, buffer: Buffer): boolean {
+export function matchesDeclaredExtension(
+  originalFileName: string,
+  buffer: Buffer,
+  allowedFormats?: readonly DetectedFileFormat[],
+): boolean {
   const extension = extname(originalFileName).toLowerCase();
   const expectedFormat = EXTENSION_TO_FORMAT[extension];
   if (!expectedFormat) {
+    return false;
+  }
+  // Quem chama pode restringir os formatos aceitos (ex.: base de conhecimento só aceita
+  // pdf/docx/txt). Sem a lista, vale o conjunto completo da biblioteca de documentos.
+  if (allowedFormats && !allowedFormats.includes(expectedFormat)) {
     return false;
   }
   return detectFileFormat(buffer) === expectedFormat;

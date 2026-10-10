@@ -80,9 +80,9 @@ Extensão dos projetos existentes (`plan.md` Project Structure); `mobile/` não 
 
 ### Reuso da validação de arquivo e esqueleto do módulo
 
-- [ ] T021 Estender `matchesDeclaredExtension` em `backend/src/documents/file-signature.ts` com um parâmetro opcional `allowedFormats` (padrão: todos, mantendo o comportamento da biblioteca da 002) e cobrir o novo parâmetro em `backend/test/unit/file-signature.spec.ts` (`.doc` recusado quando a lista é `pdf/docx/txt`)
-- [ ] T022 Criar `backend/src/knowledge/knowledge.module.ts` (importa `TypeOrmModule.forFeature` das 3 entities, `AiModule`, `AuditModule`) e registrar `AiModule` e `KnowledgeModule` em `backend/src/app.module.ts`; criar também `backend/src/knowledge/knowledge-bootstrap.service.ts` (`onApplicationBootstrap`) já com a validação de `EMBEDDING_DIMENSIONS` contra a coluna `vector(N)` (lê `atttypmod`; falha o boot com mensagem clara se divergir), para o MVP não depender da US3 para essa proteção
-- [ ] T023 [P] Criar fakes de teste `backend/test/integration/fakes/fake-embedding.provider.ts` (vetor determinístico por hash do texto, configurável para falhar) e `backend/test/integration/fakes/fake-chat.provider.ts` (resposta configurável, `[SEM_RESPOSTA]`, falha por `kind`), para sobrescrever os tokens nos testes de integração
+- [X] T021 Estender `matchesDeclaredExtension` em `backend/src/documents/file-signature.ts` com um parâmetro opcional `allowedFormats` (padrão: todos, mantendo o comportamento da biblioteca da 002) e cobrir o novo parâmetro em `backend/test/unit/file-signature.spec.ts` (`.doc` recusado quando a lista é `pdf/docx/txt`)
+- [X] T022 Criar `backend/src/knowledge/knowledge.module.ts` (importa `TypeOrmModule.forFeature` das 3 entities, `AiModule`, `AuditModule`) e registrar `AiModule` e `KnowledgeModule` em `backend/src/app.module.ts`; criar também `backend/src/knowledge/knowledge-bootstrap.service.ts` (`onApplicationBootstrap`) já com a validação de `EMBEDDING_DIMENSIONS` contra a coluna `vector(N)` (lê `atttypmod`; falha o boot com mensagem clara se divergir), para o MVP não depender da US3 para essa proteção
+- [X] T023 [P] Criar fakes de teste `backend/test/integration/fakes/fake-embedding.provider.ts` (vetor determinístico por hash do texto, configurável para falhar) e `backend/test/integration/fakes/fake-chat.provider.ts` (resposta configurável, `[SEM_RESPOSTA]`, falha por `kind`), para sobrescrever os tokens nos testes de integração
 
 ### Frontend base
 

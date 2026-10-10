@@ -18,6 +18,8 @@ import { PostsModule } from './posts/posts.module';
 import { StaffModule } from './staff/staff.module';
 import { ReportsModule } from './reports/reports.module';
 import { DocumentsModule } from './documents/documents.module';
+import { AiModule } from './ai/ai.module';
+import { KnowledgeModule } from './knowledge/knowledge.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { createGlobalValidationPipe } from './common/pipes/validation-pipe.factory';
 import { RequestLoggingMiddleware } from './common/logging/request-logging.middleware';
@@ -48,6 +50,8 @@ import { RolesGuard } from './auth/guards/roles.guard';
     StaffModule,
     ReportsModule,
     DocumentsModule,
+    AiModule,
+    KnowledgeModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
