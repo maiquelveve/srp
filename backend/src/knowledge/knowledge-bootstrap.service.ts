@@ -20,6 +20,33 @@ export class KnowledgeBootstrapService implements OnApplicationBootstrap {
 
   async onApplicationBootstrap(): Promise<void> {
     await this.assertEmbeddingDimensionMatchesColumn();
+    await this.markDocumentsFromOtherModelForReprocess();
+  }
+
+  /**
+   * Trechos de um modelo de embeddings não são comparáveis com os de outro, então a busca
+   * só usa o modelo atual. Documentos indexados com outro ficam "Precisa reprocessar" em vez
+   * de parecerem disponíveis e nunca aparecerem nas respostas.
+   */
+  private async markDocumentsFromOtherModelForReprocess(): Promise<void> {
+    const rows: Array<{ id: number }> = await this.dataSource.query(
+      `
+      UPDATE knowledge_documents d
+      SET status = 'NEEDS_REPROCESS', updated_at = now()
+      WHERE d.status = 'READY'
+        AND EXISTS (
+          SELECT 1 FROM knowledge_document_chunks c
+          WHERE c.document_id = d.id AND c.embedding_model <> $1
+        )
+      RETURNING d.id
+      `,
+      [this.embeddingProvider.modelId],
+    );
+    if (rows.length > 0) {
+      this.logger.warn(
+        `${rows.length} documento(s) indexados com outro modelo de embeddings marcados para reprocessar`,
+      );
+    }
   }
 
   /**

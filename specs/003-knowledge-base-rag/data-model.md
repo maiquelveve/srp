@@ -16,6 +16,7 @@ Documento carregado para consulta. Separado de `documents` (biblioteca da 002).
 | `name` | varchar(200) NOT NULL | Nome de exibição. **UNIQUE** (FR-017). |
 | `file_path` | varchar(500) NOT NULL | Caminho relativo em `KNOWLEDGE_STORAGE_PATH`; nome gerado (UUID + extensão); nunca exposto. |
 | `pending_file_path` | varchar(500) NULL | Preenchido só durante `UPDATING`. |
+| `pending_original_file_name` | varchar(255) NULL | Nome original do arquivo novo; preenchido só durante `UPDATING`. |
 | `original_file_name` | varchar(255) NOT NULL | Só para exibição. |
 | `file_format` | varchar(10) NOT NULL | `pdf` \| `docx` \| `txt` — o "tipo" exibido (detectado pelo conteúdo). |
 | `size_bytes` | int NOT NULL | |

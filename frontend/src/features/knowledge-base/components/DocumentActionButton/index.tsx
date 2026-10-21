@@ -1,27 +1,14 @@
 import { useMutation } from '@tanstack/react-query';
 import { CircleAlertIcon, EyeIcon, LoaderCircleIcon } from 'lucide-react';
 import { knowledgeApi } from '../../api';
+import { describeFailure } from '../../failure-reason';
 import type { KnowledgeDocumentItem } from '../../types';
 import { notify } from '@/lib/notify';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-/** Motivos de falha devolvidos pelo backend, na linguagem de quem usa a tela. */
-const FAILURE_REASON_LABEL: Record<string, string> = {
-  NO_EXTRACTABLE_TEXT: 'O arquivo não tem texto que possa ser lido (pode ser um PDF escaneado).',
-  CORRUPTED_FILE: 'O arquivo está corrompido ou não pôde ser aberto.',
-  AI_UNAVAILABLE: 'O serviço de IA estava indisponível. Tente reprocessar mais tarde.',
-  INTERRUPTED: 'O processamento foi interrompido. Tente reprocessar.',
-  UNKNOWN: 'Erro inesperado ao processar o documento.',
-};
-
 const NEEDS_REPROCESS_MESSAGE =
   'O documento precisa ser reprocessado para voltar a ser usado nas respostas.';
-
-function describeFailure(code: string | null): string {
-  // Um código novo no backend, ainda não mapeado aqui, cai no texto genérico.
-  return FAILURE_REASON_LABEL[code ?? 'UNKNOWN'] ?? FAILURE_REASON_LABEL.UNKNOWN;
-}
 
 /**
  * Abre o arquivo original. PDF e TXT o navegador exibe numa aba nova; DOCX ele
@@ -96,34 +83,31 @@ export default function DocumentActionButton({
   }
 
   if (document.status === 'READY') {
-    // Documento disponível cuja última atualização falhou: o aviso vai junto no tooltip.
-    const tooltip =
-      document.failureReason !== null
-        ? `Visualizar documento. A última atualização falhou: ${describeFailure(document.failureReason)}`
-        : 'Visualizar documento';
     return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            // Neutro em repouso e azul suave no hover: não repete o dourado das ações
-            // principais nem compete com os Badges verde/vermelho da linha.
-            className="size-7 text-muted-foreground transition-colors hover:bg-info/10 hover:text-info"
-            disabled={openDocument.isPending}
-            aria-label="Visualizar documento"
-            onClick={() => openDocument.mutate()}
-          >
-            {openDocument.isPending ? (
-              <LoaderCircleIcon className="size-4 animate-spin text-info" />
-            ) : (
-              <EyeIcon className="size-4" />
-            )}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent className="max-w-xs">{tooltip}</TooltipContent>
-      </Tooltip>
+      <>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              // Neutro em repouso e azul suave no hover: não repete o dourado das ações
+              // principais nem compete com os Badges verde/vermelho da linha.
+              className="size-7 text-muted-foreground transition-colors hover:bg-info/10 hover:text-info"
+              disabled={openDocument.isPending}
+              aria-label="Visualizar documento"
+              onClick={() => openDocument.mutate()}
+            >
+              {openDocument.isPending ? (
+                <LoaderCircleIcon className="size-4 animate-spin text-info" />
+              ) : (
+                <EyeIcon className="size-4" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs">Visualizar documento</TooltipContent>
+        </Tooltip>
+      </>
     );
   }
 

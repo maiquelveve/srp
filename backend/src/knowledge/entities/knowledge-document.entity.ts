@@ -46,6 +46,10 @@ export class KnowledgeDocument {
   @Column({ type: 'varchar', length: 500, nullable: true })
   pendingFilePath: string | null;
 
+  /** Nome original do arquivo da nova versão; vira `originalFileName` quando a troca conclui. */
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  pendingOriginalFileName: string | null;
+
   /** Nome do arquivo como enviado; só para exibição. */
   @Column({ type: 'varchar', length: 255 })
   originalFileName: string;
