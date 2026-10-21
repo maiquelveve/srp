@@ -60,6 +60,12 @@ export const knowledgeApi = {
       })
       .then((r) => r.data),
 
+  /** Arquivo original do documento, como Blob (a rota exige token, então não dá para só abrir a URL). */
+  getDocumentFile: (id: number): Promise<Blob> =>
+    apiClient
+      .get<Blob>(`/knowledge/documents/${id}/file`, { responseType: 'blob' })
+      .then((response) => response.data),
+
   updateDocument: (id: number, input: UpdateKnowledgeDocumentInput) =>
     apiClient
       .put<KnowledgeDocumentItem>(`/knowledge/documents/${id}`, buildFormData(input))

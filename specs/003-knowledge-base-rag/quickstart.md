@@ -15,7 +15,7 @@ Guia de validação ponta a ponta. Endpoints em [contracts/knowledge-api.md](./c
 
 1. Login como `SUPERVISOR`; abrir **Base de Conhecimento → Documentos** e enviar `escolta.pdf` com nome "Procedimento de Escolta Hospitalar".
    **Esperado**: `202`; estado "Processando" e, em até 5 min (SC-004), "Disponível para consulta".
-2. Aba **Perguntar**: "quais os passos para fazer uma escolta hospitalar".
+2. Aba **Chat**: "quais os passos para fazer uma escolta hospitalar".
    **Esperado**: resposta baseada no PDF, fonte "Procedimento de Escolta Hospitalar" listada.
 3. Perguntar algo sem relação ("qual a capital da França?").
    **Esperado**: "Não foi possível encontrar a resposta", `outcome = NO_ANSWER`, sem texto inventado.

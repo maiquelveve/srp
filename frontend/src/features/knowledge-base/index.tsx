@@ -2,6 +2,7 @@ import { FileTextIcon, HistoryIcon, MessageSquareTextIcon } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import DocumentsTable from './components/DocumentsTable';
 
 /** Bloco usado enquanto cada aba ainda não tem o conteúdo da sua user story. */
 function ComingSoon({ message }: { message: string }): JSX.Element {
@@ -31,7 +32,7 @@ export default function KnowledgeBasePage(): JSX.Element {
         <TabsList>
           <TabsTrigger value="ask" className="gap-2">
             <MessageSquareTextIcon className="size-4" />
-            Perguntar
+            Chat
           </TabsTrigger>
           <TabsTrigger value="history" className="gap-2">
             <HistoryIcon className="size-4" />
@@ -50,7 +51,7 @@ export default function KnowledgeBasePage(): JSX.Element {
           <ComingSoon message="Aqui ficará o histórico de perguntas e respostas." />
         </TabsContent>
         <TabsContent value="documents">
-          <ComingSoon message="Aqui você carregará e gerenciará os documentos da base de conhecimento." />
+          <DocumentsTable />
         </TabsContent>
       </Tabs>
     </div>

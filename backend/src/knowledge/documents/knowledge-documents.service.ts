@@ -1,7 +1,13 @@
 import { randomUUID } from 'crypto';
 import { promises as fs } from 'fs';
 import { join } from 'path';
-import { BadRequestException, ConflictException, Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import { AuditService } from '../../audit/audit.service';
@@ -22,7 +28,21 @@ import { KNOWLEDGE_FILE_FORMATS, KnowledgeFileFormat } from './text-extractor';
 const UNIQUE_VIOLATION_CODE = '23505';
 const DUPLICATE_NAME_MESSAGE = 'Já existe um documento com esse nome na base de conhecimento';
 const UNSUPPORTED_FORMAT_MESSAGE = 'Formato de arquivo não permitido. Envie PDF, DOCX ou TXT.';
+const DOCUMENT_NOT_FOUND_MESSAGE = 'Documento não encontrado';
 const DEFAULT_LIST_LIMIT = 20;
+
+/** Tipo de conteúdo devolvido ao abrir o arquivo; o formato guardado vem da detecção pelo conteúdo. */
+const MIME_TYPE_BY_FORMAT: Record<KnowledgeFileFormat, string> = {
+  pdf: 'application/pdf',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  txt: 'text/plain; charset=utf-8',
+};
+
+export interface KnowledgeDocumentFileInfo {
+  absolutePath: string;
+  mimeType: string;
+  originalFileName: string;
+}
 
 @Injectable()
 export class KnowledgeDocumentsService {
@@ -108,6 +128,28 @@ export class KnowledgeDocumentsService {
       }
       throw error;
     }
+  }
+
+  /** Caminho e metadados do arquivo guardado, para a tela abrir o documento original. */
+  async getFileInfo(id: number): Promise<KnowledgeDocumentFileInfo> {
+    const document = await this.documents.findOne({ where: { id } });
+    if (!document) {
+      throw new NotFoundException(DOCUMENT_NOT_FOUND_MESSAGE);
+    }
+
+    const absolutePath = join(this.storagePath, document.filePath);
+    try {
+      await fs.access(absolutePath);
+    } catch {
+      // Linha existe no banco mas o arquivo sumiu do disco: mesma resposta de "não encontrado".
+      throw new NotFoundException(DOCUMENT_NOT_FOUND_MESSAGE);
+    }
+
+    return {
+      absolutePath,
+      mimeType: MIME_TYPE_BY_FORMAT[document.fileFormat as KnowledgeFileFormat],
+      originalFileName: document.originalFileName,
+    };
   }
 
   /** Mais recentes primeiro, com busca por nome e paginação. */

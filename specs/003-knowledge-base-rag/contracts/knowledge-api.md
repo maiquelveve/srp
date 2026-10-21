@@ -11,6 +11,7 @@ Todo endpoint exige `Authorization: Bearer <access_token>` e perfil **WARDEN** o
 | PUT | `/api/v1/knowledge/documents/:id` | Atualiza (`multipart`: `file` e/ou `name`) (FR-020). |
 | POST | `/api/v1/knowledge/documents/:id/reprocess` | Reprocessa `FAILED`/`NEEDS_REPROCESS` (FR-015). |
 | DELETE | `/api/v1/knowledge/documents/:id` | Exclui documento, arquivo e trechos (FR-021). |
+| GET | `/api/v1/knowledge/documents/:id/file` | Devolve o arquivo original (`inline`, com o `Content-Type` do formato) para a tela abrir o documento. `404` se o documento ou o arquivo não existem. |
 
 **Não existem** `PUT`/`PATCH`/`DELETE` em `/knowledge/queries` (FR-024): a rota responde `404`. O banco bloqueia mesmo acesso direto (trigger).
 

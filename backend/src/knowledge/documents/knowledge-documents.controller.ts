@@ -1,11 +1,16 @@
+import { createReadStream } from 'fs';
 import {
   Body,
   Controller,
   Get,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseIntPipe,
   Post,
   Query,
+  Res,
+  StreamableFile,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -16,10 +21,12 @@ import {
   ApiBody,
   ApiConsumes,
   ApiForbiddenResponse,
+  ApiNotFoundResponse,
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { JwtPayload } from '../../auth/types/jwt-payload.type';
 import { ApiPaginatedResponse } from '../../common/decorators/api-paginated-response.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -55,6 +62,23 @@ export class KnowledgeDocumentsController {
     @Query() query: ListKnowledgeDocumentsQueryDto,
   ): Promise<PaginatedResponseDto<KnowledgeDocumentResponseDto>> {
     return this.knowledgeDocumentsService.list(query);
+  }
+
+  @ApiOperation({ summary: 'Devolve o arquivo original de um documento, para visualizar ou baixar' })
+  @ApiNotFoundResponse({ description: 'Documento inexistente ou arquivo ausente do disco' })
+  @Get(':id/file')
+  @Roles(RoleName.WARDEN, RoleName.SUPERVISOR)
+  async getFile(
+    @Param('id', ParseIntPipe) id: number,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const { absolutePath, mimeType, originalFileName } =
+      await this.knowledgeDocumentsService.getFileInfo(id);
+    res.set({
+      'Content-Type': mimeType,
+      'Content-Disposition': `inline; filename="${encodeURIComponent(originalFileName)}"`,
+    });
+    return new StreamableFile(createReadStream(absolutePath));
   }
 
   @ApiOperation({

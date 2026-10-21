@@ -311,4 +311,40 @@ describe('Knowledge documents upload and ingestion', () => {
       expect(res.status).toBe(403);
     });
   });
+
+  describe('GET /api/v1/knowledge/documents/:id/file', () => {
+    it('returns the original file with its content type', async () => {
+      const created = await upload(wardenToken, { fileName: 'regras.pdf', buffer: PDF_BUFFER });
+      await queue.waitForIdle();
+
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/knowledge/documents/${(created.body as DocumentBody).id}/file`)
+        .set('Authorization', `Bearer ${supervisorToken}`)
+        .buffer(true)
+        .parse((response, callback) => {
+          const parts: Buffer[] = [];
+          response.on('data', (part: Buffer) => parts.push(part));
+          response.on('end', () => callback(null, Buffer.concat(parts)));
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toContain('application/pdf');
+      expect(res.headers['content-disposition']).toContain('regras.pdf');
+      expect((res.body as Buffer).equals(PDF_BUFFER)).toBe(true);
+    });
+
+    it('answers 404 for a document that does not exist', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/knowledge/documents/999999999/file')
+        .set('Authorization', `Bearer ${wardenToken}`);
+      expect(res.status).toBe(404);
+    });
+
+    it('rejects PRISON_OFFICER with 403', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/knowledge/documents/1/file')
+        .set('Authorization', `Bearer ${officerToken}`);
+      expect(res.status).toBe(403);
+    });
+  });
 });
