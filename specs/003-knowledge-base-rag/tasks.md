@@ -178,13 +178,13 @@ Extensão dos projetos existentes (`plan.md` Project Structure); `mobile/` não 
 
 ### Tests for User Story 4
 
-- [ ] T055 [P] [US4] Teste de integração do histórico (lista de todos os usuários com `askedBy`, ordem decrescente, paginação, filtro `search`, `NO_ANSWER` presente, `403` para `PRISON_OFFICER`, `404` em `PUT`/`PATCH`/`DELETE`, e `UPDATE`/`DELETE`/`TRUNCATE` diretos no banco falham com erro de imutabilidade; histórico preservado após excluir o documento fonte) em `backend/test/integration/knowledge-history.spec.ts`
+- [X] T055 [P] [US4] Teste de integração do histórico (lista de todos os usuários com `askedBy`, ordem decrescente, paginação, filtro `search`, `NO_ANSWER` presente, `403` para `PRISON_OFFICER`, `404` em `PUT`/`PATCH`/`DELETE`, e `UPDATE`/`DELETE`/`TRUNCATE` diretos no banco falham com erro de imutabilidade; histórico preservado após excluir o documento fonte) em `backend/test/integration/knowledge-history.spec.ts`
 
 ### Implementation for User Story 4
 
-- [ ] T056 [P] [US4] Criar `ListKnowledgeQueriesQueryDto` (`search`, `limit`, `offset`) em `backend/src/knowledge/queries/dto/list-knowledge-queries-query.dto.ts`
-- [ ] T057 [US4] Implementar `list` em `backend/src/knowledge/queries/knowledge-queries.service.ts` (todos os usuários, `created_at DESC`, filtro por substring com `escapeLike`, join com o autor) e `GET /api/v1/knowledge/queries` em `knowledge-queries.controller.ts` com Swagger; confirmar que nenhum método de update/delete existe no service ou no controller
-- [ ] T058 [P] [US4] Criar `frontend/src/features/knowledge-base/components/HistoryList/index.tsx` na aba "Histórico": lista paginada com pergunta, resposta, autor e data, busca por texto da pergunta, indicação visual de `NO_ANSWER` e `EXCERPTS_ONLY`, estado vazio, sem nenhuma ação de editar/excluir
+- [X] T056 [P] [US4] Criar `ListKnowledgeQueriesQueryDto` (`search`, `limit`, `offset`) em `backend/src/knowledge/queries/dto/list-knowledge-queries-query.dto.ts`
+- [X] T057 [US4] Implementar `list` em `backend/src/knowledge/queries/knowledge-queries.service.ts` (todos os usuários, `created_at DESC`, filtro por substring com `escapeLike`, join com o autor) e `GET /api/v1/knowledge/queries` em `knowledge-queries.controller.ts` com Swagger; confirmar que nenhum método de update/delete existe no service ou no controller
+- [X] T058 [P] [US4] Criar `frontend/src/features/knowledge-base/components/HistoryList/index.tsx` na aba "Histórico": lista paginada com pergunta, resposta, autor e data, busca por texto da pergunta, indicação visual de `NO_ANSWER` e `EXCERPTS_ONLY`, estado vazio, sem nenhuma ação de editar/excluir
 
 **Checkpoint**: Todas as user stories funcionais
 

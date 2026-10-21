@@ -5,15 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AskPanel from './components/AskPanel';
 import DocumentsTable from './components/DocumentsTable';
-
-/** Bloco usado enquanto cada aba ainda não tem o conteúdo da sua user story. */
-function ComingSoon({ message }: { message: string }): JSX.Element {
-  return (
-    <div className="rounded-lg border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
-      {message}
-    </div>
-  );
-}
+import HistoryList from './components/HistoryList';
 
 /**
  * Base de Conhecimento (feature 003): perguntar em linguagem natural, ver o
@@ -52,7 +44,7 @@ export default function KnowledgeBasePage(): JSX.Element {
           <AskPanel onGoToDocuments={() => setActiveTab('documents')} />
         </TabsContent>
         <TabsContent value="history">
-          <ComingSoon message="Aqui ficará o histórico de perguntas e respostas." />
+          <HistoryList />
         </TabsContent>
         <TabsContent value="documents">
           <DocumentsTable />

@@ -11,6 +11,8 @@ import { AiProviderError } from '../../ai/ai-provider.error';
 import { CHAT_PROVIDER, EMBEDDING_PROVIDER } from '../../ai/ai.tokens';
 import { ChatProvider } from '../../ai/interfaces/chat-provider.interface';
 import { EmbeddingProvider } from '../../ai/interfaces/embedding-provider.interface';
+import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
+import { escapeLike } from '../../common/like.util';
 import { APP_CONFIG } from '../../config/app-config.module';
 import { AppConfig } from '../../config/configuration';
 import { vectorTransformer } from '../entities/knowledge-document-chunk.entity';
@@ -21,6 +23,7 @@ import {
 } from '../entities/knowledge-query.entity';
 import { User } from '../../users/entities/user.entity';
 import { KnowledgeQueryResponseDto } from './dto/knowledge-query-response.dto';
+import { ListKnowledgeQueriesQueryDto } from './dto/list-knowledge-queries-query.dto';
 import {
   buildPrompt,
   formatRawExcerpts,
@@ -31,6 +34,7 @@ import {
 
 /** Quantos trechos a busca traz no máximo (contracts/flows.md). */
 const RETRIEVAL_LIMIT = 5;
+const DEFAULT_LIST_LIMIT = 20;
 /** Janela do limite de consultas por usuário. */
 const RATE_LIMIT_WINDOW_SECONDS = 60;
 const EMBEDDING_UNAVAILABLE_MESSAGE =
@@ -112,6 +116,38 @@ export class KnowledgeQueriesService {
       answer: generatedText.trim(),
       sources,
     });
+  }
+
+  /**
+   * Histórico de todos os usuários, mais recente primeiro (FR-025). Só leitura: o histórico é
+   * imutável (FR-024), então este service não tem, de propósito, nenhum método de alterar ou apagar.
+   */
+  async list(
+    query: ListKnowledgeQueriesQueryDto,
+  ): Promise<PaginatedResponseDto<KnowledgeQueryResponseDto>> {
+    const queryBuilder = this.queries
+      .createQueryBuilder('query')
+      .leftJoinAndSelect('query.user', 'user')
+      // `id` desempata consultas gravadas no mesmo instante, mantendo a paginação estável.
+      .orderBy('query.createdAt', 'DESC')
+      .addOrderBy('query.id', 'DESC');
+
+    if (query.search) {
+      queryBuilder.andWhere('query.question ILIKE :search', {
+        search: `%${escapeLike(query.search)}%`,
+      });
+    }
+
+    const total = await queryBuilder.getCount();
+    const rows = await queryBuilder
+      .take(query.limit ?? DEFAULT_LIST_LIMIT)
+      .skip(query.offset ?? 0)
+      .getMany();
+
+    return new PaginatedResponseDto(
+      rows.map((row) => KnowledgeQueryResponseDto.fromEntity(row)),
+      total,
+    );
   }
 
   /**
