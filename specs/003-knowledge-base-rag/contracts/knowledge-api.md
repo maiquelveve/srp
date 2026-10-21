@@ -37,7 +37,7 @@ Response `201`:
 `outcome`:
 - `ANSWERED`: resposta gerada com base nos trechos; `sources` com os trechos usados.
 - `NO_ANSWER`: `answer = "Não foi possível encontrar a resposta"`, `sources = []`; o chat não é chamado se não houve trecho acima do limiar.
-- `EXCERPTS_ONLY`: o provedor de chat falhou (limite, créditos, indisponibilidade, timeout); `answer` traz os trechos brutos formatados, `sources` os mesmos trechos. HTTP continua `201` (FR-008). A tela exibe o aviso "Não foi possível gerar uma resposta elaborada. Veja os trechos relevantes abaixo."
+- `EXCERPTS_ONLY`: o provedor de chat falhou (limite, créditos, indisponibilidade, timeout); `answer` traz os trechos brutos formatados, `sources` os mesmos trechos. HTTP continua `201` (FR-008). A tela exibe o aviso "Não foi possível gerar uma resposta elaborada. Veja os trechos relevantes no ícone de referências."
 
 Erros:
 | Código | Quando |
