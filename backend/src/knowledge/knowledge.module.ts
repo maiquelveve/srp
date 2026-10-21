@@ -11,10 +11,12 @@ import { KnowledgeBootstrapService } from './knowledge-bootstrap.service';
 import { KnowledgeDocumentChunk } from './entities/knowledge-document-chunk.entity';
 import { KnowledgeDocument } from './entities/knowledge-document.entity';
 import { KnowledgeQuery } from './entities/knowledge-query.entity';
+import { KnowledgeQueriesController } from './queries/knowledge-queries.controller';
+import { KnowledgeQueriesService } from './queries/knowledge-queries.service';
 
 /**
- * Base de conhecimento com RAG (feature 003). Hoje só tem as entities e a
- * verificação de boot; ingestão, consulta e histórico entram nas próximas fases.
+ * Base de conhecimento com RAG (feature 003): documentos (envio e ingestão) e
+ * consultas. O histórico de perguntas entra numa fase seguinte.
  */
 @Module({
   imports: [
@@ -22,13 +24,14 @@ import { KnowledgeQuery } from './entities/knowledge-query.entity';
     AiModule,
     AuditModule,
   ],
-  controllers: [KnowledgeDocumentsController],
+  controllers: [KnowledgeDocumentsController, KnowledgeQueriesController],
   providers: [
     KnowledgeBootstrapService,
     TextExtractor,
     IngestionService,
     IngestionQueue,
     KnowledgeDocumentsService,
+    KnowledgeQueriesService,
   ],
 })
 export class KnowledgeModule {}

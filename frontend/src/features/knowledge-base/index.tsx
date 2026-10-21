@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { FileTextIcon, HistoryIcon, MessageSquareTextIcon } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import AskPanel from './components/AskPanel';
 import DocumentsTable from './components/DocumentsTable';
 
 /** Bloco usado enquanto cada aba ainda não tem o conteúdo da sua user story. */
@@ -20,6 +22,8 @@ function ComingSoon({ message }: { message: string }): JSX.Element {
  */
 export default function KnowledgeBasePage(): JSX.Element {
   const { user } = useAuth();
+  // Controlada para o aviso do Chat poder levar a pessoa direto à aba Documentos.
+  const [activeTab, setActiveTab] = useState('ask');
   const canAccess = user?.role === 'WARDEN' || user?.role === 'SUPERVISOR';
 
   if (!canAccess) {
@@ -28,7 +32,7 @@ export default function KnowledgeBasePage(): JSX.Element {
 
   return (
     <div className="space-y-6 p-6">
-      <Tabs defaultValue="ask" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="ask" className="gap-2">
             <MessageSquareTextIcon className="size-4" />
@@ -45,7 +49,7 @@ export default function KnowledgeBasePage(): JSX.Element {
         </TabsList>
 
         <TabsContent value="ask">
-          <ComingSoon message="Aqui você fará perguntas em linguagem natural sobre os documentos carregados." />
+          <AskPanel onGoToDocuments={() => setActiveTab('documents')} />
         </TabsContent>
         <TabsContent value="history">
           <ComingSoon message="Aqui ficará o histórico de perguntas e respostas." />

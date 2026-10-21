@@ -53,7 +53,7 @@ um a partir do outro; ao mudar uma cor, edite os dois arquivos.
 - Inventário atual: `alert`, `alert-dialog`, `avatar`, `badge`, `button`,
   `calendar`, `card`, `checkbox`, `collapsible`, `command`, `dialog`,
   `dropdown-menu`, `input`, `label`, `popover`, `select`, `separator`,
-  `sheet`, `sidebar`, `skeleton`, `sonner`, `table`, `tabs`, `tooltip`.
+  `sheet`, `sidebar`, `skeleton`, `sonner`, `table`, `tabs`, `textarea`, `tooltip`.
   `command` é a base do combobox com busca (`Popover` + `Command`/cmdk) —
   usar em vez de `Select` puro sempre que a lista de opções puder crescer o
   bastante pra valer a pena filtrar digitando, em vez de rolar (ex.: escolher

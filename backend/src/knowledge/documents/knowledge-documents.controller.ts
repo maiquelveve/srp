@@ -64,7 +64,9 @@ export class KnowledgeDocumentsController {
     return this.knowledgeDocumentsService.list(query);
   }
 
-  @ApiOperation({ summary: 'Devolve o arquivo original de um documento, para visualizar ou baixar' })
+  @ApiOperation({
+    summary: 'Devolve o arquivo original de um documento, para visualizar ou baixar',
+  })
   @ApiNotFoundResponse({ description: 'Documento inexistente ou arquivo ausente do disco' })
   @Get(':id/file')
   @Roles(RoleName.WARDEN, RoleName.SUPERVISOR)
