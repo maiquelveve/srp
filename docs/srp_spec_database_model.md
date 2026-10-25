@@ -287,6 +287,86 @@ CREATE TRIGGER audit_logs_immutable
     FOR EACH STATEMENT EXECUTE FUNCTION audit_logs_block_change();
 ```
 
+## Tabela `knowledge_documents`
+
+Base de conhecimento (feature 003): documentos PDF/DOCX/TXT carregados para consulta por IA.
+Distinta de `documents` (biblioteca de Formulários, Modelos e Manuais da feature 002). Regras de
+estado e transições em `specs/003-knowledge-base-rag/data-model.md`.
+
+```sql
+CREATE TABLE knowledge_documents (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(200) NOT NULL, -- nome de exibição, único
+    file_path VARCHAR(500) NOT NULL, -- relativo a KNOWLEDGE_STORAGE_PATH; nome gerado (UUID), nunca exposto
+    pending_file_path VARCHAR(500), -- arquivo da nova versão, só durante UPDATING
+    pending_original_file_name VARCHAR(255), -- nome original do arquivo novo, só durante UPDATING
+    original_file_name VARCHAR(255) NOT NULL,
+    file_format VARCHAR(10) NOT NULL, -- 'pdf', 'docx', 'txt' (detectado pelo conteúdo)
+    size_bytes INTEGER NOT NULL,
+    status VARCHAR(20) NOT NULL, -- 'PROCESSING', 'READY', 'UPDATING', 'FAILED', 'NEEDS_REPROCESS'
+    failure_reason VARCHAR(40), -- NO_EXTRACTABLE_TEXT, CORRUPTED_FILE, AI_UNAVAILABLE, UNKNOWN
+    chunk_count INTEGER NOT NULL DEFAULT 0,
+    uploaded_by_user_id INTEGER NOT NULL REFERENCES users(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX ON knowledge_documents(name);
+```
+
+## Tabela `knowledge_document_chunks`
+
+Trechos de cada documento com o vetor de embedding (extensão `pgvector`). Apagados em cascata
+com o documento.
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE knowledge_document_chunks (
+    id SERIAL PRIMARY KEY,
+    document_id INTEGER NOT NULL REFERENCES knowledge_documents(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL, -- ordem no documento, a partir de 0
+    content TEXT NOT NULL,
+    word_count INTEGER NOT NULL,
+    embedding vector(1024) NOT NULL, -- dimensão = EMBEDDING_DIMENSIONS, validada no boot
+    embedding_model VARCHAR(100) NOT NULL, -- só trechos do modelo atual entram na busca
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX ON knowledge_document_chunks(document_id, position);
+-- Busca por similaridade de cosseno (migration; o TypeORM não descreve este índice)
+CREATE INDEX ON knowledge_document_chunks USING hnsw (embedding vector_cosine_ops);
+```
+
+## Tabela `knowledge_queries`
+
+Histórico imutável das perguntas e respostas (todos os usuários). `sources` é uma cópia dos
+trechos usados, sem FK, para sobreviver à exclusão ou atualização do documento.
+
+```sql
+CREATE TABLE knowledge_queries (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    outcome VARCHAR(20) NOT NULL, -- 'ANSWERED', 'NO_ANSWER', 'EXCERPTS_ONLY'
+    sources JSONB NOT NULL DEFAULT '[]', -- [{ documentId, documentName, position, excerpt }]
+    failure_kind VARCHAR(30), -- só EXCERPTS_ONLY: RATE_LIMIT, QUOTA_OR_AUTH, UNAVAILABLE, TIMEOUT
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX ON knowledge_queries(created_at);
+CREATE INDEX ON knowledge_queries(user_id, created_at);
+
+-- Imutável (FR-024): qualquer UPDATE, DELETE ou TRUNCATE falha, no mesmo molde de audit_logs.
+CREATE FUNCTION knowledge_queries_block_change() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    RAISE EXCEPTION 'knowledge_queries is immutable: % is not allowed', TG_OP
+        USING ERRCODE = 'restrict_violation';
+END;
+$$;
+CREATE TRIGGER knowledge_queries_immutable
+    BEFORE UPDATE OR DELETE OR TRUNCATE ON knowledge_queries
+    FOR EACH STATEMENT EXECUTE FUNCTION knowledge_queries_block_change();
+```
+
 ## Índices
 
 ```sql
@@ -329,3 +409,6 @@ CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
 - `minimum_staffing_config.unit_id` → `units.id`
 - `minimum_staffing_config.updated_by` → `users.id`
 - `audit_logs.user_id` → `users.id`
+- `knowledge_documents.uploaded_by_user_id` → `users.id`
+- `knowledge_document_chunks.document_id` → `knowledge_documents.id` (cascade)
+- `knowledge_queries.user_id` → `users.id` (restrict)

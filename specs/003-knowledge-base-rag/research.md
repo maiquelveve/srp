@@ -96,3 +96,23 @@ Nenhum `NEEDS CLARIFICATION` ficou aberto no Technical Context. Esta pesquisa re
 **Decision**: Cada trecho guarda `embedding_model` (id do modelo usado). No boot, documentos `READY` cujos trechos têm `embedding_model` diferente do configurado passam a `NEEDS_REPROCESS`; a recuperação filtra `WHERE embedding_model = :current`. `POST /knowledge/documents/:id/reprocess` reindexa, a partir do arquivo guardado, um documento por vez. Reprocessamento em lote fica fora desta fase (a base é pequena).
 
 **Rationale**: Impede resultado enganoso (vetores de espaços diferentes não são comparáveis) e atende o edge case da spec sem migração silenciosa.
+
+## 14. Validação com o Ollama real (T063/T064)
+
+**Ambiente**: máquina de desenvolvimento só com CPU (16 núcleos, 15 GB de RAM, sem GPU), Ollama local, banco de desenvolvimento. Documentos sintéticos criados para o teste (não há normativa real): escolta hospitalar (PDF), plantão e troca de turno (DOCX), regras de visitação (TXT) e um manual de 50 páginas (PDF). Conjunto de 20 perguntas dentro do escopo e 10 fora do escopo.
+
+| Critério | Resultado | Meta |
+|---|---|---|
+| SC-001 (resposta correta e com fonte) | `qwen2.5:7b-instruct` 20/20 (100%); `qwen2.5:3b-instruct` 16/20 (80%) | 90% |
+| SC-002 (sem resposta quando fora do escopo) | 10/10 nos dois modelos | 100% |
+| SC-003 (resposta em até 30 s, p90) | **Não atingido** nesta máquina: 3b p90 48,5 s; 7b de 12 s a 141 s por pergunta | 30 s |
+| SC-004 (documento de 50 páginas disponível) | 71,8 s (58 trechos) | 5 min |
+
+**Decisões**:
+- `KNOWLEDGE_MIN_SIMILARITY=0.45` mantido: nenhuma pergunta fora do escopo gerou resposta e nenhuma dentro do escopo foi barrada. A maioria das perguntas fora do escopo termina em menos de 1 s porque nenhum trecho passa do limiar.
+- `bge-m3` com `EMBEDDING_DIMENSIONS=1024` mantidos (a decisão adiada no item 4).
+- Modelo de chat padrão continua `qwen2.5:7b-instruct` (qualidade). O SC-003 depende de hardware: em CPU a latência vem quase toda do processamento do prompt. Para atingir 30 s é preciso GPU, ou trocar `CHAT_PROVIDER` por `openai`/`claude`. Em CPU, quem quiser usar o 7b deve aumentar `AI_CHAT_TIMEOUT_MS` (com 60 s várias respostas caem em `EXCERPTS_ONLY`); o 3b é mais rápido, porém erra mais.
+
+**Cenários do quickstart executados**: envio e consulta com fontes; falha da IA devolvendo só os trechos (`EXCERPTS_ONLY`, com modelo de chat inexistente); atualização com novo arquivo (a resposta passou a usar o conteúdo novo) e exclusão (documento some da lista); histórico sem `PUT`, `PATCH` ou `DELETE` (404); `PRISON_OFFICER` recebe 403; troca de `OLLAMA_EMBEDDING_MODEL` marca os documentos como `NEEDS_REPROCESS`, avisa no log, ignora esses documentos nas consultas e o reprocessamento volta tudo a `READY`; `CHAT_PROVIDER=xyz` impede o boot com mensagem clara; com `KNOWLEDGE_QUERY_RATE_LIMIT=3` a 4ª pergunta no mesmo minuto recebe 429.
+
+**Log (FR-032)**: os logs de quatro instâncias do backend durante os testes têm apenas inicialização e linhas HTTP (método, rota, status, tempo). Nenhum texto de pergunta, resposta, conteúdo de documento ou chave de API.

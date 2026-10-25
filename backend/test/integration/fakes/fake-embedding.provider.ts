@@ -15,7 +15,11 @@ export class FakeEmbeddingProvider implements EmbeddingProvider {
 
   constructor(
     readonly dimensions = 1024,
-    modelId = 'fake:embedding',
+    // Mesmo id do provedor padrão da configuração de teste (env-setup.ts). Os arquivos de teste
+    // rodam em paralelo no mesmo banco, e cada `app.init()` marca como "Precisa reprocessar" os
+    // documentos indexados com outro modelo: um id diferente faria um arquivo derrubar os
+    // documentos de outro.
+    modelId = 'ollama:bge-m3',
   ) {
     this.modelId = modelId;
   }

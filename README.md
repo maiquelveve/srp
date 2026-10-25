@@ -4,7 +4,9 @@ Sistema digital que substitui as folhas impressas de controle de uma unidade pri
 presos e da estrutura (unidades, galerias, celas), movimentações em tempo real, situações
 definitivas, rotinas operacionais, escalas de efetivo, relatórios e auditoria. Inclui também a
 administração de usuários pela Chefia/Diretor, uma biblioteca de formulários/modelos/manuais e a
-troca de senha pelo próprio usuário — essas três últimas exclusivas do painel web.
+troca de senha pelo próprio usuário — essas três últimas exclusivas do painel web. A Chefia/Diretor e
+os Supervisores também têm uma base de conhecimento: carregam documentos (PDF, DOCX, TXT) e fazem
+perguntas em linguagem natural, respondidas por IA com base só nesses documentos.
 
 Monorepo com três aplicações:
 
@@ -42,10 +44,21 @@ Detalhamento: [`specs/001-gestao-rotinas-presos/tasks.md`](specs/001-gestao-roti
 
 Detalhamento: [`specs/002-administracao-usuarios-documentos/tasks.md`](specs/002-administracao-usuarios-documentos/tasks.md).
 
+### Feature 003 — Base de Conhecimento com RAG
+
+| US | Tema | Web | Mobile |
+|---|---|---|---|
+| US1 | Chat: perguntar e receber resposta baseada nos documentos, com referências | sim | não (FR-003) |
+| US2 | Carregar documentos (PDF, DOCX, TXT), processados em segundo plano | sim | não (FR-003) |
+| US3 | Visualizar, atualizar, reprocessar e excluir documentos | sim | não (FR-003) |
+| US4 | Histórico imutável de perguntas e respostas de todos os usuários | sim | não (FR-003) |
+
+Acesso só para Supervisor e Chefia/Diretor. Detalhamento: [`specs/003-knowledge-base-rag/tasks.md`](specs/003-knowledge-base-rag/tasks.md).
+
 ## Pré-requisitos
 
 - Node.js LTS e npm
-- Docker (para o PostgreSQL local)
+- Docker (para o PostgreSQL local e, na feature 003, o Ollama)
 
 ## Como rodar
 
@@ -56,6 +69,21 @@ cd docker/postgres
 cp .env.example .env      # ajuste os valores
 docker compose up -d
 ```
+
+### 1.1. IA local da base de conhecimento (feature 003)
+
+O banco usa a imagem `pgvector/pgvector` (extensão `vector`). A IA padrão roda localmente no
+Ollama, sem enviar nenhum dado a terceiros:
+
+```bash
+cd docker/ollama
+cp .env.example .env      # opcional: porta e nomes dos modelos
+docker compose up -d      # sobe o Ollama e baixa bge-m3 (embeddings) e qwen2.5:7b-instruct (chat)
+curl localhost:11434/api/tags   # confere os modelos baixados
+```
+
+O primeiro `up` baixa alguns GB. Sem o Ollama (ou outro provedor configurado), as demais telas
+funcionam, mas enviar documentos e perguntar falham com aviso na tela.
 
 ### 2. Backend
 
@@ -72,6 +100,13 @@ npm run start:dev         # http://localhost:3000
 - Variáveis de ambiente: veja `backend/.env.example`. Os limites de requisições
   (`THROTTLE_LIMIT`, `THROTTLE_TTL_MS`, `THROTTLE_LOGIN_LIMIT`) têm padrão seguro
   (100 por minuto e 5 logins por minuto por IP) e só devem ser elevados em teste de carga.
+- Base de conhecimento (feature 003), todas em `backend/.env.example` e com padrão para o Ollama local:
+  `EMBEDDING_PROVIDER` (`ollama` | `openai`), `CHAT_PROVIDER` (`ollama` | `openai` | `claude`),
+  `EMBEDDING_DIMENSIONS` (precisa bater com a coluna `vector(N)`; o backend recusa subir se não
+  bater), `OLLAMA_*`, `OPENAI_*`, `ANTHROPIC_*`, `KNOWLEDGE_STORAGE_PATH`,
+  `KNOWLEDGE_MIN_SIMILARITY` (nota mínima de um trecho) e `KNOWLEDGE_QUERY_RATE_LIMIT` (perguntas
+  por usuário por minuto). Atenção: `openai` e `claude` enviam perguntas e trechos de documentos a
+  terceiros. Trocar o modelo de embeddings marca os documentos como "Precisa reprocessar".
 
 ### 3. Frontend web
 
@@ -128,9 +163,14 @@ Os dois escrevem dados: rode apenas contra um banco descartável, nunca contra p
 - **Backend em camadas** (Constituição V): controllers só recebem requisições, services concentram
   as regras de negócio e o acesso ao banco passa pelos repositórios do TypeORM. Um módulo por
   domínio em `backend/src/` (`auth`, `users`, `units`, `galleries`, `cells`, `inmates`, `movements`,
-  `routines`, `posts`, `staff`, `reports`, `audit`).
+  `routines`, `posts`, `staff`, `reports`, `audit`, `knowledge`, `ai`).
 - **Auditoria imutável**: toda escrita gera um registro em `audit_logs`, e uma trigger no banco
   impede `UPDATE`, `DELETE` e `TRUNCATE` nessa tabela (`research.md` #50).
+- **Base de conhecimento (RAG)**: o documento é dividido em trechos, cada um vira um vetor
+  (embedding) no PostgreSQL com pgvector, e a pergunta busca os trechos mais parecidos para a IA
+  responder só com eles. Os provedores de IA ficam atrás de interfaces (`backend/src/ai`), então
+  trocar Ollama por OpenAI ou Claude é configuração. O histórico de perguntas é imutável, por
+  trigger no banco.
 - **Escopo de unidade**: todo dado é filtrado pelas unidades do usuário (FR-004a).
 - **Idioma**: código e esquema do banco em inglês; textos da interface em português (Constituição XI).
 - **Migrations**: o esquema só muda por migration (`synchronize` é sempre falso).
@@ -153,6 +193,13 @@ Os dois escrevem dados: rode apenas contra um banco descartável, nunca contra p
 | [`specs/002-administracao-usuarios-documentos/contracts/`](specs/002-administracao-usuarios-documentos/contracts/) | Contratos de cada grupo de endpoints |
 | [`specs/002-administracao-usuarios-documentos/research.md`](specs/002-administracao-usuarios-documentos/research.md) | Decisões técnicas numeradas e o porquê de cada uma |
 | [`specs/002-administracao-usuarios-documentos/quickstart.md`](specs/002-administracao-usuarios-documentos/quickstart.md) | Cenários de validação ponta a ponta |
+| [`specs/003-knowledge-base-rag/spec.md`](specs/003-knowledge-base-rag/spec.md) | Requisitos funcionais e critérios de sucesso (base de conhecimento com RAG) |
+| [`specs/003-knowledge-base-rag/plan.md`](specs/003-knowledge-base-rag/plan.md) | Plano técnico |
+| [`specs/003-knowledge-base-rag/tasks.md`](specs/003-knowledge-base-rag/tasks.md) | Tarefas e andamento |
+| [`specs/003-knowledge-base-rag/data-model.md`](specs/003-knowledge-base-rag/data-model.md) | Modelo de dados |
+| [`specs/003-knowledge-base-rag/contracts/`](specs/003-knowledge-base-rag/contracts/) | Contratos da API, dos fluxos e dos provedores de IA |
+| [`specs/003-knowledge-base-rag/research.md`](specs/003-knowledge-base-rag/research.md) | Decisões técnicas numeradas e o porquê de cada uma |
+| [`specs/003-knowledge-base-rag/quickstart.md`](specs/003-knowledge-base-rag/quickstart.md) | Cenários de validação ponta a ponta |
 | [`docs/style-guide.md`](docs/style-guide.md) | Guia de estilo das telas (web e mobile) |
 | [`docs/srp_spec_database_model.md`](docs/srp_spec_database_model.md) | Esquema do banco |
 | [`.specify/memory/constitution.md`](.specify/memory/constitution.md) | Constituição do projeto |

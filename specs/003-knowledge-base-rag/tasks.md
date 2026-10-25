@@ -194,12 +194,12 @@ Extensão dos projetos existentes (`plan.md` Project Structure); `mobile/` não 
 
 **Purpose**: Documentação, consistência e validação final (Constituição IX e X)
 
-- [ ] T059 [P] Adicionar testes de componente do frontend (AskPanel: envio, bloqueio de reenvio, fontes, aviso de trechos brutos; DocumentsTable: estados e polling; HistoryList: sem ações destrutivas) em `frontend/tests/knowledge-base/`
-- [ ] T060 [P] Atualizar `backend/test/integration/swagger.spec.ts` para cobrir os endpoints de `/api/v1/knowledge` e confirmar que `user-facing-text.spec.ts` cobre os textos novos do frontend (sem travessão)
-- [ ] T061 [P] Atualizar `docs/srp_spec_database_model.md` com as 3 tabelas novas, o `README.md` com a feature 003 (Ollama via compose, variáveis de ambiente, comandos) e `docs/style-guide.md` apenas se algum padrão novo de tela surgir
-- [ ] T062 Executar `npm run lint`, `npm test` e `npm run test:integration` em `backend/` e `npm run lint` e `npm test` em `frontend/`, corrigindo todas as falhas
-- [ ] T063 Executar os cenários 1 a 6 de `quickstart.md` contra o Ollama real e registrar o resultado do conjunto de validação (SC-001/SC-002); ajustar `KNOWLEDGE_MIN_SIMILARITY` e, se necessário, os modelos e `EMBEDDING_DIMENSIONS` (decisão adiada em research.md #4) e anotar os valores finais em `research.md`; registrar também os tempos medidos: tempo de resposta das consultas (p90, alvo de 30 s, SC-003) e tempo até um documento de 50 páginas ficar disponível (alvo de 5 min, SC-004)
-- [ ] T064 Revisar o log do backend durante os cenários do T063 e confirmar que nenhum texto de pergunta, resposta, conteúdo de documento ou chave de API aparece (FR-032)
+- [X] T059 [P] Adicionar testes de componente do frontend (AskPanel: envio, bloqueio de reenvio, fontes, aviso de trechos brutos; DocumentsTable: estados e polling; HistoryList: sem ações destrutivas) em `frontend/tests/knowledge-base/`
+- [X] T060 [P] Atualizar `backend/test/integration/swagger.spec.ts` para cobrir os endpoints de `/api/v1/knowledge` e confirmar que `user-facing-text.spec.ts` cobre os textos novos do frontend (sem travessão)
+- [X] T061 [P] Atualizar `docs/srp_spec_database_model.md` com as 3 tabelas novas, o `README.md` com a feature 003 (Ollama via compose, variáveis de ambiente, comandos) e `docs/style-guide.md` apenas se algum padrão novo de tela surgir
+- [X] T062 Executar `npm run lint`, `npm test` e `npm run test:integration` em `backend/` e `npm run lint` e `npm test` em `frontend/`, corrigindo todas as falhas
+- [X] T063 Executar os cenários 1 a 6 de `quickstart.md` contra o Ollama real e registrar o resultado do conjunto de validação (SC-001/SC-002); ajustar `KNOWLEDGE_MIN_SIMILARITY` e, se necessário, os modelos e `EMBEDDING_DIMENSIONS` (decisão adiada em research.md #4) e anotar os valores finais em `research.md`; registrar também os tempos medidos: tempo de resposta das consultas (p90, alvo de 30 s, SC-003) e tempo até um documento de 50 páginas ficar disponível (alvo de 5 min, SC-004)
+- [X] T064 Revisar o log do backend durante os cenários do T063 e confirmar que nenhum texto de pergunta, resposta, conteúdo de documento ou chave de API aparece (FR-032)
 
 ---
 

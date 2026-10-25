@@ -29,7 +29,8 @@ export class KnowledgeBootstrapService implements OnApplicationBootstrap {
    * de parecerem disponíveis e nunca aparecerem nas respostas.
    */
   private async markDocumentsFromOtherModelForReprocess(): Promise<void> {
-    const rows: Array<{ id: number }> = await this.dataSource.query(
+    // Para UPDATE ... RETURNING o driver do PostgreSQL devolve `[linhas, quantidade]`, não só as linhas.
+    const [, markedCount] = (await this.dataSource.query(
       `
       UPDATE knowledge_documents d
       SET status = 'NEEDS_REPROCESS', updated_at = now()
@@ -41,10 +42,10 @@ export class KnowledgeBootstrapService implements OnApplicationBootstrap {
       RETURNING d.id
       `,
       [this.embeddingProvider.modelId],
-    );
-    if (rows.length > 0) {
+    )) as [unknown[], number | undefined];
+    if (markedCount) {
       this.logger.warn(
-        `${rows.length} documento(s) indexados com outro modelo de embeddings marcados para reprocessar`,
+        `${markedCount} documento(s) indexados com outro modelo de embeddings marcados para reprocessar`,
       );
     }
   }

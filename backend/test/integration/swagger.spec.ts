@@ -65,4 +65,31 @@ describe('OpenAPI document', () => {
       .map((operation) => `${operation.method} ${operation.path}`);
     expect(missing).toEqual([]);
   });
+
+  it('documents every /api/v1/knowledge endpoint of the contract', () => {
+    const documented = operations
+      .filter((operation) => operation.path.startsWith('/api/v1/knowledge/'))
+      .map((operation) => `${operation.method.toUpperCase()} ${operation.path}`)
+      .sort();
+    expect(documented).toEqual(
+      [
+        'GET /api/v1/knowledge/documents',
+        'POST /api/v1/knowledge/documents',
+        'GET /api/v1/knowledge/documents/{id}/file',
+        'PUT /api/v1/knowledge/documents/{id}',
+        'DELETE /api/v1/knowledge/documents/{id}',
+        'POST /api/v1/knowledge/documents/{id}/reprocess',
+        'GET /api/v1/knowledge/queries',
+        'POST /api/v1/knowledge/queries',
+      ].sort(),
+    );
+  });
+
+  it('exposes no way to change or delete the knowledge query history (FR-024)', () => {
+    const forbidden = operations
+      .filter((operation) => operation.path.startsWith('/api/v1/knowledge/queries'))
+      .filter((operation) => !['get', 'post'].includes(operation.method))
+      .map((operation) => `${operation.method} ${operation.path}`);
+    expect(forbidden).toEqual([]);
+  });
 });

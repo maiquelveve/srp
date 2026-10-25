@@ -19,3 +19,6 @@ process.env.KNOWLEDGE_STORAGE_PATH = './storage/knowledge-test';
 // muitas perguntas com o mesmo usuário; o teste de 429 preenche o histórico até ele.
 process.env.KNOWLEDGE_QUERY_RATE_LIMIT = '30';
 process.env.KNOWLEDGE_MIN_SIMILARITY = '0.45';
+// Modelo de embeddings fixo: o provedor falso dos testes usa este mesmo id (ver fake-embedding.provider.ts).
+process.env.EMBEDDING_PROVIDER = 'ollama';
+process.env.OLLAMA_EMBEDDING_MODEL = 'bge-m3';
