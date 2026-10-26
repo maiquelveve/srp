@@ -82,11 +82,19 @@ docker compose up -d      # sobe o Ollama e baixa bge-m3 (embeddings) e qwen2.5:
 curl localhost:11434/api/tags   # confere os modelos baixados
 ```
 
+Arquivos em `docker/ollama/`:
+
+- `docker-compose.yml`: sobe o serviço `ollama` (o servidor de IA local, na porta 11434, com os
+  modelos guardados no volume `srp-ollama-models`) e o `ollama-pull`, que roda uma vez, baixa
+  `bge-m3` e `qwen2.5:7b-instruct` e termina. Roda na CPU. É o que se usa em desenvolvimento.
+- `docker-compose.gpu.yml`: não sobe nada sozinho. Ele acrescenta ao serviço `ollama` a reserva da
+  GPU NVIDIA, para os modelos rodarem na GPU e a consulta ficar bem mais rápida. É o que se usa em
+  produção.
+
 Em produção, use um servidor com GPU NVIDIA (8 a 12 GB de VRAM para o `qwen2.5:7b-instruct`) e o
-NVIDIA Container Toolkit, e suba com `docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d`.
-Em CPU a consulta passa de 30 s (SC-003); veja `specs/003-knowledge-base-rag/research.md` #14.
-Cada `-f` indica um arquivo do Compose e os dois são combinados: o segundo só acrescenta a reserva
-da GPU. Em máquina sem GPU, use apenas `docker compose up -d`.
+NVIDIA Container Toolkit, e suba com os dois arquivos juntos:
+`docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d`. Em CPU a consulta passa de
+30 s (SC-003); veja `specs/003-knowledge-base-rag/research.md` #14.
 
 O primeiro `up` baixa alguns GB. Sem o Ollama (ou outro provedor configurado), as demais telas
 funcionam, mas enviar documentos e perguntar falham com aviso na tela.

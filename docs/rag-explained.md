@@ -476,9 +476,15 @@ cd docker/ollama
 docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
 ```
 
-Cada `-f` indica um arquivo de configuração do Docker Compose, e os dois são combinados. O primeiro é
-a receita normal; o segundo só acrescenta a reserva da GPU. Em uma máquina sem GPU, use apenas
-`docker compose up -d`. O servidor precisa de driver NVIDIA e do NVIDIA Container Toolkit.
+Os arquivos de `docker/ollama/` fazem o seguinte:
+
+- `docker-compose.yml`: sobe o serviço `ollama` (o servidor de IA local, na porta 11434, com os
+  modelos guardados no volume `srp-ollama-models`) e o `ollama-pull`, que roda uma vez, baixa
+  `bge-m3` (embeddings) e `qwen2.5:7b-instruct` (chat) e termina. Roda na CPU. É o que se usa em
+  desenvolvimento.
+- `docker-compose.gpu.yml`: não sobe nada sozinho. Ele acrescenta ao serviço `ollama` a reserva da
+  GPU NVIDIA, para os modelos rodarem na GPU. É o que se usa em produção. O servidor precisa de
+  driver NVIDIA e do NVIDIA Container Toolkit.
 
 ---
 
