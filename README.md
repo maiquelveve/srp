@@ -85,6 +85,8 @@ curl localhost:11434/api/tags   # confere os modelos baixados
 Em produção, use um servidor com GPU NVIDIA (8 a 12 GB de VRAM para o `qwen2.5:7b-instruct`) e o
 NVIDIA Container Toolkit, e suba com `docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d`.
 Em CPU a consulta passa de 30 s (SC-003); veja `specs/003-knowledge-base-rag/research.md` #14.
+Cada `-f` indica um arquivo do Compose e os dois são combinados: o segundo só acrescenta a reserva
+da GPU. Em máquina sem GPU, use apenas `docker compose up -d`.
 
 O primeiro `up` baixa alguns GB. Sem o Ollama (ou outro provedor configurado), as demais telas
 funcionam, mas enviar documentos e perguntar falham com aviso na tela.
@@ -174,7 +176,7 @@ Os dois escrevem dados: rode apenas contra um banco descartável, nunca contra p
   (embedding) no PostgreSQL com pgvector, e a pergunta busca os trechos mais parecidos para a IA
   responder só com eles. Os provedores de IA ficam atrás de interfaces (`backend/src/ai`), então
   trocar Ollama por OpenAI ou Claude é configuração. O histórico de perguntas é imutável, por
-  trigger no banco.
+  trigger no banco. Passo a passo completo em [`docs/rag-explained.md`](docs/rag-explained.md).
 - **Escopo de unidade**: todo dado é filtrado pelas unidades do usuário (FR-004a).
 - **Idioma**: código e esquema do banco em inglês; textos da interface em português (Constituição XI).
 - **Migrations**: o esquema só muda por migration (`synchronize` é sempre falso).
@@ -205,5 +207,6 @@ Os dois escrevem dados: rode apenas contra um banco descartável, nunca contra p
 | [`specs/003-knowledge-base-rag/research.md`](specs/003-knowledge-base-rag/research.md) | Decisões técnicas numeradas e o porquê de cada uma |
 | [`specs/003-knowledge-base-rag/quickstart.md`](specs/003-knowledge-base-rag/quickstart.md) | Cenários de validação ponta a ponta |
 | [`docs/style-guide.md`](docs/style-guide.md) | Guia de estilo das telas (web e mobile) |
+| [`docs/rag-explained.md`](docs/rag-explained.md) | Como o RAG funciona no backend: fluxo de ingestão e consulta, conceitos e configuração |
 | [`docs/srp_spec_database_model.md`](docs/srp_spec_database_model.md) | Esquema do banco |
 | [`.specify/memory/constitution.md`](.specify/memory/constitution.md) | Constituição do projeto |
