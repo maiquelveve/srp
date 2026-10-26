@@ -264,3 +264,9 @@ Task: "Implementar ClaudeChatProvider em backend/src/ai/providers/claude-chat.pr
 
 - A decisão final de modelos e `EMBEDDING_DIMENSIONS` está adiada para os testes (research.md #4). Se a dimensão mudar, ajustar T008/T010 **antes** de qualquer carga real.
 - Commit sugerido ao fim de cada fase ou story, na branch `003-knowledge-base-rag`.
+
+---
+
+## Phase 8: Convergence
+
+- [X] T065 Documentar o requisito de GPU para atingir o p90 de 30 s: `docker/ollama/docker-compose.gpu.yml`, seção no `README.md` e nota em `research.md` #14, per SC-003 (partial). A medição com GPU fica para o servidor de produção

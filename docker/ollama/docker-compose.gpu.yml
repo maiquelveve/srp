@@ -1,0 +1,11 @@
+# Reserva uma GPU NVIDIA para o Ollama. Uso: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+# Requer o NVIDIA Container Toolkit instalado no servidor.
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

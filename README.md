@@ -82,6 +82,10 @@ docker compose up -d      # sobe o Ollama e baixa bge-m3 (embeddings) e qwen2.5:
 curl localhost:11434/api/tags   # confere os modelos baixados
 ```
 
+Em produção, use um servidor com GPU NVIDIA (8 a 12 GB de VRAM para o `qwen2.5:7b-instruct`) e o
+NVIDIA Container Toolkit, e suba com `docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d`.
+Em CPU a consulta passa de 30 s (SC-003); veja `specs/003-knowledge-base-rag/research.md` #14.
+
 O primeiro `up` baixa alguns GB. Sem o Ollama (ou outro provedor configurado), as demais telas
 funcionam, mas enviar documentos e perguntar falham com aviso na tela.
 
