@@ -485,17 +485,3 @@ Os arquivos de `docker/ollama/` fazem o seguinte:
 - `docker-compose.gpu.yml`: não sobe nada sozinho. Ele acrescenta ao serviço `ollama` a reserva da
   GPU NVIDIA, para os modelos rodarem na GPU. É o que se usa em produção. O servidor precisa de
   driver NVIDIA e do NVIDIA Container Toolkit.
-
----
-
-# Limitações conhecidas
-
-- **Não há conversa com memória.** Cada pergunta é independente: "e o segundo?" não funciona, porque
-  o sistema não envia perguntas anteriores à IA.
-- **A IA não aprende com o histórico.** O histórico serve para rastreabilidade e auditoria, e o
-  limite de uso também consulta essa tabela.
-- **PDF só com imagem** (escaneado) não tem texto extraível e falha com `NO_EXTRACTABLE_TEXT`. Não há
-  OCR.
-- **Formato `.doc` antigo não é aceito.** Só PDF, DOCX e TXT.
-- **O limite de uso não é à prova de concorrência.** Duas perguntas simultâneas podem passar juntas
-  pela contagem, o que é aceitável para um teto de cerca de 10 por minuto.

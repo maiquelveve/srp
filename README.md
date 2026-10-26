@@ -184,7 +184,7 @@ Os dois escrevem dados: rode apenas contra um banco descartável, nunca contra p
   (embedding) no PostgreSQL com pgvector, e a pergunta busca os trechos mais parecidos para a IA
   responder só com eles. Os provedores de IA ficam atrás de interfaces (`backend/src/ai`), então
   trocar Ollama por OpenAI ou Claude é configuração. O histórico de perguntas é imutável, por
-  trigger no banco. Passo a passo completo em [`docs/rag-explained.md`](docs/rag-explained.md).
+  trigger no banco. [Veja o passo a passo completo de como o RAG funciona aqui](docs/rag-explained.md).
 - **Escopo de unidade**: todo dado é filtrado pelas unidades do usuário (FR-004a).
 - **Idioma**: código e esquema do banco em inglês; textos da interface em português (Constituição XI).
 - **Migrations**: o esquema só muda por migration (`synchronize` é sempre falso).
