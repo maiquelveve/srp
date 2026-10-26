@@ -123,6 +123,24 @@ describe('file-signature', () => {
       expect(matchesDeclaredExtension('planilha.docx', XLSX_DISGUISED_AS_DOCX_BYTES)).toBe(false);
       expect(matchesDeclaredExtension('planilha.doc', XLS_DISGUISED_AS_DOC_BYTES)).toBe(false);
     });
+
+    describe('with a restricted list of allowed formats', () => {
+      const allowedFormats = ['pdf', 'docx', 'txt'] as const;
+
+      it('still accepts the allowed formats', () => {
+        expect(matchesDeclaredExtension('a.pdf', PDF_BYTES, allowedFormats)).toBe(true);
+        expect(matchesDeclaredExtension('a.docx', DOCX_BYTES, allowedFormats)).toBe(true);
+        expect(matchesDeclaredExtension('a.txt', TXT_BYTES, allowedFormats)).toBe(true);
+      });
+
+      it('rejects a valid .doc because it is outside the list', () => {
+        expect(matchesDeclaredExtension('a.doc', DOC_BYTES, allowedFormats)).toBe(false);
+      });
+
+      it('keeps the content check inside the allowed formats', () => {
+        expect(matchesDeclaredExtension('a.pdf', EXE_BYTES, allowedFormats)).toBe(false);
+      });
+    });
   });
 
   it('maps every detected format to a real MIME type, never trusting the request header', () => {

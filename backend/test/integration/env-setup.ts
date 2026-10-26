@@ -12,3 +12,13 @@ process.env.DOCUMENTS_STORAGE_PATH = './storage/documents-test';
 // sem precisar gerar um arquivo de dezenas de MB; os arquivos de teste reais
 // usados nos outros casos têm poucos bytes, bem abaixo de 1 MB.
 process.env.DOCUMENTS_MAX_FILE_SIZE_MB = '1';
+// Idem para os arquivos da base de conhecimento (feature 003).
+process.env.KNOWLEDGE_STORAGE_PATH = './storage/knowledge-test';
+// Consulta da base de conhecimento (feature 003): valores fixos para a suíte não
+// depender do .env de desenvolvimento. O limite é folgado para os testes que fazem
+// muitas perguntas com o mesmo usuário; o teste de 429 preenche o histórico até ele.
+process.env.KNOWLEDGE_QUERY_RATE_LIMIT = '30';
+process.env.KNOWLEDGE_MIN_SIMILARITY = '0.45';
+// Modelo de embeddings fixo: o provedor falso dos testes usa este mesmo id (ver fake-embedding.provider.ts).
+process.env.EMBEDDING_PROVIDER = 'ollama';
+process.env.OLLAMA_EMBEDDING_MODEL = 'bge-m3';

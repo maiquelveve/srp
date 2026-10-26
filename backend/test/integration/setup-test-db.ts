@@ -24,6 +24,7 @@ const TEST_DB_NAME = 'srp_db_test';
 // Mesmo isolamento de `test/integration/env-setup.ts` (só pra Jest) — este
 // script roda fora do Jest, direto via `ts-node`, então precisa setar sozinho.
 const TEST_STORAGE_PATH = './storage/documents-test';
+const TEST_KNOWLEDGE_STORAGE_PATH = './storage/knowledge-test';
 
 async function ensureTestDatabaseExists(): Promise<void> {
   const maintenanceClient = new Client({
@@ -54,6 +55,8 @@ async function main(): Promise<void> {
   // `documents`/`document_types` não entram no TRUNCATE abaixo (ver nota ali)
   // — limpa os arquivos físicos de uma rodada anterior pra não acumular.
   await rm(TEST_STORAGE_PATH, { recursive: true, force: true });
+  process.env.KNOWLEDGE_STORAGE_PATH = TEST_KNOWLEDGE_STORAGE_PATH;
+  await rm(TEST_KNOWLEDGE_STORAGE_PATH, { recursive: true, force: true });
   const { AppDataSource } = await import('../../src/database/data-source');
 
   await AppDataSource.initialize();
@@ -61,6 +64,11 @@ async function main(): Promise<void> {
 
   const tables = [
     'audit_logs',
+    // Base de conhecimento (feature 003). `knowledge_queries` é imutável como `audit_logs`:
+    // a trigger é desligada logo abaixo só durante o reset.
+    'knowledge_queries',
+    'knowledge_document_chunks',
+    'knowledge_documents',
     // `document_types` fica de fora de propósito: as 3 linhas fixas vêm só
     // do seed da migration `AddDocumentsTables` (roda uma vez só), não há
     // endpoint que crie/edite/remova essa tabela (data-model.md, FR-009).
@@ -88,11 +96,17 @@ async function main(): Promise<void> {
   // the reset has to switch its trigger off first and back on right after. Only the
   // table owner can do this, which is exactly the guarantee the trigger gives.
   await AppDataSource.query(`ALTER TABLE "audit_logs" DISABLE TRIGGER "audit_logs_immutable"`);
+  await AppDataSource.query(
+    `ALTER TABLE "knowledge_queries" DISABLE TRIGGER "knowledge_queries_immutable"`,
+  );
   try {
     await AppDataSource.query(
       `TRUNCATE ${tables.map((t) => `"${t}"`).join(', ')} RESTART IDENTITY CASCADE;`,
     );
   } finally {
+    await AppDataSource.query(
+      `ALTER TABLE "knowledge_queries" ENABLE TRIGGER "knowledge_queries_immutable"`,
+    );
     await AppDataSource.query(`ALTER TABLE "audit_logs" ENABLE TRIGGER "audit_logs_immutable"`);
   }
 
